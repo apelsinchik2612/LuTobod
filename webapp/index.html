@@ -406,7 +406,8 @@ const API_BASE = new URLSearchParams(location.search).get('api') || '';
 let balance = 0;
 let mult = 2;
 let spinning = false;
-let arrowAngle = -Math.PI / 2;
+const INITIAL_ANGLE = -Math.PI / 2;
+let arrowAngle = INITIAL_ANGLE;
 let raf = null;
 let fastMode = false;
 let displayPct = 50;
@@ -641,6 +642,26 @@ function setUILocked(locked) {
     document.querySelectorAll('.mbtn').forEach(el => { el.disabled = locked; });
 }
 
+// ── ВОЗВРАТ СТРЕЛКИ НА СТАРТ ─────────────────────────
+function animateReturnArrow(done) {
+    const from = arrowAngle;
+    const fromNorm = ((from % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    const toNorm   = ((INITIAL_ANGLE % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    let delta = toNorm - fromNorm;
+    if (Math.abs(delta) > Math.PI) delta -= Math.sign(delta) * Math.PI * 2;
+    const dur = 380;
+    const t0 = performance.now();
+    function frame(now) {
+        const t = Math.min((now - t0) / dur, 1);
+        const e = t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
+        arrowAngle = from + delta * e;
+        drawWheel(arrowAngle, displayWc);
+        if (t < 1) { raf = requestAnimationFrame(frame); }
+        else { arrowAngle = INITIAL_ANGLE; drawWheel(arrowAngle, displayWc); raf = null; done?.(); }
+    }
+    raf = requestAnimationFrame(frame);
+}
+
 // ── SPIN ──────────────────────────────────────────────
 async function doSpin() {
     if (spinning) return;
@@ -691,34 +712,36 @@ async function doSpin() {
     }
     landAngle = ((landAngle % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
 
-    const fullRots = fastMode ? 2 : (5 + Math.floor(Math.random() * 3));
-    const curNorm = ((arrowAngle % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
-    let delta = landAngle - curNorm;
+    // Стрелка всегда стартует с INITIAL_ANGLE (возвращается туда после каждого прокрута)
+    const startAngle = INITIAL_ANGLE;
+    const initNorm = ((INITIAL_ANGLE % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
+    let delta = landAngle - initNorm;
     if (delta < 0.01) delta += Math.PI * 2;
+    const fullRots = fastMode ? 2 : (5 + Math.floor(Math.random() * 3));
     const totalDelta = fullRots * Math.PI * 2 + delta;
 
-    const startAngle = arrowAngle;
-    const duration = fastMode ? (3200 + Math.random() * 600) : (5000 + Math.random() * 1000);
+    // Быстрый режим — ровно в 2х быстрее, одинаковая плавность
+    const baseDur = 5000 + Math.random() * 1000;
+    const duration = fastMode ? baseDur / 2 : baseDur;
     const t0 = performance.now();
 
-    function easeOut(t) { return 1 - Math.pow(1 - t, 4); }
     function easeInOut(t) { return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2; }
 
     function frame(now) {
         const t = Math.min((now - t0) / duration, 1);
-        const easedT = fastMode ? easeOut(t) : easeInOut(t);
-        arrowAngle = startAngle + totalDelta * easedT;
+        arrowAngle = startAngle + totalDelta * easeInOut(t);
         drawWheel(arrowAngle, wc);
         if (t < 1) { raf = requestAnimationFrame(frame); }
         else {
             arrowAngle = startAngle + totalDelta;
-            setTimeout(() => {
+            drawWheel(arrowAngle, wc);
+            animateReturnArrow(() => {
                 setBalance(result.new_balance);
                 showResult(won, bet, result.profit, mult);
                 spinning = false;
                 document.getElementById('spin-btn').disabled = false;
                 setUILocked(false);
-            }, 250);
+            });
         }
     }
     raf = requestAnimationFrame(frame);
