@@ -156,6 +156,16 @@ html, body {
 .info-item-val.g { color: var(--green); }
 .info-item-val.r { color: var(--red); }
 
+.speed-btn {
+    padding: 6px 12px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--surface);
+    color: var(--text2); font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: all .15s;
+}
+.speed-btn.fast {
+    border-color: var(--accent); color: var(--accent);
+    background: rgba(88,166,255,0.08);
+}
 .spin-btn {
     width: 100%; padding: 15px; border-radius: 14px; border: none;
     background: linear-gradient(135deg, #1c6b38, #1a4f8c);
@@ -265,12 +275,6 @@ html, body {
                 <input type="number" id="bet-inp" class="inp" placeholder="100" min="1" step="1">
                 <span class="inp-sfx">₽</span>
             </div>
-            <div class="quick-row">
-                <button class="qbtn" data-pct="0.1">10%</button>
-                <button class="qbtn" data-pct="0.25">25%</button>
-                <button class="qbtn" data-pct="0.5">50%</button>
-                <button class="qbtn" data-pct="1">MAX</button>
-            </div>
         </div>
 
         <div class="w100">
@@ -289,6 +293,9 @@ html, body {
             <div class="info-item"><div class="info-item-lbl">Выиграешь</div><div class="info-item-val g" id="prev-win">—</div></div>
         </div>
 
+        <div style="display:flex;justify-content:flex-end;width:100%;">
+            <button id="speed-btn" class="speed-btn">🐢 Обычно</button>
+        </div>
         <button class="spin-btn w100" id="spin-btn">КРУТИТЬ</button>
     </div>
 </div>
@@ -314,8 +321,11 @@ const API_BASE = new URLSearchParams(location.search).get('api') || '';
 let balance = 0;
 let mult = 2;
 let spinning = false;
-let wRot = 0;
+let arrowAngle = -Math.PI / 2;
 let raf = null;
+let fastMode = false;
+let displayPct = 50;
+let pctRaf = null;
 
 // ── SCREENS ──────────────────────────────────────────
 const screens = document.querySelectorAll('.screen');
@@ -352,69 +362,124 @@ async function loadBalance() {
     } catch(e) { toast('Сервер недоступен: ' + e.message); }
 }
 
+// ── SMOOTH PERCENT ────────────────────────────────────
+function animatePct(target) {
+    if (pctRaf) cancelAnimationFrame(pctRaf);
+    const start = displayPct, diff = target - start;
+    if (!diff) return;
+    const t0 = performance.now(), dur = 260;
+    function frame(now) {
+        const t = Math.min((now - t0) / dur, 1);
+        const e = t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
+        const p = Math.round(start + diff * e);
+        document.getElementById('chance-pct').textContent = p + '%';
+        document.getElementById('prev-chance').textContent = p + '%';
+        if (t < 1) { pctRaf = requestAnimationFrame(frame); }
+        else { displayPct = target; pctRaf = null; }
+    }
+    pctRaf = requestAnimationFrame(frame);
+}
+
 // ── WHEEL ─────────────────────────────────────────────
 const cv = document.getElementById('wc');
 const ctx = cv.getContext('2d');
 const CX = cv.width/2, CY = cv.height/2, R = CX-8;
 
-function drawWheel(rot, wc) {
-    ctx.clearRect(0,0,cv.width,cv.height);
+function drawWheel(angle, wc) {
+    ctx.clearRect(0, 0, cv.width, cv.height);
     const wa = wc * Math.PI * 2;
-    const s = -Math.PI/2 + rot;
+    const winMid = Math.PI / 2; // bottom
+    const winStart = winMid - wa / 2;
+    const winEnd = winMid + wa / 2;
 
-    // lose zone
-    ctx.beginPath(); ctx.moveTo(CX,CY);
-    ctx.arc(CX,CY,R, s+wa, s+Math.PI*2); ctx.closePath();
-    ctx.fillStyle = '#2a1010'; ctx.fill();
+    // Lose background
+    ctx.beginPath();
+    ctx.arc(CX, CY, R, 0, Math.PI * 2);
+    ctx.fillStyle = '#2a1010';
+    ctx.fill();
 
-    // win zone
-    ctx.beginPath(); ctx.moveTo(CX,CY);
-    ctx.arc(CX,CY,R, s, s+wa); ctx.closePath();
-    ctx.fillStyle = '#0f2b18'; ctx.fill();
+    // Win zone
+    ctx.beginPath();
+    ctx.moveTo(CX, CY);
+    ctx.arc(CX, CY, R, winStart, winEnd);
+    ctx.closePath();
+    ctx.fillStyle = '#0f2b18';
+    ctx.fill();
 
-    // win border
-    ctx.beginPath(); ctx.arc(CX,CY,R, s, s+wa);
-    ctx.strokeStyle='#3fb950'; ctx.lineWidth=3; ctx.stroke();
+    // Green border (win)
+    ctx.beginPath();
+    ctx.arc(CX, CY, R, winStart, winEnd);
+    ctx.strokeStyle = '#3fb950'; ctx.lineWidth = 3;
+    ctx.stroke();
 
-    // lose border
-    ctx.beginPath(); ctx.arc(CX,CY,R, s+wa, s+Math.PI*2);
-    ctx.strokeStyle='#f85149'; ctx.lineWidth=3; ctx.stroke();
+    // Red border (lose)
+    ctx.beginPath();
+    ctx.arc(CX, CY, R, winEnd, winStart + Math.PI * 2);
+    ctx.strokeStyle = '#f85149'; ctx.lineWidth = 3;
+    ctx.stroke();
 
-    // divider lines
-    [s, s+wa].forEach(a => {
+    // Dividers
+    [winStart, winEnd].forEach(a => {
         ctx.beginPath();
-        ctx.moveTo(CX,CY);
-        ctx.lineTo(CX+Math.cos(a)*R, CY+Math.sin(a)*R);
-        ctx.strokeStyle='#30363d'; ctx.lineWidth=1.5; ctx.stroke();
+        ctx.moveTo(CX, CY);
+        ctx.lineTo(CX + Math.cos(a) * R, CY + Math.sin(a) * R);
+        ctx.strokeStyle = '#30363d'; ctx.lineWidth = 1.5;
+        ctx.stroke();
     });
 
-    // inner circle
-    ctx.beginPath(); ctx.arc(CX,CY,R*0.27,0,Math.PI*2);
-    ctx.fillStyle='#0d1117'; ctx.fill();
-    ctx.strokeStyle='#30363d'; ctx.lineWidth=2; ctx.stroke();
-
-    // pointer at top (fixed)
+    // Inner circle
     ctx.beginPath();
-    ctx.moveTo(CX, CY-R-1);
-    ctx.lineTo(CX-7, CY-R+14);
-    ctx.lineTo(CX+7, CY-R+14);
+    ctx.arc(CX, CY, R * 0.27, 0, Math.PI * 2);
+    ctx.fillStyle = '#0d1117'; ctx.fill();
+    ctx.strokeStyle = '#30363d'; ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Arrow
+    const innerR = R * 0.28, outerR = R * 0.88;
+    const tipX = CX + Math.cos(angle) * outerR;
+    const tipY = CY + Math.sin(angle) * outerR;
+    const headLen = 14;
+    const backX = tipX - Math.cos(angle) * headLen;
+    const backY = tipY - Math.sin(angle) * headLen;
+    const px = -Math.sin(angle), py = Math.cos(angle);
+
+    ctx.save();
+    ctx.shadowColor = '#ffffff'; ctx.shadowBlur = 10;
+
+    // Shaft
+    ctx.beginPath();
+    ctx.moveTo(CX + Math.cos(angle) * innerR, CY + Math.sin(angle) * innerR);
+    ctx.lineTo(backX, backY);
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3;
+    ctx.lineCap = 'round'; ctx.stroke();
+
+    // Arrowhead
+    ctx.beginPath();
+    ctx.moveTo(tipX, tipY);
+    ctx.lineTo(backX + px * 7, backY + py * 7);
+    ctx.lineTo(backX - px * 7, backY - py * 7);
     ctx.closePath();
-    ctx.fillStyle='#ffffff';
-    ctx.shadowColor='#ffffff'; ctx.shadowBlur=8;
-    ctx.fill(); ctx.shadowBlur=0;
+    ctx.fillStyle = '#ffffff'; ctx.fill();
+
+    ctx.restore();
+
+    // Center dot
+    ctx.beginPath();
+    ctx.arc(CX, CY, 5, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = '#ffffff'; ctx.shadowBlur = 6;
+    ctx.fill(); ctx.shadowBlur = 0;
 }
 
 function winChance() { return 1/mult; }
 
 function updateUI() {
     const wc = winChance();
-    const pct = Math.round(wc*100);
-    document.getElementById('chance-pct').textContent = pct+'%';
-    document.getElementById('prev-chance').textContent = pct+'%';
-    const bet = parseFloat(document.getElementById('bet-inp').value)||0;
-    document.getElementById('prev-bet').textContent = bet>0 ? fmt(bet) : '—';
-    document.getElementById('prev-win').textContent = bet>0 ? '+'+fmt(bet*(mult-1)) : '—';
-    drawWheel(wRot, wc);
+    animatePct(Math.round(wc * 100));
+    const bet = parseFloat(document.getElementById('bet-inp').value) || 0;
+    document.getElementById('prev-bet').textContent = bet > 0 ? fmt(bet) : '—';
+    document.getElementById('prev-win').textContent = bet > 0 ? '+'+fmt(bet*(mult-1)) : '—';
+    drawWheel(arrowAngle, wc);
 }
 
 // ── SPIN ──────────────────────────────────────────────
@@ -438,46 +503,47 @@ async function doSpin() {
 
     if (result.error) { toast(result.error); spinning=false; document.getElementById('spin-btn').disabled=false; return; }
 
-    // animate
     const wc = winChance();
     const wa = wc * Math.PI * 2;
+    const winMid = Math.PI / 2;
+    const winStart = winMid - wa / 2;
+    const winEnd = winMid + wa / 2;
     const won = result.won;
 
-    let landPos;
+    let landAngle;
     if (won) {
-        landPos = 0.1*wa + Math.random()*wa*0.8;
+        landAngle = winStart + wa * 0.15 + Math.random() * wa * 0.7;
     } else {
-        const lr = Math.PI*2 - wa;
-        landPos = wa + 0.1*lr + Math.random()*lr*0.8;
+        const lr = Math.PI * 2 - wa;
+        landAngle = winEnd + lr * 0.1 + Math.random() * lr * 0.8;
     }
+    landAngle = ((landAngle % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
 
-    // hitPos = (2π - rot%2π)%2π = landPos  =>  rot%2π = (2π - landPos)%2π
-    const fullRots = 6 + Math.floor(Math.random()*4);
-    const curNorm = ((wRot%(Math.PI*2))+Math.PI*2)%(Math.PI*2);
-    const targetNorm = (Math.PI*2 - landPos + Math.PI*2)%(Math.PI*2);
-    let delta = targetNorm - curNorm;
-    if (delta < 0.01) delta += Math.PI*2;
-    const totalDelta = fullRots*Math.PI*2 + delta;
+    const fullRots = fastMode ? 2 : (5 + Math.floor(Math.random() * 4));
+    const curNorm = ((arrowAngle % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
+    let delta = landAngle - curNorm;
+    if (delta < 0.01) delta += Math.PI * 2;
+    const totalDelta = fullRots * Math.PI * 2 + delta;
 
-    const startRot = wRot;
-    const duration = 3800 + Math.random()*800;
+    const startAngle = arrowAngle;
+    const duration = fastMode ? 550 : (3200 + Math.random() * 600);
     const t0 = performance.now();
 
-    function ease(t) { return 1 - Math.pow(1-t, 4); }
+    function easeOut(t) { return fastMode ? t : 1 - Math.pow(1-t, 4); }
 
     function frame(now) {
-        const t = Math.min((now-t0)/duration, 1);
-        wRot = startRot + totalDelta * ease(t);
-        drawWheel(wRot, wc);
+        const t = Math.min((now - t0) / duration, 1);
+        arrowAngle = startAngle + totalDelta * easeOut(t);
+        drawWheel(arrowAngle, wc);
         if (t < 1) { raf = requestAnimationFrame(frame); }
         else {
-            wRot = (startRot + totalDelta) % (Math.PI*2);
+            arrowAngle = startAngle + totalDelta;
             setTimeout(() => {
                 setBalance(result.new_balance);
                 showResult(won, bet, result.profit);
                 spinning = false;
                 document.getElementById('spin-btn').disabled = false;
-            }, 250);
+            }, fastMode ? 50 : 250);
         }
     }
     raf = requestAnimationFrame(frame);
@@ -523,14 +589,15 @@ document.querySelectorAll('.mbtn').forEach(b => b.onclick = () => {
     updateUI();
 });
 
-document.querySelectorAll('.qbtn').forEach(b => b.onclick = () => {
-    const v = Math.floor(balance * parseFloat(b.dataset.pct));
-    document.getElementById('bet-inp').value = v > 0 ? v : '';
-    updateUI();
-});
+document.getElementById('speed-btn').onclick = () => {
+    fastMode = !fastMode;
+    const btn = document.getElementById('speed-btn');
+    btn.textContent = fastMode ? '⚡ Быстро' : '🐢 Обычно';
+    btn.classList.toggle('fast', fastMode);
+};
 
 // ── INIT ──────────────────────────────────────────────
-loadBalance().then(() => drawWheel(0, 0.5));
+loadBalance().then(() => drawWheel(arrowAngle, 0.5));
 </script>
 </body>
 </html>
