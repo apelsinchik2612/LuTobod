@@ -1,1957 +1,1095 @@
-import asyncio
-import logging
-import hmac
-import hashlib
-import json
-import random
-import secrets
-from datetime import datetime
-from pathlib import Path
-from urllib.parse import unquote
-import aiosqlite
-from aiohttp import web as aio_web
-from aiogram import Bot, Dispatcher, Router, F, BaseMiddleware
-from aiogram.types import (
-    Message, CallbackQuery,
-    InlineKeyboardMarkup, InlineKeyboardButton,
-    ReplyKeyboardMarkup, KeyboardButton, WebAppInfo,
-)
-from aiogram.filters import Command, CommandStart
-from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import State, StatesGroup
-from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.client.session.aiohttp import AiohttpSession
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Лутобот</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+    --bg: #0d1117; --surface: #161b22; --surface2: #21262d;
+    --green: #3fb950; --red: #f85149;
+    --text: #e6edf3; --text2: #8b949e; --border: #30363d; --accent: #58a6ff;
+}
+html, body {
+    width: 100%;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    user-select: none; -webkit-tap-highlight-color: transparent;
+}
+/* 1: убираем стрелочки у number input */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; }
 
-# ===================== КОНФИГ =====================
-BOT_TOKEN = "8672400944:AAHNBgcNkkcOi2q-dXgqH34EDRHWxAacQ5k"
-SUPERADMIN_IDS: set[int] = {8513748992}   # нельзя удалить через команды
-ADMIN_IDS: set[int] = set(SUPERADMIN_IDS) # дополняется из БД при запуске
-DB_PATH = "bot.db"
-PROXY = ""
-WEB_PORT = int(__import__('os').environ.get('PORT', 8080))
-# Вставь сюда свой домен с BotHost (из раздела "Web" в панели хостинга)
-WEB_URL = "https://lutobod-production.up.railway.app"
-WEBAPP_DIR = Path(__file__).parent / "webapp"
-# ==================================================
+.screen {
+    display: none; flex-direction: column; min-height: 100vh;
+}
+.screen.active { display: flex; animation: fadeIn .18s ease; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-VALID_SETTINGS = {
-    "short_numbers", "notify_transfers", "hide_from_top",
-    "confirm_pay", "show_join_date", "quiet_mode",
+/* HEADER */
+.hdr {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.hdr-title { font-size: 17px; font-weight: 700; }
+.bal-chip {
+    display: flex; align-items: center; gap: 5px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; padding: 5px 12px;
+    font-size: 13px; font-weight: 700; color: var(--green);
+}
+.back-btn {
+    display: flex; align-items: center; gap: 4px;
+    background: none; border: none; color: var(--accent);
+    font-size: 15px; cursor: pointer; padding: 4px 0;
+}
+.back-btn svg { width: 18px; height: 18px; }
+
+/* === SCREEN MAIN === */
+.main-body {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 24px; gap: 12px;
+}
+.logo {
+    font-size: 38px; font-weight: 900; letter-spacing: -1.5px;
+    background: linear-gradient(135deg, #3fb950, #58a6ff);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; margin-bottom: 4px;
+}
+.logo-sub { font-size: 13px; color: var(--text2); margin-bottom: 28px; }
+.menu-btn {
+    width: 100%; max-width: 310px; padding: 15px 20px;
+    border-radius: 14px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text);
+    font-size: 15px; font-weight: 600; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    transition: all .15s;
+}
+.menu-btn:active { transform: scale(.97); }
+.menu-btn.primary {
+    background: linear-gradient(135deg, #162d1e, #162438);
+    border-color: var(--green); color: var(--green);
+}
+.menu-btn.disabled { opacity: .3; pointer-events: none; }
+.menu-btn .ico { font-size: 20px; }
+
+/* === SCREEN GAMES === */
+.sec-label {
+    font-size: 11px; color: var(--text2);
+    text-transform: uppercase; letter-spacing: .5px;
+    padding: 14px 16px 8px;
+}
+.game-card {
+    margin: 0 16px 10px; padding: 14px 16px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; display: flex; align-items: center; gap: 14px;
+    cursor: pointer; transition: all .15s;
+}
+.game-card:active { border-color: var(--green); transform: scale(.98); }
+.game-ico {
+    width: 50px; height: 50px; border-radius: 12px; flex-shrink: 0;
+    background: linear-gradient(135deg, #162d1e, #162438);
+    border: 1px solid var(--green);
+    display: flex; align-items: center; justify-content: center; font-size: 26px;
+}
+.game-name { font-size: 15px; font-weight: 700; }
+.game-desc { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.chev { margin-left: auto; color: var(--text2); flex-shrink: 0; }
+
+/* === SCREEN UPGRADER === */
+.upg-body {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; padding: 14px 16px 60px; gap: 14px;
+}
+.wheel-wrap { position: relative; width: 230px; height: 230px; flex-shrink: 0; }
+#wc { display: block; }
+.wheel-center {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; pointer-events: none;
+}
+.chance-big { font-size: 30px; font-weight: 900; }
+.chance-lbl { font-size: 11px; color: var(--text2); }
+
+.field-lbl { font-size: 11px; color: var(--text2); margin-bottom: 5px; text-transform: uppercase; letter-spacing:.4px; }
+.inp-wrap {
+    display: flex; align-items: center;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+}
+.inp-wrap:focus-within { border-color: var(--accent); }
+.inp {
+    flex: 1; background: none; border: none;
+    padding: 11px 14px; color: var(--text);
+    font-size: 16px; font-weight: 700; outline: none; width: 0;
+}
+.inp-sfx { padding: 0 14px 0 0; color: var(--text2); font-size: 14px; font-weight: 600; }
+
+.mult-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+.mbtn {
+    padding: 9px 4px; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--surface);
+    color: var(--text); font-size: 15px; font-weight: 700;
+    cursor: pointer; text-align: center; transition: all .15s;
+}
+.mbtn:active { transform: scale(.95); }
+.mbtn.sel { background: linear-gradient(135deg, #162d1e, #162438); border-color: var(--green); color: var(--green); }
+.mbtn:disabled { opacity: .35; cursor: not-allowed; pointer-events: none; }
+
+.info-row {
+    display: flex; justify-content: space-between; width: 100%;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 11px 16px;
+}
+.info-item { text-align: center; }
+.info-item-lbl { font-size: 10px; color: var(--text2); text-transform: uppercase; }
+.info-item-val { font-size: 15px; font-weight: 800; margin-top: 2px; }
+.info-item-val.g { color: var(--green); }
+.info-item-val.r { color: var(--red); }
+
+.speed-btn {
+    padding: 6px 12px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--surface);
+    color: var(--text2); font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: all .15s;
+}
+.speed-btn.fast {
+    border-color: var(--accent); color: var(--accent);
+    background: rgba(88,166,255,0.08);
+}
+.speed-btn:disabled { opacity: .35; cursor: not-allowed; pointer-events: none; }
+
+.bet-slider {
+    width: 100%; margin-top: 10px;
+    -webkit-appearance: none; appearance: none;
+    height: 4px; border-radius: 4px; outline: none; cursor: pointer;
+    background: var(--border);
+}
+.bet-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--green); border: 2px solid #0d1117;
+    box-shadow: 0 0 6px rgba(63,185,80,0.5);
+    cursor: pointer; transition: transform .1s;
+}
+.bet-slider::-webkit-slider-thumb:active { transform: scale(1.2); }
+.bet-slider::-moz-range-thumb {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--green); border: 2px solid #0d1117;
+    cursor: pointer;
+}
+.bet-slider:disabled { opacity: .35; cursor: not-allowed; pointer-events: none; }
+
+.spin-btn {
+    width: 100%; padding: 15px; border-radius: 14px; border: none;
+    background: linear-gradient(135deg, #1c6b38, #1a4f8c);
+    color: #fff; font-size: 16px; font-weight: 900; letter-spacing: .5px;
+    cursor: pointer; text-transform: uppercase; transition: all .15s;
+}
+.spin-btn:active:not(:disabled) { transform: scale(.98); opacity: .9; }
+.spin-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* RESULT OVERLAY */
+.overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.85);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 100; opacity: 0; pointer-events: none; transition: opacity .25s;
+}
+.overlay.show { opacity: 1; pointer-events: all; }
+.res-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; padding: 30px 40px; text-align: center;
+    transform: scale(.85);
+    transition: transform .3s cubic-bezier(.34,1.56,.64,1);
+}
+.overlay.show .res-card { transform: scale(1); }
+.res-emo { font-size: 56px; margin-bottom: 10px; }
+.res-title { font-size: 24px; font-weight: 900; margin-bottom: 8px; }
+.res-amt { font-size: 17px; font-weight: 600; color: var(--text2); margin-bottom: 22px; }
+.res-amt b { font-weight: 900; }
+.res-btn {
+    padding: 11px 30px; border-radius: 12px; border: none;
+    background: var(--surface2); color: var(--text);
+    font-size: 15px; font-weight: 700; cursor: pointer;
+}
+.res-btn:active { opacity: .7; }
+
+/* TOAST */
+.toast {
+    position: fixed; bottom: 20px; left: 50%;
+    transform: translateX(-50%) translateY(60px);
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 9px 18px;
+    font-size: 13px; font-weight: 600; z-index: 200;
+    transition: transform .25s ease; white-space: nowrap;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+.w100 { width: 100%; }
+
+/* === MINESWEEPER === */
+.ms-body {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; padding: 14px 16px 60px; gap: 14px;
+}
+.ms-bombs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+.ms-grid {
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    gap: 6px; width: 100%;
+}
+.ms-cell {
+    aspect-ratio: 1; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--surface2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; cursor: pointer; transition: background .12s, border-color .12s, transform .1s;
+    -webkit-tap-highlight-color: transparent;
+}
+.ms-cell.clickable:active { transform: scale(.9); }
+.ms-cell.safe {
+    background: linear-gradient(135deg, #162d1e, #0d1e14);
+    border-color: var(--green); cursor: default;
+}
+.ms-cell.mine-hit {
+    background: linear-gradient(135deg, #2d1616, #1e0d0d);
+    border-color: var(--red); cursor: default;
+    animation: shake .3s ease;
+}
+.ms-cell.mine-rev {
+    background: #1a0808; border-color: #4d1a1a;
+    cursor: default; opacity: 0.65;
+}
+@keyframes shake {
+    0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}
+}
+.ms-win-box {
+    width: 100%; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 12px 16px; text-align: center;
+}
+.ms-win-lbl { font-size: 10px; color: var(--text2); text-transform: uppercase; letter-spacing: .4px; }
+.ms-win-val { font-size: 28px; font-weight: 900; color: var(--green); margin: 4px 0 1px; }
+.ms-win-mult { font-size: 13px; color: var(--text2); font-weight: 600; }
+.cashout-btn {
+    width: 100%; padding: 15px; border-radius: 14px; border: none;
+    background: linear-gradient(135deg, #1c4e1c, #1a6e2a);
+    color: #fff; font-size: 16px; font-weight: 900; letter-spacing: .5px;
+    cursor: pointer; text-transform: uppercase; transition: all .15s;
+}
+.cashout-btn:active:not(:disabled) { transform: scale(.98); opacity: .9; }
+.cashout-btn:disabled { opacity: .35; cursor: not-allowed; }
+</style>
+</head>
+<body>
+
+<!-- MAIN -->
+<div id="s-main" class="screen active">
+    <div class="hdr">
+        <span style="font-size:18px;font-weight:800;">🎰 Лутобот</span>
+        <div class="bal-chip">💰 <span id="bal-main">...</span></div>
+    </div>
+    <div class="main-body">
+        <div class="logo">ЛУТОБОТ</div>
+        <div class="logo-sub">Игровая платформа</div>
+        <button class="menu-btn primary" id="btn-play"><span class="ico">🎮</span>Играть</button>
+        <button class="menu-btn disabled"><span class="ico">⚙️</span>Настройки</button>
+        <button class="menu-btn disabled"><span class="ico">🏪</span>Магазин</button>
+    </div>
+</div>
+
+<!-- GAMES -->
+<div id="s-games" class="screen">
+    <div class="hdr">
+        <button class="back-btn" id="btn-back-games">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>Назад
+        </button>
+        <span class="hdr-title">Игры</span>
+        <div class="bal-chip">💰 <span id="bal-games">...</span></div>
+    </div>
+    <div class="sec-label">Доступные игры</div>
+    <div class="game-card" id="btn-upgrader">
+        <div class="game-ico">⬆️</div>
+        <div>
+            <div class="game-name">Апгрейдер</div>
+            <div class="game-desc">Рискни балансом ради большего</div>
+        </div>
+        <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+    </div>
+    <div class="game-card" id="btn-minesweeper">
+        <div class="game-ico">💣</div>
+        <div>
+            <div class="game-name">Сапёр</div>
+            <div class="game-desc">Обходи мины — забирай выигрыш</div>
+        </div>
+        <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+    </div>
+</div>
+
+<!-- UPGRADER -->
+<div id="s-upgrader" class="screen">
+    <div class="hdr">
+        <button class="back-btn" id="btn-back-upg">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>Назад
+        </button>
+        <span class="hdr-title">Апгрейдер</span>
+        <div class="bal-chip">💰 <span id="bal-upg">...</span></div>
+    </div>
+    <div class="upg-body">
+        <div class="wheel-wrap">
+            <canvas id="wc" width="230" height="230"></canvas>
+            <div class="wheel-center">
+                <div class="chance-big" id="chance-pct">50%</div>
+                <div class="chance-lbl">шанс победы</div>
+            </div>
+        </div>
+
+        <div class="w100">
+            <div class="field-lbl">Ставка</div>
+            <div class="inp-wrap">
+                <input type="number" id="bet-inp" class="inp" placeholder="500" min="500" step="1">
+                <span class="inp-sfx">₽</span>
+            </div>
+            <input type="range" id="bet-slider" class="bet-slider" min="500" max="500" step="1" value="500">
+        </div>
+
+        <div class="w100">
+            <div class="field-lbl">Множитель</div>
+            <div class="mult-grid">
+                <button class="mbtn sel" data-m="2">2×</button>
+                <button class="mbtn" data-m="3">3×</button>
+                <button class="mbtn" data-m="5">5×</button>
+                <button class="mbtn" data-m="10">10×</button>
+            </div>
+        </div>
+
+        <div class="info-row">
+            <div class="info-item"><div class="info-item-lbl">Ставка</div><div class="info-item-val" id="prev-bet">—</div></div>
+            <div class="info-item"><div class="info-item-lbl">Шанс</div><div class="info-item-val" id="prev-chance">50%</div></div>
+            <div class="info-item"><div class="info-item-lbl">Выиграешь</div><div class="info-item-val g" id="prev-win">—</div></div>
+        </div>
+
+        <div style="display:flex;gap:8px;width:100%;">
+            <button id="speed-btn" class="speed-btn" style="flex-shrink:0;">🐢 Обычно</button>
+            <button class="spin-btn" id="spin-btn" style="flex:1;">КРУТИТЬ</button>
+        </div>
+
+    </div>
+</div>
+
+<!-- MINESWEEPER -->
+<div id="s-minesweeper" class="screen">
+    <div class="hdr">
+        <button class="back-btn" id="btn-back-ms">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>Назад
+        </button>
+        <span class="hdr-title">Сапёр</span>
+        <div class="bal-chip">💰 <span id="bal-ms">...</span></div>
+    </div>
+    <div class="ms-body">
+
+        <!-- Ставка -->
+        <div class="w100" id="ms-bet-section">
+            <div class="field-lbl">Ставка</div>
+            <div class="inp-wrap">
+                <input type="number" id="ms-bet-inp" class="inp" placeholder="500" min="500" step="1">
+                <span class="inp-sfx">₽</span>
+            </div>
+            <input type="range" id="ms-bet-slider" class="bet-slider" min="500" max="500" step="1" value="500">
+        </div>
+
+        <!-- Кол-во бомб -->
+        <div class="w100" id="ms-bombs-section">
+            <div class="field-lbl">Количество бомб</div>
+            <div class="ms-bombs-grid" id="ms-bombs-grid">
+                <button class="mbtn" data-mines="1">1 💣</button>
+                <button class="mbtn sel" data-mines="3">3 💣</button>
+                <button class="mbtn" data-mines="5">5 💣</button>
+                <button class="mbtn" data-mines="10">10 💣</button>
+                <button class="mbtn" data-mines="15">15 💣</button>
+                <button class="mbtn" data-mines="20">20 💣</button>
+            </div>
+        </div>
+
+        <!-- Инфо-строка -->
+        <div class="info-row" id="ms-info-row">
+            <div class="info-item"><div class="info-item-lbl">Ставка</div><div class="info-item-val" id="ms-info-bet">—</div></div>
+            <div class="info-item"><div class="info-item-lbl">Бомб</div><div class="info-item-val" id="ms-info-bombs">3</div></div>
+            <div class="info-item"><div class="info-item-lbl">× за клетку</div><div class="info-item-val g" id="ms-info-mult">—</div></div>
+        </div>
+
+        <!-- Кнопка старта -->
+        <button class="spin-btn" id="ms-start-btn">НАЧАТЬ ИГРУ</button>
+
+        <!-- Игровая зона (скрыта до старта) -->
+        <div id="ms-game-area" style="display:none;width:100%;flex-direction:column;gap:14px;align-items:center;">
+            <div class="ms-win-box">
+                <div class="ms-win-lbl">Текущий выигрыш</div>
+                <div class="ms-win-val" id="ms-win-val">—</div>
+                <div class="ms-win-mult" id="ms-win-mult">×1.00</div>
+            </div>
+            <div class="ms-grid" id="ms-grid"></div>
+            <button class="cashout-btn" id="ms-cashout-btn" disabled>ЗАБРАТЬ —</button>
+        </div>
+
+    </div>
+</div>
+
+<!-- RESULT OVERLAY -->
+<div class="overlay" id="overlay">
+    <div class="res-card">
+        <div class="res-emo" id="res-emo"></div>
+        <div class="res-title" id="res-title"></div>
+        <div class="res-amt" id="res-amt"></div>
+        <button class="res-btn" id="res-close">Продолжить</button>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const tg = window.Telegram?.WebApp;
+if (tg) { tg.ready(); tg.expand(); tg.disableVerticalSwipes?.(); }
+
+const initData = tg?.initData || '';
+const API_BASE = new URLSearchParams(location.search).get('api') || '';
+let balance = 0;
+let mult = 2;
+let spinning = false;
+let currentGame = 'upgrader';
+const INITIAL_ANGLE = -Math.PI / 2;
+let arrowAngle = INITIAL_ANGLE;
+let raf = null;
+let fastMode = false;
+let displayPct = 50;
+let displayWc = 0.5;
+let chanceRaf = null;
+
+// ── SCREENS ──────────────────────────────────────────
+const screens = document.querySelectorAll('.screen');
+function go(id) {
+    screens.forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
 }
 
-MONTHS_RU = [
-    "января", "февраля", "марта", "апреля", "мая", "июня",
-    "июля", "августа", "сентября", "октября", "ноября", "декабря",
-]
-
-session = AiohttpSession(proxy=PROXY) if PROXY else AiohttpSession()
-bot = Bot(token=BOT_TOKEN, session=session)
-dp = Dispatcher(storage=MemoryStorage())
-router = Router()
-
-
-class PromoState(StatesGroup):
-    waiting = State()
-
-
-class ReportState(StatesGroup):
-    waiting = State()
-
-
-# ===================== БАЗА ДАННЫХ =====================
-
-async def db_init():
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id               INTEGER PRIMARY KEY,
-                username         TEXT,
-                balance          REAL    DEFAULT 0,
-                games_played     INTEGER DEFAULT 0,
-                uid              INTEGER UNIQUE,
-                short_numbers    INTEGER DEFAULT 0,
-                notify_transfers INTEGER DEFAULT 1,
-                hide_from_top    INTEGER DEFAULT 0,
-                confirm_pay      INTEGER DEFAULT 0,
-                show_join_date   INTEGER DEFAULT 1,
-                quiet_mode       INTEGER DEFAULT 0,
-                banned           INTEGER DEFAULT 0,
-                registered_at    TEXT
-            )
-        """)
-        for col, typ, default in [
-            ("short_numbers",    "INTEGER", "0"),
-            ("notify_transfers", "INTEGER", "1"),
-            ("hide_from_top",    "INTEGER", "0"),
-            ("confirm_pay",      "INTEGER", "0"),
-            ("show_join_date",   "INTEGER", "1"),
-            ("quiet_mode",       "INTEGER", "0"),
-            ("banned",           "INTEGER", "0"),
-            ("is_admin",         "INTEGER", "0"),
-            ("registered_at",    "TEXT",    "NULL"),
-        ]:
-            try:
-                await db.execute(
-                    f"ALTER TABLE users ADD COLUMN {col} {typ} DEFAULT {default}"
-                )
-            except Exception:
-                pass
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS promo_codes (
-                code       TEXT PRIMARY KEY,
-                reward     REAL    NOT NULL,
-                max_uses   INTEGER NOT NULL,
-                uses_count INTEGER DEFAULT 0
-            )
-        """)
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS used_promos (
-                user_id INTEGER NOT NULL,
-                code    TEXT    NOT NULL,
-                PRIMARY KEY (user_id, code)
-            )
-        """)
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS warnings (
-                id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id    INTEGER NOT NULL,
-                reason     TEXT,
-                created_at TEXT    NOT NULL
-            )
-        """)
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS transactions (
-                id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                type       TEXT    NOT NULL,
-                from_id    INTEGER,
-                to_id      INTEGER,
-                amount     REAL    NOT NULL DEFAULT 0,
-                created_at TEXT    NOT NULL
-            )
-        """)
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS reports (
-                id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id    INTEGER NOT NULL,
-                username   TEXT,
-                reason     TEXT    NOT NULL,
-                status     TEXT    NOT NULL DEFAULT 'open',
-                created_at TEXT    NOT NULL
-            )
-        """)
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS game_history (
-                id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id    INTEGER NOT NULL,
-                won        INTEGER NOT NULL,
-                bet        REAL    NOT NULL,
-                profit     REAL    NOT NULL,
-                mult       REAL    NOT NULL,
-                created_at TEXT    NOT NULL
-            )
-        """)
-        await db.execute(
-            "INSERT OR IGNORE INTO promo_codes (code, reward, max_uses) VALUES (?, ?, ?)",
-            ("TEST100", 100.0, 10)
-        )
-        await db.commit()
-
-
-async def get_or_create_user(user_id: int, username: str) -> tuple[dict, bool]:
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT * FROM users WHERE id = ?", (user_id,)) as cur:
-            row = await cur.fetchone()
-        if row is None:
-            async with db.execute("SELECT COALESCE(MAX(uid), 0) + 1 FROM users") as cur:
-                uid = (await cur.fetchone())[0]
-            now = datetime.now().strftime("%Y-%m-%d")
-            await db.execute(
-                "INSERT INTO users (id, username, balance, games_played, uid, registered_at)"
-                " VALUES (?, ?, 0, 0, ?, ?)",
-                (user_id, username, uid, now)
-            )
-            await db.commit()
-            async with db.execute("SELECT * FROM users WHERE id = ?", (user_id,)) as cur:
-                row = await cur.fetchone()
-            return dict(row), True
-        return dict(row), False
-
-
-async def get_user(user_id: int) -> dict | None:
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT * FROM users WHERE id = ?", (user_id,)) as cur:
-            row = await cur.fetchone()
-        return dict(row) if row else None
-
-
-async def get_user_by_username(username: str) -> dict | None:
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT * FROM users WHERE username = ?", (username.lstrip("@"),)
-        ) as cur:
-            row = await cur.fetchone()
-        return dict(row) if row else None
-
-
-async def get_user_rank(user_id: int) -> int:
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute(
-            "SELECT COUNT(*) FROM users WHERE balance > (SELECT balance FROM users WHERE id = ?)",
-            (user_id,)
-        ) as cur:
-            return (await cur.fetchone())[0] + 1
-
-
-async def get_top(limit: int = 10) -> list:
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT username, balance FROM users WHERE hide_from_top = 0"
-            " ORDER BY balance DESC LIMIT ?",
-            (limit,)
-        ) as cur:
-            return [dict(r) for r in await cur.fetchall()]
-
-
-async def toggle_setting(user_id: int, setting: str):
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute(f"SELECT {setting} FROM users WHERE id = ?", (user_id,)) as cur:
-            row = await cur.fetchone()
-        new_val = 0 if row[0] else 1
-        await db.execute(f"UPDATE users SET {setting} = ? WHERE id = ?", (new_val, user_id))
-        await db.commit()
-
-
-async def transfer(from_id: int, to_id: int, amount: float) -> str:
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute("SELECT balance FROM users WHERE id = ?", (from_id,)) as cur:
-            sender = await cur.fetchone()
-        if not sender or sender[0] < amount:
-            return "not_enough"
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        await db.execute("UPDATE users SET balance = balance - ? WHERE id = ?", (amount, from_id))
-        await db.execute("UPDATE users SET balance = balance + ? WHERE id = ?", (amount, to_id))
-        await db.execute(
-            "INSERT INTO transactions (type, from_id, to_id, amount, created_at) VALUES (?, ?, ?, ?, ?)",
-            ("pay", from_id, to_id, amount, now)
-        )
-        await db.commit()
-        return "ok"
-
-
-async def use_promo(code: str, user_id: int) -> tuple[str, float]:
-    code = code.upper()
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute(
-            "SELECT 1 FROM used_promos WHERE user_id = ? AND code = ?", (user_id, code)
-        ) as cur:
-            if await cur.fetchone():
-                return "already_used", 0.0
-        async with db.execute(
-            "SELECT reward, max_uses, uses_count FROM promo_codes WHERE code = ?", (code,)
-        ) as cur:
-            promo = await cur.fetchone()
-        if not promo:
-            return "invalid", 0.0
-        reward, max_uses, uses_count = promo
-        if uses_count >= max_uses:
-            return "exhausted", 0.0
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        await db.execute(
-            "UPDATE promo_codes SET uses_count = uses_count + 1 WHERE code = ?", (code,)
-        )
-        await db.execute(
-            "INSERT INTO used_promos (user_id, code) VALUES (?, ?)", (user_id, code)
-        )
-        await db.execute("UPDATE users SET balance = balance + ? WHERE id = ?", (reward, user_id))
-        await db.execute(
-            "INSERT INTO transactions (type, to_id, amount, created_at) VALUES (?, ?, ?, ?)",
-            ("promo", user_id, reward, now)
-        )
-        await db.commit()
-        return "ok", reward
-
-
-async def resolve_target(target_str: str) -> dict | None:
-    if target_str.startswith("@"):
-        return await get_user_by_username(target_str[1:])
-    try:
-        return await get_user(int(target_str))
-    except ValueError:
-        return None
-
-
-async def create_promo(code: str, reward: float, max_uses: int) -> bool:
-    """Возвращает False если промокод уже существует."""
-    async with aiosqlite.connect(DB_PATH) as db:
-        try:
-            await db.execute(
-                "INSERT INTO promo_codes (code, reward, max_uses) VALUES (?, ?, ?)",
-                (code.upper(), reward, max_uses)
-            )
-            await db.commit()
-            return True
-        except Exception:
-            return False
-
-
-async def remove_promo(code: str) -> bool:
-    """Возвращает False если промокод не найден."""
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute(
-            "SELECT 1 FROM promo_codes WHERE code = ?", (code.upper(),)
-        ) as cur:
-            if not await cur.fetchone():
-                return False
-        await db.execute("DELETE FROM promo_codes WHERE code = ?", (code.upper(),))
-        await db.execute("DELETE FROM used_promos WHERE code = ?", (code.upper(),))
-        await db.commit()
-        return True
-
-
-async def get_all_promos() -> list:
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT code, reward, max_uses, uses_count FROM promo_codes ORDER BY code"
-        ) as cur:
-            return [dict(r) for r in await cur.fetchall()]
-
-
-async def add_balance(user_id: int, amount: float):
-    async with aiosqlite.connect(DB_PATH) as db:
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        await db.execute("UPDATE users SET balance = balance + ? WHERE id = ?", (amount, user_id))
-        await db.execute(
-            "INSERT INTO transactions (type, to_id, amount, created_at) VALUES (?, ?, ?, ?)",
-            ("addbalance", user_id, amount, now)
-        )
-        await db.commit()
-
-
-async def subtract_balance(user_id: int, amount: float):
-    async with aiosqlite.connect(DB_PATH) as db:
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        await db.execute("UPDATE users SET balance = balance - ? WHERE id = ?", (amount, user_id))
-        await db.execute(
-            "INSERT INTO transactions (type, to_id, amount, created_at) VALUES (?, ?, ?, ?)",
-            ("removebalance", user_id, amount, now)
-        )
-        await db.commit()
-
-
-async def set_balance_exact(user_id: int, amount: float):
-    async with aiosqlite.connect(DB_PATH) as db:
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        await db.execute("UPDATE users SET balance = ? WHERE id = ?", (amount, user_id))
-        await db.execute(
-            "INSERT INTO transactions (type, to_id, amount, created_at) VALUES (?, ?, ?, ?)",
-            ("setbalance", user_id, amount, now)
-        )
-        await db.commit()
-
-
-async def reset_user(user_id: int):
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "UPDATE users SET balance = 0, games_played = 0 WHERE id = ?", (user_id,)
-        )
-        await db.commit()
-
-
-async def reset_all():
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("UPDATE users SET balance = 0, games_played = 0")
-        await db.commit()
-
-
-async def add_warning(user_id: int, reason: str) -> int:
-    async with aiosqlite.connect(DB_PATH) as db:
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        await db.execute(
-            "INSERT INTO warnings (user_id, reason, created_at) VALUES (?, ?, ?)",
-            (user_id, reason, now)
-        )
-        await db.commit()
-        async with db.execute(
-            "SELECT COUNT(*) FROM warnings WHERE user_id = ?", (user_id,)
-        ) as cur:
-            return (await cur.fetchone())[0]
-
-
-async def get_warnings(user_id: int) -> list:
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT reason, created_at FROM warnings WHERE user_id = ? ORDER BY id",
-            (user_id,)
-        ) as cur:
-            return [dict(r) for r in await cur.fetchall()]
-
-
-async def clear_warnings(user_id: int):
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("DELETE FROM warnings WHERE user_id = ?", (user_id,))
-        await db.commit()
-
-
-async def ban_user(user_id: int):
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("UPDATE users SET banned = 1 WHERE id = ?", (user_id,))
-        await db.commit()
-
-
-async def get_all_user_ids() -> list[int]:
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute("SELECT id FROM users") as cur:
-            return [r[0] for r in await cur.fetchall()]
-
-
-async def get_stats_data() -> dict:
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT id, username FROM users ORDER BY uid") as cur:
-            users = [dict(r) for r in await cur.fetchall()]
-        async with db.execute("SELECT COUNT(*) FROM transactions") as cur:
-            tx_count = (await cur.fetchone())[0]
-        async with db.execute("SELECT COALESCE(SUM(balance), 0) FROM users") as cur:
-            total_balance = (await cur.fetchone())[0]
-    return {"users": users, "tx_count": tx_count, "total_balance": total_balance}
-
-
-async def load_admins():
-    """Загружает is_admin=1 из БД в ADMIN_IDS при старте."""
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute("SELECT id FROM users WHERE is_admin = 1") as cur:
-            rows = await cur.fetchall()
-    for row in rows:
-        ADMIN_IDS.add(row[0])
-
-
-async def db_add_admin(user_id: int):
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("UPDATE users SET is_admin = 1 WHERE id = ?", (user_id,))
-        await db.commit()
-    ADMIN_IDS.add(user_id)
-
-
-async def db_remove_admin(user_id: int):
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("UPDATE users SET is_admin = 0 WHERE id = ?", (user_id,))
-        await db.commit()
-    ADMIN_IDS.discard(user_id)
-
-
-async def unban_user(user_id: int):
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("UPDATE users SET banned = 0 WHERE id = ?", (user_id,))
-        await db.commit()
-
-
-async def add_report(user_id: int, username: str, reason: str) -> int:
-    async with aiosqlite.connect(DB_PATH) as db:
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        cur = await db.execute(
-            "INSERT INTO reports (user_id, username, reason, created_at) VALUES (?, ?, ?, ?)",
-            (user_id, username, reason, now)
-        )
-        await db.commit()
-        return cur.lastrowid
-
-
-async def get_open_reports() -> list:
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT * FROM reports WHERE status = 'open' ORDER BY id"
-        ) as cur:
-            return [dict(r) for r in await cur.fetchall()]
-
-
-async def get_report(report_id: int) -> dict | None:
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT * FROM reports WHERE id = ?", (report_id,)) as cur:
-            row = await cur.fetchone()
-        return dict(row) if row else None
-
-
-async def close_report(report_id: int):
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("UPDATE reports SET status = 'closed' WHERE id = ?", (report_id,))
-        await db.commit()
-
-
-async def delete_report(report_id: int):
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("DELETE FROM reports WHERE id = ?", (report_id,))
-        await db.commit()
-
-
-# ===================== WEB SERVER =====================
-
-def validate_init_data(init_data: str) -> int | None:
-    if not init_data:
-        return None
-    try:
-        parsed: dict[str, str] = {}
-        for item in init_data.split('&'):
-            if '=' in item:
-                k, v = item.split('=', 1)
-                parsed[k] = unquote(v)
-        received_hash = parsed.pop('hash', '')
-        if not received_hash:
-            return None
-        data_check = '\n'.join(f"{k}={v}" for k, v in sorted(parsed.items()))
-        secret = hmac.new(b"WebAppData", BOT_TOKEN.encode(), hashlib.sha256).digest()
-        expected = hmac.new(secret, data_check.encode(), hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(expected, received_hash):
-            return None
-        user = json.loads(parsed.get('user', '{}'))
-        return user.get('id')
-    except Exception:
-        return None
-
-
-async def web_index(request: aio_web.Request) -> aio_web.Response:
-    return aio_web.FileResponse(WEBAPP_DIR / "index.html")
-
-
-async def web_api_ping(request: aio_web.Request) -> aio_web.Response:
-    return aio_web.json_response({'ok': True})
-
-
-async def web_api_user(request: aio_web.Request) -> aio_web.Response:
-    try:
-        user_id = validate_init_data(request.query.get('init_data', ''))
-        if not user_id:
-            logging.warning("web_api_user: invalid init_data")
-            return aio_web.json_response({'error': 'Unauthorized'}, status=401)
-        user = await get_user(user_id)
-        if not user:
-            logging.warning("web_api_user: user %s not found", user_id)
-            return aio_web.json_response({'error': 'Пользователь не найден'}, status=404)
-        return aio_web.json_response({
-            'user_id': user_id,
-            'balance': user['balance'],
-            'username': user.get('username', ''),
-        })
-    except Exception:
-        logging.exception("web_api_user crashed")
-        return aio_web.json_response({'error': 'Внутренняя ошибка сервера'}, status=500)
-
-
-async def web_api_upgrade(request: aio_web.Request) -> aio_web.Response:
-    try:
-        data = await request.json()
-    except Exception:
-        return aio_web.json_response({'error': 'Неверный запрос'}, status=400)
-
-    user_id = validate_init_data(data.get('init_data', ''))
-    if not user_id:
-        return aio_web.json_response({'error': 'Unauthorized'}, status=401)
-
-    try:
-        bet = round(float(data['bet']), 2)
-        multiplier = round(float(data['multiplier']), 2)
-    except (KeyError, TypeError, ValueError):
-        return aio_web.json_response({'error': 'Неверные данные'})
-
-    if bet < 500:
-        return aio_web.json_response({'error': 'Минимальная ставка 500₽'})
-    if multiplier < 1.1 or multiplier > 100:
-        return aio_web.json_response({'error': 'Неверный множитель'})
-
-    user = await get_user(user_id)
-    if not user:
-        return aio_web.json_response({'error': 'Пользователь не найден'})
-    if user.get('banned', 0):
-        return aio_web.json_response({'error': 'Вы заблокированы'})
-
-    balance = round(float(user['balance']), 2)
-    if balance < bet:
-        return aio_web.json_response({'error': 'Недостаточно средств'})
-
-    won = random.random() < (1.0 / multiplier)
-    profit = round(bet * (multiplier - 1), 2) if won else 0.0
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    async with aiosqlite.connect(DB_PATH) as db:
-        if won:
-            new_balance = round(balance + profit, 2)
-            await db.execute(
-                "UPDATE users SET balance = ?, games_played = games_played + 1 WHERE id = ?",
-                (new_balance, user_id),
-            )
-            await db.execute(
-                "INSERT INTO transactions (type, to_id, amount, created_at) VALUES (?,?,?,?)",
-                ("upgrade_win", user_id, profit, now_str),
-            )
-        else:
-            new_balance = round(balance - bet, 2)
-            await db.execute(
-                "UPDATE users SET balance = ?, games_played = games_played + 1 WHERE id = ?",
-                (new_balance, user_id),
-            )
-            await db.execute(
-                "INSERT INTO transactions (type, to_id, amount, created_at) VALUES (?,?,?,?)",
-                ("upgrade_lose", user_id, bet, now_str),
-            )
-        await db.execute(
-            "INSERT INTO game_history (user_id, won, bet, profit, mult, created_at) VALUES (?,?,?,?,?,?)",
-            (user_id, 1 if won else 0, bet, profit, multiplier, now_str)
-        )
-        await db.commit()
-
-    updated = await get_user(user_id)
-    return aio_web.json_response({
-        'won': won,
-        'profit': profit,
-        'new_balance': round(float(updated['balance']), 2),
-    })
-
-
-async def web_api_history(request: aio_web.Request) -> aio_web.Response:
-    user_id = validate_init_data(request.query.get('init_data', ''))
-    if not user_id:
-        return aio_web.json_response({'error': 'Unauthorized'}, status=401)
-    async with aiosqlite.connect(DB_PATH) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT won, bet, profit, mult, created_at FROM game_history"
-            " WHERE user_id = ? ORDER BY id DESC LIMIT 50",
-            (user_id,)
-        ) as cur:
-            rows = [dict(r) for r in await cur.fetchall()]
-    return aio_web.json_response({'history': rows})
-
-
-# ── САПЁР: сессии в памяти ────────────────────────────
-ms_sessions: dict[str, dict] = {}
-
-MS_HOUSE = 0.97
-
-def ms_calc_mult(opened: int, mines: int) -> float:
-    m = 1.0
-    for i in range(opened):
-        m *= (25 - i) / (25 - mines - i)
-    return round(m * MS_HOUSE, 4)
-
-
-async def web_api_ms_start(request: aio_web.Request) -> aio_web.Response:
-    try:
-        data = await request.json()
-    except Exception:
-        return aio_web.json_response({'error': 'Неверный запрос'}, status=400)
-
-    user_id = validate_init_data(data.get('init_data', ''))
-    if not user_id:
-        return aio_web.json_response({'error': 'Unauthorized'}, status=401)
-
-    try:
-        bet = round(float(data['bet']), 2)
-        mines = int(data['mines'])
-    except (KeyError, TypeError, ValueError):
-        return aio_web.json_response({'error': 'Неверные данные'})
-
-    if bet < 500:
-        return aio_web.json_response({'error': 'Минимальная ставка 500₽'})
-    if mines < 1 or mines > 24:
-        return aio_web.json_response({'error': 'Неверное количество мин'})
-
-    user = await get_user(user_id)
-    if not user:
-        return aio_web.json_response({'error': 'Пользователь не найден'})
-    if user.get('banned', 0):
-        return aio_web.json_response({'error': 'Вы заблокированы'})
-
-    balance = round(float(user['balance']), 2)
-    if balance < bet:
-        return aio_web.json_response({'error': 'Недостаточно средств'})
-
-    new_balance = round(balance - bet, 2)
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "UPDATE users SET balance = ?, games_played = games_played + 1 WHERE id = ?",
-            (new_balance, user_id)
-        )
-        await db.commit()
-
-    mine_positions = set(random.sample(range(25), mines))
-    session_id = secrets.token_hex(16)
-    ms_sessions[session_id] = {
-        'user_id': user_id,
-        'bet': bet,
-        'mines': mines,
-        'mine_positions': mine_positions,
-        'opened': [],
-        'active': True,
+// ── BALANCE ───────────────────────────────────────────
+function fmt(n) {
+    if (n >= 1e6) return (n/1e6).toFixed(1).replace(/\.0$/,'')+'м₽';
+    if (n >= 1e3) return (n/1e3).toFixed(1).replace(/\.0$/,'')+'к₽';
+    return n % 1 === 0 ? n+'₽' : n.toFixed(2)+'₽';
+}
+function setBalance(v) {
+    balance = v;
+    const t = fmt(v);
+    document.getElementById('bal-main').textContent = t;
+    document.getElementById('bal-games').textContent = t;
+    document.getElementById('bal-upg').textContent = t;
+    document.getElementById('bal-ms').textContent = t;
+    syncSlider();
+    msSyncSlider();
+}
+
+function syncSlider() {
+    const slider = document.getElementById('bet-slider');
+    const inp = document.getElementById('bet-inp');
+    const maxVal = Math.max(balance, 500);
+    slider.min = 500;
+    slider.max = maxVal;
+    const betVal = parseFloat(inp.value) || 0;
+    if (betVal > 0) slider.value = Math.min(Math.max(betVal, 500), maxVal);
+    const cur = parseFloat(slider.value);
+    const pct = maxVal > 500 ? ((cur - 500) / (maxVal - 500)) * 100 : 0;
+    slider.style.background = `linear-gradient(to right, var(--green) ${pct}%, var(--border) ${pct}%)`;
+}
+
+async function loadBalance() {
+    if (!initData) { setBalance(0); toast('Открой через Telegram'); return; }
+    try {
+        const r = await fetch(API_BASE+'/api/user?init_data='+encodeURIComponent(initData));
+        const d = await r.json();
+        if (d.balance !== undefined) setBalance(d.balance);
+        else toast(d.error || 'Ошибка загрузки');
+    } catch(e) { toast('Сервер недоступен: ' + e.message); }
+}
+
+// ── 3: ПЛАВНАЯ АНИМАЦИЯ ШАНСА + ЗЕЛЁНОЙ ЗОНЫ ─────────
+function animateChance(targetWc) {
+    if (chanceRaf) { cancelAnimationFrame(chanceRaf); chanceRaf = null; }
+    const startWc = displayWc;
+    const startPct = displayPct;
+    const targetPct = Math.round(targetWc * 100);
+    const diffWc = targetWc - startWc;
+    const diffPct = targetPct - startPct;
+    if (!diffWc && !diffPct) return;
+    const t0 = performance.now(), dur = 300;
+    function frame(now) {
+        const t = Math.min((now - t0) / dur, 1);
+        const e = t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
+        displayWc = startWc + diffWc * e;
+        const p = Math.round(startPct + diffPct * e);
+        document.getElementById('chance-pct').textContent = p + '%';
+        document.getElementById('prev-chance').textContent = p + '%';
+        drawWheel(arrowAngle, displayWc);
+        if (t < 1) { chanceRaf = requestAnimationFrame(frame); }
+        else { displayWc = targetWc; displayPct = targetPct; chanceRaf = null; }
+    }
+    chanceRaf = requestAnimationFrame(frame);
+}
+
+// ── WHEEL ─────────────────────────────────────────────
+const cv = document.getElementById('wc');
+const ctx = cv.getContext('2d');
+const CX = cv.width/2, CY = cv.height/2, R = CX-8;
+
+function drawWheel(angle, wc) {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    const wa = wc * Math.PI * 2;
+    const winMid = Math.PI / 2;
+    const winStart = winMid - wa / 2;
+    const winEnd = winMid + wa / 2;
+    const IR = R * 0.62;
+
+    ctx.beginPath();
+    ctx.arc(CX, CY, R, 0, Math.PI * 2);
+    ctx.fillStyle = '#1e0808';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(CX, CY);
+    ctx.arc(CX, CY, R, winStart, winEnd);
+    ctx.closePath();
+    ctx.fillStyle = '#081a0e';
+    ctx.fill();
+
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(CX, CY, R - 3, winStart, winEnd);
+    ctx.strokeStyle = '#3fb950'; ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(CX, CY, R - 3, winEnd, winStart + Math.PI * 2);
+    ctx.strokeStyle = '#f85149'; ctx.stroke();
+
+    [winStart, winEnd].forEach(a => {
+        ctx.beginPath();
+        ctx.moveTo(CX + Math.cos(a) * IR, CY + Math.sin(a) * IR);
+        ctx.lineTo(CX + Math.cos(a) * R, CY + Math.sin(a) * R);
+        ctx.strokeStyle = '#555'; ctx.lineWidth = 1.5;
+        ctx.stroke();
+    });
+
+    for (let i = 0; i < 36; i++) {
+        const a = (i / 36) * Math.PI * 2;
+        const tLen = i % 3 === 0 ? 7 : 4;
+        ctx.beginPath();
+        ctx.moveTo(CX + Math.cos(a) * (R - 9), CY + Math.sin(a) * (R - 9));
+        ctx.lineTo(CX + Math.cos(a) * (R - 9 - tLen), CY + Math.sin(a) * (R - 9 - tLen));
+        ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1;
+        ctx.stroke();
     }
 
-    return aio_web.json_response({'session_id': session_id, 'new_balance': new_balance})
-
-
-async def web_api_ms_open(request: aio_web.Request) -> aio_web.Response:
-    try:
-        data = await request.json()
-    except Exception:
-        return aio_web.json_response({'error': 'Неверный запрос'}, status=400)
-
-    user_id = validate_init_data(data.get('init_data', ''))
-    if not user_id:
-        return aio_web.json_response({'error': 'Unauthorized'}, status=401)
-
-    session_id = data.get('session_id', '')
-    cell = data.get('cell')
-    session = ms_sessions.get(session_id)
-
-    if not session or session['user_id'] != user_id or not session['active']:
-        return aio_web.json_response({'error': 'Сессия не найдена'})
-    if not isinstance(cell, int) or cell < 0 or cell > 24:
-        return aio_web.json_response({'error': 'Неверная клетка'})
-    if cell in session['opened']:
-        return aio_web.json_response({'error': 'Клетка уже открыта'})
-
-    if cell in session['mine_positions']:
-        session['active'] = False
-        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        async with aiosqlite.connect(DB_PATH) as db:
-            await db.execute(
-                "INSERT INTO game_history (user_id, won, bet, profit, mult, created_at) VALUES (?,?,?,?,?,?)",
-                (user_id, 0, session['bet'], 0.0, 0.0, now_str)
-            )
-            await db.commit()
-        mine_list = list(session['mine_positions'])
-        del ms_sessions[session_id]
-        user = await get_user(user_id)
-        return aio_web.json_response({
-            'is_mine': True,
-            'mine_positions': mine_list,
-            'new_balance': round(float(user['balance']), 2) if user else 0,
-        })
-    else:
-        session['opened'].append(cell)
-        multiplier = ms_calc_mult(len(session['opened']), session['mines'])
-        return aio_web.json_response({'is_mine': False, 'multiplier': multiplier})
-
-
-async def web_api_ms_cashout(request: aio_web.Request) -> aio_web.Response:
-    try:
-        data = await request.json()
-    except Exception:
-        return aio_web.json_response({'error': 'Неверный запрос'}, status=400)
-
-    user_id = validate_init_data(data.get('init_data', ''))
-    if not user_id:
-        return aio_web.json_response({'error': 'Unauthorized'}, status=401)
-
-    session_id = data.get('session_id', '')
-    session = ms_sessions.get(session_id)
-
-    if not session or session['user_id'] != user_id or not session['active']:
-        return aio_web.json_response({'error': 'Сессия не найдена'})
-    if not session['opened']:
-        return aio_web.json_response({'error': 'Откройте хотя бы одну клетку'})
-
-    multiplier = ms_calc_mult(len(session['opened']), session['mines'])
-    total_win = round(session['bet'] * multiplier, 2)
-    profit = round(total_win - session['bet'], 2)
-
-    session['active'] = False
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "UPDATE users SET balance = balance + ? WHERE id = ?", (total_win, user_id)
-        )
-        await db.execute(
-            "INSERT INTO game_history (user_id, won, bet, profit, mult, created_at) VALUES (?,?,?,?,?,?)",
-            (user_id, 1, session['bet'], profit, multiplier, now_str)
-        )
-        await db.commit()
-
-    del ms_sessions[session_id]
-    user = await get_user(user_id)
-    return aio_web.json_response({
-        'profit': profit,
-        'new_balance': round(float(user['balance']), 2) if user else 0,
-    })
-
-
-@aio_web.middleware
-async def cors_middleware(request: aio_web.Request, handler):
-    if request.method == 'OPTIONS':
-        return aio_web.Response(headers={
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type',
-        })
-    resp = await handler(request)
-    resp.headers['Access-Control-Allow-Origin'] = '*'
-    return resp
-
-
-def make_web_app() -> aio_web.Application:
-    app = aio_web.Application(middlewares=[cors_middleware])
-    app.router.add_get('/', web_index)
-    app.router.add_get('/api/ping', web_api_ping)
-    app.router.add_route('OPTIONS', '/api/user', lambda r: aio_web.Response())
-    app.router.add_route('OPTIONS', '/api/upgrade', lambda r: aio_web.Response())
-    app.router.add_get('/api/user', web_api_user)
-    app.router.add_post('/api/upgrade', web_api_upgrade)
-    app.router.add_route('OPTIONS', '/api/history', lambda r: aio_web.Response())
-    app.router.add_get('/api/history', web_api_history)
-    for path in ('/api/minesweeper/start', '/api/minesweeper/open', '/api/minesweeper/cashout'):
-        app.router.add_route('OPTIONS', path, lambda r: aio_web.Response())
-    app.router.add_post('/api/minesweeper/start',   web_api_ms_start)
-    app.router.add_post('/api/minesweeper/open',    web_api_ms_open)
-    app.router.add_post('/api/minesweeper/cashout', web_api_ms_cashout)
-    return app
-
-
-# ===================== УТИЛИТЫ =====================
-
-def fmt_num(n: float, short: bool = False) -> str:
-    if not short:
-        return f"{n:,.2f}₽".replace(",", " ")
-    if abs(n) >= 1_000_000:
-        s = f"{n / 1_000_000:.1f}".rstrip("0").rstrip(".")
-        return f"{s}м₽"
-    if abs(n) >= 1_000:
-        s = f"{n / 1_000:.1f}".rstrip("0").rstrip(".")
-        return f"{s}к₽"
-    return f"{n:.0f}₽"
-
-
-def fmt_date(date_str: str | None) -> str:
-    if not date_str:
-        return "—"
-    try:
-        dt = datetime.strptime(date_str, "%Y-%m-%d")
-        return f"{dt.day} {MONTHS_RU[dt.month - 1]} {dt.year}"
-    except Exception:
-        return "—"
-
-
-async def notify_transfer(target: dict, amount: float, sender_name: str):
-    if target.get("quiet_mode", 0) or not target.get("notify_transfers", 1):
-        return
-    updated = await get_user(target["id"])
-    text = (
-        f"💸 Входящий перевод\n\n"
-        f"💰 Сумма: <b>{fmt_num(amount)}</b>\n"
-        f"👤 От: @{sender_name}"
-    )
-    if updated:
-        text += f"\n\n📊 Ваш баланс: <b>{fmt_num(updated['balance'])}</b>"
-    try:
-        await bot.send_message(target["id"], text, parse_mode="HTML")
-    except Exception:
-        pass
-
-
-async def notify_give(target: dict, amount: float):
-    if target.get("quiet_mode", 0) or not target.get("notify_transfers", 1):
-        return
-    updated = await get_user(target["id"])
-    text = f"🎁 Администратор начислил вам <b>{fmt_num(amount)}</b>"
-    if updated:
-        text += f"\n\n📊 Ваш баланс: <b>{fmt_num(updated['balance'])}</b>"
-    try:
-        await bot.send_message(target["id"], text, parse_mode="HTML")
-    except Exception:
-        pass
-
-
-async def notify_remove(target: dict, amount: float):
-    if target.get("quiet_mode", 0) or not target.get("notify_transfers", 1):
-        return
-    updated = await get_user(target["id"])
-    text = f"📉 Администратор снял <b>{fmt_num(amount)}</b> с вашего баланса"
-    if updated:
-        text += f"\n\n📊 Ваш баланс: <b>{fmt_num(updated['balance'])}</b>"
-    try:
-        await bot.send_message(target["id"], text, parse_mode="HTML")
-    except Exception:
-        pass
-
-
-async def notify_set(target: dict, amount: float):
-    if target.get("quiet_mode", 0) or not target.get("notify_transfers", 1):
-        return
-    text = f"⚙️ Администратор установил ваш баланс: <b>{fmt_num(amount)}</b>"
-    try:
-        await bot.send_message(target["id"], text, parse_mode="HTML")
-    except Exception:
-        pass
-
-
-# ===================== КЛАВИАТУРЫ =====================
-
-def kb_main() -> ReplyKeyboardMarkup:
-    return ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="👤 Профиль"),        KeyboardButton(text="🏆 Топ")],
-            [KeyboardButton(text="🎟 Ввод промокода"), KeyboardButton(text="⚙️ Настройки")],
-            [KeyboardButton(text="🎮 Игры", web_app=WebAppInfo(url=WEB_URL))],
-        ],
-        resize_keyboard=True,
-    )
-
-
-def _toggle_btn(label: str, val: int, cb: str) -> InlineKeyboardButton:
-    state = "✅" if val else "☑️"
-    return InlineKeyboardButton(text=f"{state} {label}", callback_data=cb)
-
-
-def _section_btn(title: str) -> InlineKeyboardButton:
-    return InlineKeyboardButton(text=title, callback_data="noop")
-
-
-def kb_settings(user: dict) -> InlineKeyboardMarkup:
-    s = user
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [_section_btn("── 📐 Интерфейс ──")],
-        [_toggle_btn("Сокращение чисел",          s.get("short_numbers",    0), "toggle_short_numbers")],
-        [_toggle_btn("Дата регистрации в профиле", s.get("show_join_date",   1), "toggle_show_join_date")],
-        [_section_btn("── 🔒 Приватность ──")],
-        [_toggle_btn("Скрыть себя из топа",        s.get("hide_from_top",    0), "toggle_hide_from_top")],
-        [_section_btn("── 💸 Переводы ──")],
-        [_toggle_btn("Уведомления о переводах",    s.get("notify_transfers", 1), "toggle_notify_transfers")],
-        [_toggle_btn("Подтверждение перевода",     s.get("confirm_pay",      0), "toggle_confirm_pay")],
-        [_toggle_btn("Тихий режим (все уведомления выкл.)", s.get("quiet_mode", 0), "toggle_quiet_mode")],
-    ])
-
-
-def kb_pay_confirm(to_id: int, amount: float) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[[
-        InlineKeyboardButton(text="✅ Подтвердить", callback_data=f"pay_confirm:{to_id}:{amount:.2f}"),
-        InlineKeyboardButton(text="❌ Отмена",      callback_data="pay_cancel"),
-    ]])
-
-
-def kb_promo_cancel() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[[
-        InlineKeyboardButton(text="❌ Отмена", callback_data="promo_cancel"),
-    ]])
-
-
-def kb_promo_retry() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[[
-        InlineKeyboardButton(text="❌ Отмена", callback_data="promo_cancel"),
-        InlineKeyboardButton(text="🔄 Заново", callback_data="promo_retry"),
-    ]])
-
-
-def kb_reset_all_confirm() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[[
-        InlineKeyboardButton(text="✅ Да, сбросить всё", callback_data="admin_reset_all_confirm"),
-        InlineKeyboardButton(text="❌ Отмена",            callback_data="admin_reset_all_cancel"),
-    ]])
-
-
-def kb_report_cancel() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[[
-        InlineKeyboardButton(text="❌ Отмена", callback_data="report_cancel"),
-    ]])
-
-
-def kb_reports_list(reports: list) -> InlineKeyboardMarkup:
-    rows = []
-    for r in reports:
-        short = r["reason"][:28] + "…" if len(r["reason"]) > 28 else r["reason"]
-        uname = f"@{r['username']}" if r["username"] else f"ID {r['user_id']}"
-        rows.append([InlineKeyboardButton(
-            text=f"#{r['id']} {uname} — {short}",
-            callback_data=f"report_view:{r['id']}",
-        )])
-    return InlineKeyboardMarkup(inline_keyboard=rows)
-
-
-def kb_report_detail(report_id: int) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[[
-        InlineKeyboardButton(text="↩️ Назад",    callback_data="reports_list"),
-        InlineKeyboardButton(text="✅ Закрыть",  callback_data=f"report_close:{report_id}"),
-        InlineKeyboardButton(text="🗑 Удалить",  callback_data=f"report_del:{report_id}"),
-    ]])
-
-
-# ===================== MIDDLEWARE =====================
-
-class BanCheckMiddleware(BaseMiddleware):
-    async def __call__(self, handler, event, data):
-        user = data.get("event_from_user")
-        if user and user.id not in ADMIN_IDS:
-            db_user = await get_user(user.id)
-            if db_user and db_user.get("banned", 0):
-                if isinstance(event, Message):
-                    try:
-                        await event.answer("🚫 Вы заблокированы в боте.")
-                    except Exception:
-                        pass
-                elif isinstance(event, CallbackQuery):
-                    try:
-                        await event.answer("🚫 Вы заблокированы.", show_alert=True)
-                    except Exception:
-                        pass
-                return
-        return await handler(event, data)
-
-
-# ===================== ХЭНДЛЕРЫ =====================
-
-@router.message(CommandStart())
-async def h_start(msg: Message):
-    username = msg.from_user.username or msg.from_user.first_name
-    user, is_new = await get_or_create_user(msg.from_user.id, username)
-    name = f"<b>{msg.from_user.first_name}</b>"
-
-    if is_new:
-        text = (
-            f"👋 Привет, {name}! Добро пожаловать в <b>Лутобот</b>.\n\n"
-            f"Твой номер в системе: <b>#{user['uid']}</b>\n\n"
-            f"Что здесь есть:\n"
-            f"• 💰 Баланс и переводы между игроками\n"
-            f"• 🏆 Таблица лидеров\n"
-            f"• 🎟 Промокоды с наградами\n"
-            f"• ⚙️ Гибкие настройки профиля"
-        )
-    else:
-        short = bool(user.get("short_numbers", 0))
-        rank = await get_user_rank(msg.from_user.id)
-        rank_str = "скрыт 👻" if user.get("hide_from_top") else f"#{rank}"
-        lines = [f"👋 С возвращением, {name}!", ""]
-        lines.append(f"💰 Баланс: <b>{fmt_num(user['balance'], short)}</b>")
-        lines.append(f"🏆 Место в топе: {rank_str}   🎮 Игр: {user['games_played']}")
-        if user.get("show_join_date", 1) and user.get("registered_at"):
-            lines.append(f"📅 С нами с {fmt_date(user['registered_at'])}")
-        text = "\n".join(lines)
-
-    await msg.answer(text, parse_mode="HTML", reply_markup=kb_main())
-
-
-@router.message(Command("help"))
-async def h_help(msg: Message):
-    is_admin = msg.from_user.id in ADMIN_IDS
-    text = (
-        "📋 <b>Справка по боту</b>\n\n"
-        "👤 <b>Основные команды</b>\n"
-        "/start — перезапустить бота\n"
-        "/help — эта справка\n\n"
-        "💸 <b>Переводы</b>\n"
-        "/pay <code>@юзернейм сумма</code> — перевести деньги\n"
-        "/pay <code>ID сумма</code> — перевести по Telegram ID\n"
-        "<i>Пример: /pay @username 100</i>\n\n"
-        "📋 <b>Репорты</b>\n"
-        "/report <code>причина</code> — отправить жалобу\n"
-        "/report — то же самое, но с запросом причины\n"
-    )
-    if is_admin:
-        text += (
-            "\n👑 <b>Администратор</b>\n"
-            "/addbalance <code>ID сумма</code> — начислить валюту\n"
-            "/removebalance <code>ID сумма</code> — снять валюту\n"
-            "/setbalance <code>ID сумма</code> — установить точный баланс\n"
-            "/reset <code>ID</code> — сбросить прогресс пользователя\n"
-            "/reset_all — сбросить всю базу (с подтверждением)\n"
-            "/broadcast <code>сообщение</code> — рассылка всем\n"
-            "/warn <code>ID причина</code> — предупреждение (3 варна = бан)\n"
-            "/warnings <code>ID</code> — список варнов пользователя\n"
-            "/clearwarns <code>ID</code> — снять все варны\n"
-            "/ban <code>ID</code> — заблокировать пользователя\n"
-            "/unban <code>ID</code> — разблокировать пользователя\n"
-            "/reports — список открытых репортов\n"
-            "/addpromo <code>КОД СУММА КОЛ-ВО</code> — создать промокод\n"
-            "/delpromo <code>КОД</code> — удалить промокод\n"
-            "/listpromo — список всех промокодов\n"
-            "/stats — статистика бота\n"
-        )
-        if msg.from_user.id in SUPERADMIN_IDS:
-            text += (
-                "\n🔱 <b>Суперадмин</b>\n"
-                "/addadmin <code>ID</code> — выдать права администратора\n"
-                "/deladmin <code>ID</code> — забрать права администратора\n"
-            )
-    await msg.answer(text, parse_mode="HTML")
-
-
-@router.message(Command("pay"))
-async def h_pay(msg: Message):
-    args = msg.text.split()[1:]
-    if len(args) < 2:
-        await msg.answer(
-            "❌ Использование: <code>/pay @юзернейм сумма</code>",
-            parse_mode="HTML",
-        )
-        return
-
-    target_str, amount_str = args[0], args[1]
-
-    try:
-        amount = float(amount_str)
-        if amount <= 0:
-            raise ValueError
-    except ValueError:
-        await msg.answer("❌ Укажи корректную сумму.")
-        return
-
-    target = await resolve_target(target_str)
-    if target is None and not target_str.startswith("@"):
-        await msg.answer("❌ Неверный формат ID.")
-        return
-
-    if not target:
-        await msg.answer("❌ Пользователь не найден.")
-        return
-    if target["id"] == msg.from_user.id:
-        await msg.answer("❌ Нельзя переводить деньги самому себе.")
-        return
-
-    sender = await get_user(msg.from_user.id)
-    short = bool(sender.get("short_numbers", 0)) if sender else False
-
-    if sender and sender.get("confirm_pay", 0):
-        text = (
-            f"💸 <b>Подтверди перевод</b>\n\n"
-            f"👤 Получатель: @{target['username']}\n"
-            f"💰 Сумма: <b>{fmt_num(amount, short)}</b>\n"
-            f"📊 Твой баланс: {fmt_num(sender['balance'], short)}"
-        )
-        await msg.answer(text, parse_mode="HTML", reply_markup=kb_pay_confirm(target["id"], amount))
-    else:
-        result = await transfer(msg.from_user.id, target["id"], amount)
-        if result == "not_enough":
-            await msg.answer("❌ Недостаточно средств.")
-        else:
-            await msg.answer(
-                f"✅ Переведено <b>{fmt_num(amount, short)}</b> → @{target['username']}",
-                parse_mode="HTML",
-            )
-            await notify_transfer(target, amount, msg.from_user.username or msg.from_user.first_name)
-
-
-# --- Кнопки главного меню ---
-
-@router.message(F.text == "👤 Профиль")
-async def h_profile(msg: Message):
-    user, _ = await get_or_create_user(
-        msg.from_user.id,
-        msg.from_user.username or msg.from_user.first_name,
-    )
-    rank = await get_user_rank(msg.from_user.id)
-    short = bool(user.get("short_numbers", 0))
-    nick = f"@{user['username']}" if user["username"] else msg.from_user.first_name
-
-    rank_str = "скрыт 👻" if user.get("hide_from_top") else f"#{rank}"
-    is_admin = user.get("is_admin", 0) or user["id"] in SUPERADMIN_IDS
-    admin_badge = "  👑 Администратор" if is_admin else ""
-
-    lines = [
-        f"👤 <b>Профиль</b> — {nick}{admin_badge}",
-        "",
-        f"🆔 ID: <code>{user['id']}</code>   📌 UID: <b>#{user['uid']}</b>",
-        "",
-        f"💰 Баланс: <b>{fmt_num(user['balance'], short)}</b>",
-        f"🏆 Место в топе: {rank_str}   🎮 Игр: {user['games_played']}",
-    ]
-
-    if user.get("show_join_date", 1) and user.get("registered_at"):
-        lines += ["", f"📅 С нами с {fmt_date(user['registered_at'])}"]
-
-    await msg.answer("\n".join(lines), parse_mode="HTML")
-
-
-@router.message(F.text == "🏆 Топ")
-async def h_top(msg: Message):
-    user = await get_user(msg.from_user.id)
-    short = bool(user.get("short_numbers", 0)) if user else False
-    users = await get_top(10)
-    medals = {1: "🥇", 2: "🥈", 3: "🥉"}
-
-    lines = ["🏆 <b>Топ 10 игроков</b>\n"]
-    for i, u in enumerate(users, 1):
-        prefix = medals.get(i, f"<b>{i}.</b>")
-        bal = fmt_num(u["balance"], short)
-        lines.append(f"{prefix} @{u['username']} — {bal}")
-
-    if user:
-        rank = await get_user_rank(msg.from_user.id)
-        hidden_note = "  👻 скрыт" if user.get("hide_from_top", 0) else ""
-        lines.append(f"\n📍 Ваша позиция: <b>#{rank}</b>{hidden_note}")
-
-    await msg.answer("\n".join(lines), parse_mode="HTML")
-
-
-@router.message(F.text == "🎟 Ввод промокода")
-async def h_promo_btn(msg: Message, state: FSMContext):
-    await state.set_state(PromoState.waiting)
-    sent = await msg.answer(
-        "🎟 Введите промокод:",
-        reply_markup=kb_promo_cancel(),
-    )
-    await state.update_data(msg_id=sent.message_id, chat_id=sent.chat.id)
-
-
-@router.message(F.text == "⚙️ Настройки")
-async def h_settings(msg: Message):
-    user, _ = await get_or_create_user(
-        msg.from_user.id,
-        msg.from_user.username or msg.from_user.first_name,
-    )
-    await msg.answer(
-        "⚙️ <b>Настройки</b>\n\n"
-        "✅ — включено   ☑️ — выключено\n"
-        "Нажми на кнопку, чтобы переключить:",
-        parse_mode="HTML",
-        reply_markup=kb_settings(user),
-    )
-
-
-# --- Подтверждение перевода ---
-
-@router.callback_query(F.data.startswith("pay_confirm:"))
-async def cb_pay_confirm(cb: CallbackQuery):
-    parts = cb.data.split(":", 2)
-    to_id = int(parts[1])
-    amount = float(parts[2])
-
-    target = await get_user(to_id)
-    if not target:
-        await cb.answer("Пользователь не найден", show_alert=True)
-        await cb.message.delete()
-        return
-
-    sender = await get_user(cb.from_user.id)
-    short = bool(sender.get("short_numbers", 0)) if sender else False
-
-    result = await transfer(cb.from_user.id, to_id, amount)
-    if result == "not_enough":
-        await cb.message.edit_text("❌ Недостаточно средств для перевода.")
-    else:
-        await cb.message.edit_text(
-            f"✅ Переведено <b>{fmt_num(amount, short)}</b> → @{target['username']}",
-            parse_mode="HTML",
-        )
-        await notify_transfer(target, amount, cb.from_user.username or cb.from_user.first_name)
-    await cb.answer()
-
-
-@router.callback_query(F.data == "pay_cancel")
-async def cb_pay_cancel(cb: CallbackQuery):
-    await cb.message.edit_text("❌ Перевод отменён.")
-    await cb.answer()
-
-
-# --- Переключение настроек ---
-
-@router.callback_query(F.data == "noop")
-async def cb_noop(cb: CallbackQuery):
-    await cb.answer()
-
-
-@router.callback_query(F.data.startswith("toggle_"))
-async def cb_toggle(cb: CallbackQuery):
-    setting = cb.data[len("toggle_"):]
-    if setting not in VALID_SETTINGS:
-        await cb.answer()
-        return
-
-    await toggle_setting(cb.from_user.id, setting)
-    user = await get_user(cb.from_user.id)
-
-    await cb.message.edit_text(
-        "⚙️ <b>Настройки</b>\n\n"
-        "✅ — включено   ☑️ — выключено\n"
-        "Нажми на кнопку, чтобы переключить:",
-        parse_mode="HTML",
-        reply_markup=kb_settings(user),
-    )
-    await cb.answer("Настройка изменена")
-
-
-# --- Промокоды ---
-
-@router.callback_query(F.data == "promo_cancel")
-async def cb_promo_cancel(cb: CallbackQuery, state: FSMContext):
-    await state.clear()
-    await cb.message.edit_text("❌ Ввод промокода отменён.")
-    await cb.answer()
-
-
-@router.callback_query(F.data == "promo_retry")
-async def cb_promo_retry(cb: CallbackQuery, state: FSMContext):
-    await state.set_state(PromoState.waiting)
-    await state.update_data(msg_id=cb.message.message_id, chat_id=cb.message.chat.id)
-    await cb.message.edit_text("🎟 Введите промокод:", reply_markup=kb_promo_cancel())
-    await cb.answer()
-
-
-@router.message(PromoState.waiting)
-async def h_promo_input(msg: Message, state: FSMContext):
-    data = await state.get_data()
-    code = msg.text.strip()
-
-    try:
-        await msg.delete()
-    except Exception:
-        pass
-
-    result, reward = await use_promo(code, msg.from_user.id)
-
-    if result == "ok":
-        await state.clear()
-        user = await get_user(msg.from_user.id)
-        short = bool(user.get("short_numbers", 0)) if user else False
-        bal_line = f"\n📊 Баланс: <b>{fmt_num(user['balance'], short)}</b>" if user else ""
-        await bot.edit_message_text(
-            f"✅ Промокод активирован!\n"
-            f"💰 Начислено <b>{fmt_num(reward, short)}</b>{bal_line}",
-            chat_id=data["chat_id"],
-            message_id=data["msg_id"],
-            parse_mode="HTML",
-        )
-        uname = f"@{msg.from_user.username}" if msg.from_user.username else msg.from_user.first_name
-        for admin_id in ADMIN_IDS:
-            if admin_id != msg.from_user.id:
-                try:
-                    await bot.send_message(
-                        admin_id,
-                        f"🎟 Промокод <code>{code.upper()}</code> активирован\n"
-                        f"👤 {uname}\n"
-                        f"💰 Начислено: <b>{fmt_num(reward)}</b>",
-                        parse_mode="HTML",
-                    )
-                except Exception:
-                    pass
-    elif result == "already_used":
-        await bot.edit_message_text(
-            "❌ Вы уже использовали этот промокод.",
-            chat_id=data["chat_id"],
-            message_id=data["msg_id"],
-            reply_markup=kb_promo_retry(),
-        )
-    else:
-        await bot.edit_message_text(
-            "❌ Неверный или недействительный промокод.",
-            chat_id=data["chat_id"],
-            message_id=data["msg_id"],
-            reply_markup=kb_promo_retry(),
-        )
-
-
-# ===================== АДМИНСКИЕ КОМАНДЫ =====================
-
-@router.message(Command("addbalance"))
-async def h_addbalance(msg: Message):
-    if msg.from_user.id not in ADMIN_IDS:
-        await msg.answer("❌ У вас нет прав для этой команды.")
-        return
-    args = msg.text.split()[1:]
-    if len(args) < 2:
-        await msg.answer("❌ Использование: <code>/addbalance ID сумма</code>", parse_mode="HTML")
-        return
-    target = await resolve_target(args[0])
-    try:
-        amount = float(args[1])
-        if amount <= 0:
-            raise ValueError
-    except ValueError:
-        await msg.answer("❌ Укажи корректную сумму (больше 0).")
-        return
-    if not target:
-        await msg.answer("❌ Пользователь не найден.")
-        return
-    await add_balance(target["id"], amount)
-    updated = await get_user(target["id"])
-    await msg.answer(
-        f"✅ Начислено <b>{fmt_num(amount)}</b> → @{target['username']}\n"
-        f"📊 Новый баланс: <b>{fmt_num(updated['balance'])}</b>",
-        parse_mode="HTML",
-    )
-    await notify_give(target, amount)
-
-
-@router.message(Command("removebalance"))
-async def h_removebalance(msg: Message):
-    if msg.from_user.id not in ADMIN_IDS:
-        await msg.answer("❌ У вас нет прав для этой команды.")
-        return
-    args = msg.text.split()[1:]
-    if len(args) < 2:
-        await msg.answer("❌ Использование: <code>/removebalance ID сумма</code>", parse_mode="HTML")
-        return
-    target = await resolve_target(args[0])
-    try:
-        amount = float(args[1])
-        if amount <= 0:
-            raise ValueError
-    except ValueError:
-        await msg.answer("❌ Укажи корректную сумму (больше 0).")
-        return
-    if not target:
-        await msg.answer("❌ Пользователь не найден.")
-        return
-    await subtract_balance(target["id"], amount)
-    updated = await get_user(target["id"])
-    await msg.answer(
-        f"✅ Снято <b>{fmt_num(amount)}</b> ← @{target['username']}\n"
-        f"📊 Новый баланс: <b>{fmt_num(updated['balance'])}</b>",
-        parse_mode="HTML",
-    )
-    await notify_remove(target, amount)
-
-
-@router.message(Command("setbalance"))
-async def h_setbalance(msg: Message):
-    if msg.from_user.id not in ADMIN_IDS:
-        await msg.answer("❌ У вас нет прав для этой команды.")
-        return
-    args = msg.text.split()[1:]
-    if len(args) < 2:
-        await msg.answer("❌ Использование: <code>/setbalance ID сумма</code>", parse_mode="HTML")
-        return
-    target = await resolve_target(args[0])
-    try:
-        amount = float(args[1])
-        if amount < 0:
-            raise ValueError
-    except ValueError:
-        await msg.answer("❌ Укажи корректную сумму (≥ 0).")
-        return
-    if not target:
-        await msg.answer("❌ Пользователь не найден.")
-        return
-    await set_balance_exact(target["id"], amount)
-    await msg.answer(
-        f"✅ Баланс @{target['username']} установлен: <b>{fmt_num(amount)}</b>",
-        parse_mode="HTML",
-    )
-    await notify_set(target, amount)
-
-
-@router.message(Command("reset"))
-async def h_reset(msg: Message):
-    if msg.from_user.id not in ADMIN_IDS:
-        await msg.answer("❌ У вас нет прав для этой команды.")
-        return
-    args = msg.text.split()[1:]
-    if not args:
-        await msg.answer("❌ Использование: <code>/reset ID</code>", parse_mode="HTML")
-        return
-    target = await resolve_target(args[0])
-    if not target:
-        await msg.answer("❌ Пользователь не найден.")
-        return
-    await reset_user(target["id"])
-    await msg.answer(
-        f"✅ Прогресс @{target['username']} сброшен (баланс: 0₽, игры: 0).",
-        parse_mode="HTML",
-    )
-    try:
-        await bot.send_message(target["id"], "🔄 Ваш прогресс был сброшен администратором.")
-    except Exception:
-        pass
-
-
-@router.message(Command("reset_all"))
-async def h_reset_all(msg: Message):
-    if msg.from_user.id not in ADMIN_IDS:
-        await msg.answer("❌ У вас нет прав для этой команды.")
-        return
-    await msg.answer(
-        "⚠️ <b>Сброс всей базы</b>\n\n"
-        "Это обнулит баланс и статистику <b>всех пользователей</b>.\n"
-        "Действие необратимо. Продолжить?",
-        parse_mode="HTML",
-        reply_markup=kb_reset_all_confirm(),
-    )
-
-
-@router.callback_query(F.data == "admin_reset_all_confirm")
-async def cb_reset_all_confirm(cb: CallbackQuery):
-    if cb.from_user.id not in ADMIN_IDS:
-        await cb.answer("Нет прав", show_alert=True)
-        return
-    await reset_all()
-    await cb.message.edit_text("✅ Готово. Все балансы и статистика обнулены.")
-    await cb.answer()
-
-
-@router.callback_query(F.data == "admin_reset_all_cancel")
-async def cb_reset_all_cancel(cb: CallbackQuery):
-    if cb.from_user.id not in ADMIN_IDS:
-        await cb.answer("Нет прав", show_alert=True)
-        return
-    await cb.message.edit_text("❌ Сброс отменён.")
-    await cb.answer()
-
-
-@router.message(Command("broadcast"))
-async def h_broadcast(msg: Message):
-    if msg.from_user.id not in ADMIN_IDS:
-        await msg.answer("❌ У вас нет прав для этой команды.")
-        return
-    parts = msg.text.split(None, 1)
-    if len(parts) < 2 or not parts[1].strip():
-        await msg.answer("❌ Использование: <code>/broadcast сообщение</code>", parse_mode="HTML")
-        return
-    text = parts[1].strip()
-    user_ids = await get_all_user_ids()
-    sent = failed = 0
-    for uid in user_ids:
-        try:
-            await bot.send_message(
-                uid,
-                f"📢 <b>Сообщение от администратора</b>\n\n{text}",
-                parse_mode="HTML",
-            )
-            sent += 1
-        except Exception:
-            failed += 1
-    await msg.answer(f"📢 Рассылка завершена\n✅ Отправлено: {sent}\n❌ Не доставлено: {failed}")
-
-
-@router.message(Command("warn"))
-async def h_warn(msg: Message):
-    if msg.from_user.id not in ADMIN_IDS:
-        await msg.answer("❌ У вас нет прав для этой команды.")
-        return
-    parts = msg.text.split(None, 2)
-    if len(parts) < 3:
-        await msg.answer("❌ Использование: <code>/warn ID причина</code>", parse_mode="HTML")
-        return
-    target = await resolve_target(parts[1])
-    if not target:
-        await msg.answer("❌ Пользователь не найден.")
-        return
-    reason = parts[2]
-    count = await add_warning(target["id"], reason)
-
-    result_text = (
-        f"⚠️ Предупреждение выдано @{target['username']}\n"
-        f"📋 Причина: {reason}\n"
-        f"🔢 Варнов: {count}/3"
-    )
-    if count >= 3:
-        await ban_user(target["id"])
-        result_text += "\n\n🚫 Пользователь заблокирован (3 варна)"
-
-    await msg.answer(result_text)
-
-    try:
-        user_text = f"⚠️ Вы получили предупреждение\n📋 Причина: {reason}\n🔢 Варнов: {count}/3"
-        if count >= 3:
-            user_text += "\n\n🚫 Вы заблокированы в боте"
-        await bot.send_message(target["id"], user_text)
-    except Exception:
-        pass
-
-
-@router.message(Command("warnings"))
-async def h_warnings(msg: Message):
-    if msg.from_user.id not in ADMIN_IDS:
-        await msg.answer("❌ У вас нет прав для этой команды.")
-        return
-    args = msg.text.split()[1:]
-    if not args:
-        await msg.answer("❌ Использование: <code>/warnings ID</code>", parse_mode="HTML")
-        return
-    target = await resolve_target(args[0])
-    if not target:
-        await msg.answer("❌ Пользователь не найден.")
-        return
-    warns = await get_warnings(target["id"])
-    if not warns:
-        await msg.answer(f"✅ У @{target['username']} нет предупреждений.")
-        return
-    lines = [f"⚠️ Предупреждения @{target['username']} ({len(warns)}/3):\n"]
-    for i, w in enumerate(warns, 1):
-        date = w["created_at"][:10]
-        lines.append(f"{i}. {w['reason']}  <i>({date})</i>")
-    await msg.answer("\n".join(lines), parse_mode="HTML")
-
-
-@router.message(Command("clearwarns"))
-async def h_clearwarns(msg: Message):
-    if msg.from_user.id not in ADMIN_IDS:
-        await msg.answer("❌ У вас нет прав для этой команды.")
-        return
-    args = msg.text.split()[1:]
-    if not args:
-        await msg.answer("❌ Использование: <code>/clearwarns ID</code>", parse_mode="HTML")
-        return
-    target = await resolve_target(args[0])
-    if not target:
-        await msg.answer("❌ Пользователь не найден.")
-        return
-    await clear_warnings(target["id"])
-    await msg.answer(f"✅ Варны @{target['username']} сняты.")
-
-
-# --- Репорты (пользователь) ---
-
-@router.message(Command("report"))
-async def h_report(msg: Message, state: FSMContext):
-    parts = msg.text.split(None, 1)
-    if len(parts) > 1 and parts[1].strip():
-        reason = parts[1].strip()
-        uname = msg.from_user.username or msg.from_user.first_name
-        report_id = await add_report(msg.from_user.id, uname, reason)
-        await msg.answer(f"✅ Репорт <b>#{report_id}</b> отправлен. Мы рассмотрим его в ближайшее время.", parse_mode="HTML")
-        for admin_id in ADMIN_IDS:
-            try:
-                await bot.send_message(
-                    admin_id,
-                    f"📋 Новый репорт <b>#{report_id}</b>\n"
-                    f"👤 От: @{uname} (<code>{msg.from_user.id}</code>)\n"
-                    f"📝 {reason}",
-                    parse_mode="HTML",
-                )
-            except Exception:
-                pass
-        return
-
-    await state.set_state(ReportState.waiting)
-    sent = await msg.answer(
-        "📋 Опишите причину обращения:",
-        reply_markup=kb_report_cancel(),
-    )
-    await state.update_data(msg_id=sent.message_id, chat_id=sent.chat.id)
-
-
-@router.callback_query(F.data == "report_cancel")
-async def cb_report_cancel(cb: CallbackQuery, state: FSMContext):
-    await state.clear()
-    await cb.message.edit_text("❌ Репорт отменён.")
-    await cb.answer()
-
-
-@router.message(ReportState.waiting)
-async def h_report_input(msg: Message, state: FSMContext):
-    data = await state.get_data()
-    reason = msg.text.strip()
-
-    try:
-        await msg.delete()
-    except Exception:
-        pass
-
-    uname = msg.from_user.username or msg.from_user.first_name
-    report_id = await add_report(msg.from_user.id, uname, reason)
-    await state.clear()
-
-    await bot.edit_message_text(
-        f"✅ Репорт <b>#{report_id}</b> отправлен. Мы рассмотрим его в ближайшее время.",
-        chat_id=data["chat_id"],
-        message_id=data["msg_id"],
-        parse_mode="HTML",
-    )
-    for admin_id in ADMIN_IDS:
-        try:
-            await bot.send_message(
-                admin_id,
-                f"📋 Новый репорт <b>#{report_id}</b>\n"
-                f"👤 От: @{uname} (<code>{msg.from_user.id}</code>)\n"
-                f"📝 {reason}",
-                parse_mode="HTML",
-            )
-        except Exception:
-            pass
-
-
-# --- Репорты (админ) ---
-
-async def _reports_text_and_kb():
-    reports = await get_open_reports()
-    if not reports:
-        return "📋 <b>Открытых репортов нет.</b>", None
-    text = f"📋 <b>Открытые репорты ({len(reports)})</b>\n\nНажми на репорт, чтобы открыть:"
-    return text, kb_reports_list(reports)
-
-
-@router.message(Command("reports"))
-async def h_reports(msg: Message):
-    if msg.from_user.id not in ADMIN_IDS:
-        await msg.answer("❌ У вас нет прав для этой команды.")
-        return
-    text, kb = await _reports_text_and_kb()
-    await msg.answer(text, parse_mode="HTML", reply_markup=kb)
-
-
-@router.callback_query(F.data == "reports_list")
-async def cb_reports_list(cb: CallbackQuery):
-    if cb.from_user.id not in ADMIN_IDS:
-        await cb.answer("Нет прав", show_alert=True)
-        return
-    text, kb = await _reports_text_and_kb()
-    await cb.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
-    await cb.answer()
-
-
-@router.callback_query(F.data.startswith("report_view:"))
-async def cb_report_view(cb: CallbackQuery):
-    if cb.from_user.id not in ADMIN_IDS:
-        await cb.answer("Нет прав", show_alert=True)
-        return
-    report_id = int(cb.data.split(":")[1])
-    r = await get_report(report_id)
-    if not r:
-        await cb.answer("Репорт не найден.", show_alert=True)
-        return
-    uname = f"@{r['username']}" if r["username"] else f"ID {r['user_id']}"
-    date = r["created_at"][:10]
-    status_str = "✅ Закрыт" if r["status"] == "closed" else "🔴 Открыт"
-    text = (
-        f"📋 <b>Репорт #{r['id']}</b>  {status_str}\n\n"
-        f"👤 От: {uname} (<code>{r['user_id']}</code>)\n"
-        f"📅 Дата: {fmt_date(date)}\n\n"
-        f"📝 <b>Причина:</b>\n{r['reason']}"
-    )
-    await cb.message.edit_text(text, parse_mode="HTML", reply_markup=kb_report_detail(report_id))
-    await cb.answer()
-
-
-@router.callback_query(F.data.startswith("report_close:"))
-async def cb_report_close(cb: CallbackQuery):
-    if cb.from_user.id not in ADMIN_IDS:
-        await cb.answer("Нет прав", show_alert=True)
-        return
-    report_id = int(cb.data.split(":")[1])
-    await close_report(report_id)
-    text, kb = await _reports_text_and_kb()
-    await cb.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
-    await cb.answer("Репорт закрыт.")
-
-
-@router.callback_query(F.data.startswith("report_del:"))
-async def cb_report_del(cb: CallbackQuery):
-    if cb.from_user.id not in ADMIN_IDS:
-        await cb.answer("Нет прав", show_alert=True)
-        return
-    report_id = int(cb.data.split(":")[1])
-    await delete_report(report_id)
-    text, kb = await _reports_text_and_kb()
-    await cb.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
-    await cb.answer("Репорт удалён.")
-
-
-@router.message(Command("ban"))
-async def h_ban(msg: Message):
-    if msg.from_user.id not in ADMIN_IDS:
-        await msg.answer("❌ У вас нет прав для этой команды.")
-        return
-    args = msg.text.split()[1:]
-    if not args:
-        await msg.answer("❌ Использование: <code>/ban ID</code>", parse_mode="HTML")
-        return
-    target = await resolve_target(args[0])
-    if not target:
-        await msg.answer("❌ Пользователь не найден.")
-        return
-    if target["id"] in ADMIN_IDS:
-        await msg.answer("❌ Нельзя заблокировать администратора.")
-        return
-    await ban_user(target["id"])
-    uname = f"@{target['username']}" if target["username"] else f"ID {target['id']}"
-    await msg.answer(f"🚫 Пользователь {uname} заблокирован.")
-    try:
-        await bot.send_message(target["id"], "🚫 Вы были заблокированы в боте.")
-    except Exception:
-        pass
-
-
-@router.message(Command("unban"))
-async def h_unban(msg: Message):
-    if msg.from_user.id not in ADMIN_IDS:
-        await msg.answer("❌ У вас нет прав для этой команды.")
-        return
-    args = msg.text.split()[1:]
-    if not args:
-        await msg.answer("❌ Использование: <code>/unban ID</code>", parse_mode="HTML")
-        return
-    target = await resolve_target(args[0])
-    if not target:
-        await msg.answer("❌ Пользователь не найден.")
-        return
-    await unban_user(target["id"])
-    uname = f"@{target['username']}" if target["username"] else f"ID {target['id']}"
-    await msg.answer(f"✅ Пользователь {uname} разблокирован.")
-    try:
-        await bot.send_message(target["id"], "✅ Вы были разблокированы в боте.")
-    except Exception:
-        pass
-
-
-@router.message(Command("addadmin"))
-async def h_addadmin(msg: Message):
-    if msg.from_user.id not in SUPERADMIN_IDS:
-        await msg.answer("❌ У вас нет прав для этой команды.")
-        return
-    args = msg.text.split()[1:]
-    if not args:
-        await msg.answer("❌ Использование: <code>/addadmin ID</code>", parse_mode="HTML")
-        return
-    target = await resolve_target(args[0])
-    if not target:
-        await msg.answer("❌ Пользователь не найден.")
-        return
-    if target["id"] in ADMIN_IDS:
-        uname = f"@{target['username']}" if target["username"] else f"ID {target['id']}"
-        await msg.answer(f"ℹ️ {uname} уже является администратором.")
-        return
-    await db_add_admin(target["id"])
-    uname = f"@{target['username']}" if target["username"] else f"ID {target['id']}"
-    await msg.answer(f"✅ {uname} теперь администратор.")
-    try:
-        await bot.send_message(target["id"], "👑 Вам выданы права администратора.")
-    except Exception:
-        pass
-
-
-@router.message(Command("deladmin"))
-async def h_deladmin(msg: Message):
-    if msg.from_user.id not in SUPERADMIN_IDS:
-        await msg.answer("❌ У вас нет прав для этой команды.")
-        return
-    args = msg.text.split()[1:]
-    if not args:
-        await msg.answer("❌ Использование: <code>/deladmin ID</code>", parse_mode="HTML")
-        return
-    target = await resolve_target(args[0])
-    if not target:
-        await msg.answer("❌ Пользователь не найден.")
-        return
-    if target["id"] in SUPERADMIN_IDS:
-        await msg.answer("❌ Нельзя убрать права суперадмина.")
-        return
-    if target["id"] not in ADMIN_IDS:
-        uname = f"@{target['username']}" if target["username"] else f"ID {target['id']}"
-        await msg.answer(f"ℹ️ {uname} не является администратором.")
-        return
-    await db_remove_admin(target["id"])
-    uname = f"@{target['username']}" if target["username"] else f"ID {target['id']}"
-    await msg.answer(f"✅ Права администратора у {uname} сняты.")
-    try:
-        await bot.send_message(target["id"], "ℹ️ Ваши права администратора были сняты.")
-    except Exception:
-        pass
-
-
-@router.message(Command("addpromo"))
-async def h_addpromo(msg: Message):
-    if msg.from_user.id not in ADMIN_IDS:
-        await msg.answer("❌ У вас нет прав для этой команды.")
-        return
-    args = msg.text.split()[1:]
-    if len(args) < 3:
-        await msg.answer(
-            "❌ Использование: <code>/addpromo КОД СУММА МАКС_ИСПОЛЬЗОВАНИЙ</code>\n"
-            "<i>Пример: /addpromo SALE50 50 100</i>",
-            parse_mode="HTML",
-        )
-        return
-    code = args[0].upper()
-    try:
-        reward = float(args[1])
-        max_uses = int(args[2])
-        if reward <= 0 or max_uses <= 0:
-            raise ValueError
-    except ValueError:
-        await msg.answer("❌ Сумма и кол-во использований должны быть больше 0.")
-        return
-    ok = await create_promo(code, reward, max_uses)
-    if not ok:
-        await msg.answer(f"❌ Промокод <code>{code}</code> уже существует.", parse_mode="HTML")
-        return
-    await msg.answer(
-        f"✅ Промокод создан\n\n"
-        f"🎟 Код: <code>{code}</code>\n"
-        f"💰 Награда: <b>{fmt_num(reward)}</b>\n"
-        f"🔢 Использований: <b>{max_uses}</b>",
-        parse_mode="HTML",
-    )
-
-
-@router.message(Command("delpromo"))
-async def h_delpromo(msg: Message):
-    if msg.from_user.id not in ADMIN_IDS:
-        await msg.answer("❌ У вас нет прав для этой команды.")
-        return
-    args = msg.text.split()[1:]
-    if not args:
-        await msg.answer("❌ Использование: <code>/delpromo КОД</code>", parse_mode="HTML")
-        return
-    code = args[0].upper()
-    ok = await remove_promo(code)
-    if not ok:
-        await msg.answer(f"❌ Промокод <code>{code}</code> не найден.", parse_mode="HTML")
-        return
-    await msg.answer(f"✅ Промокод <code>{code}</code> удалён.", parse_mode="HTML")
-
-
-@router.message(Command("promos", "listpromo"))
-async def h_promos(msg: Message):
-    if msg.from_user.id not in ADMIN_IDS:
-        await msg.answer("❌ У вас нет прав для этой команды.")
-        return
-    promos = await get_all_promos()
-    if not promos:
-        await msg.answer("🎟 Промокодов нет.")
-        return
-    lines = ["🎟 <b>Промокоды</b>\n"]
-    for p in promos:
-        lines.append(
-            f"<code>{p['code']}</code> — {fmt_num(p['reward'])} "
-            f"[{p['uses_count']}/{p['max_uses']}]"
-        )
-    await msg.answer("\n".join(lines), parse_mode="HTML")
-
-
-@router.message(Command("stats"))
-async def h_stats(msg: Message):
-    if msg.from_user.id not in ADMIN_IDS:
-        await msg.answer("❌ У вас нет прав для этой команды.")
-        return
-    stats = await get_stats_data()
-    users = stats["users"]
-    lines = [
-        "📊 <b>Статистика бота</b>\n",
-        f"👥 Пользователей: <b>{len(users)}</b>",
-        f"💸 Транзакций: <b>{stats['tx_count']}</b>",
-        f"💰 Суммарный баланс: <b>{fmt_num(stats['total_balance'])}</b>\n",
-        "<b>Пользователи:</b>",
-    ]
-    for u in users:
-        uname = f"@{u['username']}" if u["username"] else "—"
-        lines.append(f"<code>{u['id']}</code> — {uname}")
-
-    text = "\n".join(lines)
-    while len(text) > 4000:
-        split_pos = text.rfind("\n", 0, 4000)
-        await msg.answer(text[:split_pos], parse_mode="HTML")
-        text = text[split_pos + 1:]
-    await msg.answer(text, parse_mode="HTML")
-
-
-# ===================== ЗАПУСК =====================
-
-async def main():
-    logging.basicConfig(level=logging.INFO)
-    await db_init()
-    await load_admins()
-    dp.message.middleware(BanCheckMiddleware())
-    dp.callback_query.middleware(BanCheckMiddleware())
-    dp.include_router(router)
-
-    runner = aio_web.AppRunner(make_web_app())
-    await runner.setup()
-    await aio_web.TCPSite(runner, '0.0.0.0', WEB_PORT).start()
-    logging.info("Web app: http://0.0.0.0:%d", WEB_PORT)
-
-    await dp.start_polling(bot, skip_updates=True)
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
+    ctx.beginPath();
+    ctx.arc(CX, CY, IR, 0, Math.PI * 2);
+    ctx.fillStyle = '#0d1117'; ctx.fill();
+    ctx.strokeStyle = '#30363d'; ctx.lineWidth = 2;
+    ctx.stroke();
+
+    const needleTip = R - 10;
+    const needleBase = IR * 0.12;
+    const tipX = CX + Math.cos(angle) * needleTip;
+    const tipY = CY + Math.sin(angle) * needleTip;
+    const baseX = CX + Math.cos(angle) * needleBase;
+    const baseY = CY + Math.sin(angle) * needleBase;
+    const px = -Math.sin(angle), py = Math.cos(angle);
+    const headLen = 10;
+    const backX = tipX - Math.cos(angle) * headLen;
+    const backY = tipY - Math.sin(angle) * headLen;
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(255,255,255,0.5)'; ctx.shadowBlur = 6;
+    ctx.beginPath();
+    ctx.moveTo(baseX, baseY);
+    ctx.lineTo(backX, backY);
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
+    ctx.lineCap = 'round'; ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(tipX, tipY);
+    ctx.lineTo(backX + px * 5, backY + py * 5);
+    ctx.lineTo(backX - px * 5, backY - py * 5);
+    ctx.closePath();
+    ctx.fillStyle = '#ffffff'; ctx.fill();
+    ctx.restore();
+}
+
+function winChance() { return 1/mult; }
+
+function updateUI() {
+    const wc = winChance();
+    animateChance(wc);
+    const bet = parseFloat(document.getElementById('bet-inp').value) || 0;
+    document.getElementById('prev-bet').textContent = bet > 0 ? fmt(bet) : '—';
+    document.getElementById('prev-win').textContent = bet > 0 ? '+'+fmt(bet*(mult-1)) : '—';
+}
+
+// ── 2: БЛОКИРОВКА UI ВО ВРЕМЯ КРУЧЕНИЯ ───────────────
+function setUILocked(locked) {
+    document.getElementById('bet-inp').disabled = locked;
+    document.getElementById('bet-slider').disabled = locked;
+    document.getElementById('speed-btn').disabled = locked;
+    document.querySelectorAll('.mbtn').forEach(el => { el.disabled = locked; });
+}
+
+// ── ВОЗВРАТ СТРЕЛКИ НА СТАРТ ─────────────────────────
+function animateReturnArrow(done) {
+    const from = arrowAngle;
+    const fromNorm = ((from % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    const toNorm   = ((INITIAL_ANGLE % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    let delta = toNorm - fromNorm;
+    if (Math.abs(delta) > Math.PI) delta -= Math.sign(delta) * Math.PI * 2;
+    const dur = 380;
+    const t0 = performance.now();
+    function frame(now) {
+        const t = Math.min((now - t0) / dur, 1);
+        const e = t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
+        arrowAngle = from + delta * e;
+        drawWheel(arrowAngle, displayWc);
+        if (t < 1) { raf = requestAnimationFrame(frame); }
+        else { arrowAngle = INITIAL_ANGLE; drawWheel(arrowAngle, displayWc); raf = null; done?.(); }
+    }
+    raf = requestAnimationFrame(frame);
+}
+
+// ── SPIN ──────────────────────────────────────────────
+async function doSpin() {
+    if (spinning) return;
+    const bet = parseFloat(document.getElementById('bet-inp').value);
+    if (!bet || bet < 500) { toast('Минимальная ставка 500₽'); return; }
+    if (bet > balance) { toast('Недостаточно средств'); return; }
+
+    spinning = true;
+    document.getElementById('spin-btn').disabled = true;
+    setUILocked(true);
+
+    let result;
+    try {
+        const r = await fetch(API_BASE+'/api/upgrade', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ init_data: initData, bet, multiplier: mult })
+        });
+        result = await r.json();
+    } catch {
+        toast('Ошибка сервера');
+        spinning = false;
+        document.getElementById('spin-btn').disabled = false;
+        setUILocked(false);
+        return;
+    }
+
+    if (result.error) {
+        toast(result.error);
+        spinning = false;
+        document.getElementById('spin-btn').disabled = false;
+        setUILocked(false);
+        return;
+    }
+
+    const wc = winChance();
+    const wa = wc * Math.PI * 2;
+    const winMid = Math.PI / 2;
+    const winStart = winMid - wa / 2;
+    const winEnd = winMid + wa / 2;
+    const won = result.won;
+
+    let landAngle;
+    if (won) {
+        landAngle = winStart + wa * 0.15 + Math.random() * wa * 0.7;
+    } else {
+        const lr = Math.PI * 2 - wa;
+        landAngle = winEnd + lr * 0.1 + Math.random() * lr * 0.8;
+    }
+    landAngle = ((landAngle % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
+
+    // Стрелка всегда стартует с INITIAL_ANGLE (возвращается туда после каждого прокрута)
+    const startAngle = INITIAL_ANGLE;
+    const initNorm = ((INITIAL_ANGLE % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
+    let delta = landAngle - initNorm;
+    if (delta < 0.01) delta += Math.PI * 2;
+    const fullRots = fastMode ? 2 : (5 + Math.floor(Math.random() * 3));
+    const totalDelta = fullRots * Math.PI * 2 + delta;
+
+    // Быстрый режим — ровно в 2х быстрее, одинаковая плавность
+    const baseDur = 5000 + Math.random() * 1000;
+    const duration = fastMode ? baseDur / 2 : baseDur;
+    const t0 = performance.now();
+
+    function easeInOut(t) { return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2; }
+
+    function frame(now) {
+        const t = Math.min((now - t0) / duration, 1);
+        arrowAngle = startAngle + totalDelta * easeInOut(t);
+        drawWheel(arrowAngle, wc);
+        if (t < 1) { raf = requestAnimationFrame(frame); }
+        else {
+            arrowAngle = startAngle + totalDelta;
+            drawWheel(arrowAngle, wc);
+            animateReturnArrow(() => {
+                setBalance(result.new_balance);
+                showResult(won, bet, result.profit, mult);
+                spinning = false;
+                document.getElementById('spin-btn').disabled = false;
+                setUILocked(false);
+            });
+        }
+    }
+    raf = requestAnimationFrame(frame);
+}
+
+function showResult(won, bet, profit, m) {
+    document.getElementById('res-emo').textContent = won ? '🏆' : '💸';
+    document.getElementById('res-title').textContent = won ? 'Победа!' : 'Проигрыш';
+    if (won) {
+        document.getElementById('res-amt').innerHTML = `Ты выиграл <b style="color:var(--green)">+${fmt(profit)}</b>`;
+    } else {
+        document.getElementById('res-amt').innerHTML = `Ты потерял <b style="color:var(--red)">-${fmt(bet)}</b>`;
+    }
+    document.getElementById('overlay').classList.add('show');
+    tg?.HapticFeedback?.notificationOccurred(won ? 'success' : 'error');
+}
+
+// ── TOAST ─────────────────────────────────────────────
+let toastTm;
+function toast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg; el.classList.add('show');
+    clearTimeout(toastTm);
+    toastTm = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+// ── EVENTS ────────────────────────────────────────────
+document.getElementById('btn-play').onclick = () => go('s-games');
+document.getElementById('btn-back-games').onclick = () => go('s-main');
+document.getElementById('btn-upgrader').onclick = () => { currentGame = 'upgrader'; go('s-upgrader'); syncSlider(); updateUI(); };
+document.getElementById('btn-back-upg').onclick = () => { if (!spinning) go('s-games'); };
+
+document.getElementById('btn-minesweeper').onclick = () => {
+    currentGame = 'minesweeper';
+    go('s-minesweeper');
+    msSyncSlider();
+    msUpdateInfoRow();
+};
+document.getElementById('btn-back-ms').onclick = () => { if (!msGame.active) go('s-games'); };
+
+document.getElementById('ms-bet-inp').addEventListener('input', () => { msSyncSlider(); msUpdateInfoRow(); });
+document.getElementById('ms-bet-slider').addEventListener('input', () => {
+    document.getElementById('ms-bet-inp').value = document.getElementById('ms-bet-slider').value;
+    msSyncSlider(); msUpdateInfoRow();
+});
+
+document.querySelectorAll('#ms-bombs-grid .mbtn').forEach(b => b.onclick = () => {
+    document.querySelectorAll('#ms-bombs-grid .mbtn').forEach(x => x.classList.remove('sel'));
+    b.classList.add('sel');
+    msGame.mines = parseInt(b.dataset.mines);
+    msUpdateInfoRow();
+});
+
+document.getElementById('ms-start-btn').onclick = msStartGame;
+document.getElementById('ms-cashout-btn').onclick = msCashout;
+
+document.getElementById('bet-inp').addEventListener('input', () => {
+    syncSlider();
+    updateUI();
+});
+document.getElementById('bet-slider').addEventListener('input', () => {
+    document.getElementById('bet-inp').value = document.getElementById('bet-slider').value;
+    syncSlider();
+    updateUI();
+});
+
+document.getElementById('spin-btn').onclick = doSpin;
+document.getElementById('res-close').onclick = () => {
+    document.getElementById('overlay').classList.remove('show');
+    if (currentGame === 'upgrader') {
+        arrowAngle = INITIAL_ANGLE;
+        drawWheel(INITIAL_ANGLE, displayWc);
+        updateUI();
+    } else if (currentGame === 'minesweeper') {
+        msResetUI();
+    }
+};
+
+document.querySelectorAll('.mbtn:not([data-mines])').forEach(b => b.onclick = () => {
+    document.querySelectorAll('.mbtn:not([data-mines])').forEach(x => x.classList.remove('sel'));
+    b.classList.add('sel');
+    mult = parseInt(b.dataset.m);
+    updateUI();
+});
+
+document.getElementById('speed-btn').onclick = () => {
+    fastMode = !fastMode;
+    const btn = document.getElementById('speed-btn');
+    btn.textContent = fastMode ? '⚡ Быстро' : '🐢 Обычно';
+    btn.classList.toggle('fast', fastMode);
+};
+
+// ── MINESWEEPER ───────────────────────────────────────
+const MS_HOUSE = 0.97;
+let msGame = {
+    active: false,
+    sessionId: null,
+    bet: 0,
+    mines: 3,
+    opened: 0,
+    mult: 1.0,
+    cells: Array(25).fill(null) // null | 'safe' | 'mine-hit' | 'mine-rev'
+};
+
+function msCalcStepMult(opened, mines) {
+    // Накопленный множитель после `opened` безопасных клеток
+    let m = 1;
+    for (let i = 0; i < opened; i++) {
+        m *= (25 - i) / (25 - mines - i);
+    }
+    return m * MS_HOUSE;
+}
+
+function msSyncSlider() {
+    const slider = document.getElementById('ms-bet-slider');
+    const inp = document.getElementById('ms-bet-inp');
+    if (!slider || !inp) return;
+    const maxVal = Math.max(balance, 500);
+    slider.min = 500; slider.max = maxVal;
+    const betVal = parseFloat(inp.value) || 0;
+    if (betVal > 0) slider.value = Math.min(Math.max(betVal, 500), maxVal);
+    const cur = parseFloat(slider.value);
+    const pct = maxVal > 500 ? ((cur - 500) / (maxVal - 500)) * 100 : 0;
+    slider.style.background = `linear-gradient(to right, var(--green) ${pct}%, var(--border) ${pct}%)`;
+}
+
+function msUpdateInfoRow() {
+    const bet = parseFloat(document.getElementById('ms-bet-inp').value) || 0;
+    document.getElementById('ms-info-bet').textContent = bet > 0 ? fmt(bet) : '—';
+    document.getElementById('ms-info-bombs').textContent = msGame.mines;
+    const stepMult = msCalcStepMult(1, msGame.mines);
+    document.getElementById('ms-info-mult').textContent = '×' + stepMult.toFixed(2);
+}
+
+function msSetControlsLocked(locked) {
+    document.getElementById('ms-bet-inp').disabled = locked;
+    document.getElementById('ms-bet-slider').disabled = locked;
+    document.getElementById('ms-start-btn').disabled = locked;
+    document.querySelectorAll('#ms-bombs-grid .mbtn').forEach(el => { el.disabled = locked; });
+}
+
+function msRenderGrid() {
+    const grid = document.getElementById('ms-grid');
+    grid.innerHTML = '';
+    const safeCells = 25 - msGame.mines;
+    const allSafeOpened = msGame.opened >= safeCells;
+    for (let i = 0; i < 25; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'ms-cell';
+        const st = msGame.cells[i];
+        if (st === 'safe') {
+            cell.classList.add('safe');
+            cell.textContent = '💎';
+        } else if (st === 'mine-hit') {
+            cell.classList.add('mine-hit');
+            cell.textContent = '💣';
+        } else if (st === 'mine-rev') {
+            cell.classList.add('mine-rev');
+            cell.textContent = '💣';
+        } else if (msGame.active && !allSafeOpened) {
+            cell.classList.add('clickable');
+            cell.onclick = () => msOpenCell(i);
+        }
+        grid.appendChild(cell);
+    }
+}
+
+function msUpdateCashoutBtn() {
+    const btn = document.getElementById('ms-cashout-btn');
+    const winVal = document.getElementById('ms-win-val');
+    const winMult = document.getElementById('ms-win-mult');
+    if (msGame.opened > 0) {
+        const total = Math.round(msGame.bet * msGame.mult);
+        const profit = total - msGame.bet;
+        btn.textContent = 'ЗАБРАТЬ +' + fmt(profit);
+        btn.disabled = false;
+        winVal.textContent = '+' + fmt(profit);
+        winMult.textContent = '×' + msGame.mult.toFixed(2);
+    } else {
+        btn.textContent = 'ЗАБРАТЬ —';
+        btn.disabled = true;
+        winVal.textContent = '—';
+        winMult.textContent = '×1.00';
+    }
+}
+
+async function msStartGame() {
+    const bet = parseFloat(document.getElementById('ms-bet-inp').value);
+    if (!bet || bet < 500) { toast('Минимальная ставка 500₽'); return; }
+    if (bet > balance) { toast('Недостаточно средств'); return; }
+
+    msSetControlsLocked(true);
+
+    let result;
+    try {
+        const r = await fetch(API_BASE + '/api/minesweeper/start', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ init_data: initData, bet, mines: msGame.mines })
+        });
+        result = await r.json();
+    } catch {
+        toast('Ошибка сервера');
+        msSetControlsLocked(false);
+        return;
+    }
+    if (result.error) {
+        toast(result.error);
+        msSetControlsLocked(false);
+        return;
+    }
+
+    msGame.active = true;
+    msGame.sessionId = result.session_id;
+    msGame.bet = bet;
+    msGame.opened = 0;
+    msGame.mult = 1.0;
+    msGame.cells = Array(25).fill(null);
+
+    setBalance(result.new_balance);
+
+    // Скрываем контролы, показываем игровое поле
+    document.getElementById('ms-start-btn').style.display = 'none';
+    const ga = document.getElementById('ms-game-area');
+    ga.style.display = 'flex';
+
+    msRenderGrid();
+    msUpdateCashoutBtn();
+}
+
+async function msOpenCell(idx) {
+    if (!msGame.active || msGame.cells[idx] !== null) return;
+
+    // Блокируем поле на время запроса
+    document.querySelectorAll('#ms-grid .ms-cell.clickable').forEach(c => {
+        c.classList.remove('clickable'); c.onclick = null;
+    });
+    document.getElementById('ms-cashout-btn').disabled = true;
+
+    let result;
+    try {
+        const r = await fetch(API_BASE + '/api/minesweeper/open', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ init_data: initData, session_id: msGame.sessionId, cell: idx })
+        });
+        result = await r.json();
+    } catch {
+        toast('Ошибка сервера');
+        msRenderGrid();
+        msUpdateCashoutBtn();
+        return;
+    }
+    if (result.error) {
+        toast(result.error);
+        msRenderGrid();
+        msUpdateCashoutBtn();
+        return;
+    }
+
+    if (result.is_mine) {
+        msGame.cells[idx] = 'mine-hit';
+        if (result.mine_positions) {
+            result.mine_positions.forEach(pos => {
+                if (pos !== idx && msGame.cells[pos] === null) msGame.cells[pos] = 'mine-rev';
+            });
+        }
+        msGame.active = false;
+        msRenderGrid();
+        setBalance(result.new_balance);
+        tg?.HapticFeedback?.notificationOccurred('error');
+        setTimeout(() => {
+            currentGame = 'minesweeper';
+            document.getElementById('res-emo').textContent = '💣';
+            document.getElementById('res-title').textContent = 'Подрыв!';
+            document.getElementById('res-amt').innerHTML = `Ты потерял <b style="color:var(--red)">-${fmt(msGame.bet)}</b>`;
+            document.getElementById('overlay').classList.add('show');
+        }, 350);
+    } else {
+        msGame.cells[idx] = 'safe';
+        msGame.opened++;
+        msGame.mult = result.multiplier !== undefined ? result.multiplier : msCalcStepMult(msGame.opened, msGame.mines);
+        tg?.HapticFeedback?.impactOccurred('light');
+
+        const safeCells = 25 - msGame.mines;
+        if (msGame.opened >= safeCells) {
+            // Все безопасные клетки открыты — авто-кэшаут
+            msGame.active = false;
+            msRenderGrid();
+            msUpdateCashoutBtn();
+            setBalance(result.new_balance || balance);
+            setTimeout(() => msCashoutResult(result.profit || Math.round(msGame.bet * msGame.mult) - msGame.bet), 300);
+        } else {
+            msRenderGrid();
+            msUpdateCashoutBtn();
+        }
+    }
+}
+
+async function msCashout() {
+    if (!msGame.active || msGame.opened === 0) return;
+
+    document.getElementById('ms-cashout-btn').disabled = true;
+    document.querySelectorAll('#ms-grid .ms-cell.clickable').forEach(c => {
+        c.classList.remove('clickable'); c.onclick = null;
+    });
+
+    let result;
+    try {
+        const r = await fetch(API_BASE + '/api/minesweeper/cashout', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ init_data: initData, session_id: msGame.sessionId })
+        });
+        result = await r.json();
+    } catch {
+        toast('Ошибка сервера');
+        msRenderGrid();
+        msUpdateCashoutBtn();
+        return;
+    }
+    if (result.error) {
+        toast(result.error);
+        msRenderGrid();
+        msUpdateCashoutBtn();
+        return;
+    }
+
+    msGame.active = false;
+    setBalance(result.new_balance);
+    msCashoutResult(result.profit);
+}
+
+function msCashoutResult(profit) {
+    tg?.HapticFeedback?.notificationOccurred('success');
+    currentGame = 'minesweeper';
+    document.getElementById('res-emo').textContent = '💎';
+    document.getElementById('res-title').textContent = 'Забрано!';
+    document.getElementById('res-amt').innerHTML = `Ты выиграл <b style="color:var(--green)">+${fmt(profit)}</b>`;
+    document.getElementById('overlay').classList.add('show');
+}
+
+function msResetUI() {
+    msGame.active = false;
+    msGame.sessionId = null;
+    msGame.cells = Array(25).fill(null);
+    document.getElementById('ms-game-area').style.display = 'none';
+    document.getElementById('ms-start-btn').style.display = '';
+    msSetControlsLocked(false);
+    msSyncSlider();
+    msUpdateInfoRow();
+}
+
+// ── INIT ──────────────────────────────────────────────
+loadBalance().then(() => drawWheel(arrowAngle, 0.5));
+</script>
+</body>
+</html>
