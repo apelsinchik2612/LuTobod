@@ -272,7 +272,7 @@ html, body {
         <div class="w100">
             <div class="field-lbl">Ставка</div>
             <div class="inp-wrap">
-                <input type="number" id="bet-inp" class="inp" placeholder="100" min="1" step="1">
+                <input type="number" id="bet-inp" class="inp" placeholder="500" min="500" step="1">
                 <span class="inp-sfx">₽</span>
             </div>
         </div>
@@ -388,81 +388,87 @@ const CX = cv.width/2, CY = cv.height/2, R = CX-8;
 function drawWheel(angle, wc) {
     ctx.clearRect(0, 0, cv.width, cv.height);
     const wa = wc * Math.PI * 2;
-    const winMid = Math.PI / 2; // bottom
+    const winMid = Math.PI / 2;
     const winStart = winMid - wa / 2;
     const winEnd = winMid + wa / 2;
+    const IR = R * 0.62;
 
-    // Lose background
+    // Lose bg (full circle, dark red)
     ctx.beginPath();
     ctx.arc(CX, CY, R, 0, Math.PI * 2);
-    ctx.fillStyle = '#2a1010';
+    ctx.fillStyle = '#1e0808';
     ctx.fill();
 
-    // Win zone
+    // Win sector (dark green)
     ctx.beginPath();
     ctx.moveTo(CX, CY);
     ctx.arc(CX, CY, R, winStart, winEnd);
     ctx.closePath();
-    ctx.fillStyle = '#0f2b18';
+    ctx.fillStyle = '#081a0e';
     ctx.fill();
 
-    // Green border (win)
+    // Colored arc borders on outer edge
+    ctx.lineWidth = 5;
     ctx.beginPath();
-    ctx.arc(CX, CY, R, winStart, winEnd);
-    ctx.strokeStyle = '#3fb950'; ctx.lineWidth = 3;
-    ctx.stroke();
-
-    // Red border (lose)
+    ctx.arc(CX, CY, R - 3, winStart, winEnd);
+    ctx.strokeStyle = '#3fb950'; ctx.stroke();
     ctx.beginPath();
-    ctx.arc(CX, CY, R, winEnd, winStart + Math.PI * 2);
-    ctx.strokeStyle = '#f85149'; ctx.lineWidth = 3;
-    ctx.stroke();
+    ctx.arc(CX, CY, R - 3, winEnd, winStart + Math.PI * 2);
+    ctx.strokeStyle = '#f85149'; ctx.stroke();
 
-    // Dividers
+    // Dividers (only in the outer ring)
     [winStart, winEnd].forEach(a => {
         ctx.beginPath();
-        ctx.moveTo(CX, CY);
+        ctx.moveTo(CX + Math.cos(a) * IR, CY + Math.sin(a) * IR);
         ctx.lineTo(CX + Math.cos(a) * R, CY + Math.sin(a) * R);
-        ctx.strokeStyle = '#30363d'; ctx.lineWidth = 1.5;
+        ctx.strokeStyle = '#555'; ctx.lineWidth = 1.5;
         ctx.stroke();
     });
 
-    // Inner circle
+    // Tick marks
+    for (let i = 0; i < 36; i++) {
+        const a = (i / 36) * Math.PI * 2;
+        const tLen = i % 3 === 0 ? 7 : 4;
+        ctx.beginPath();
+        ctx.moveTo(CX + Math.cos(a) * (R - 9), CY + Math.sin(a) * (R - 9));
+        ctx.lineTo(CX + Math.cos(a) * (R - 9 - tLen), CY + Math.sin(a) * (R - 9 - tLen));
+        ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1;
+        ctx.stroke();
+    }
+
+    // Large inner dark circle
     ctx.beginPath();
-    ctx.arc(CX, CY, R * 0.27, 0, Math.PI * 2);
+    ctx.arc(CX, CY, IR, 0, Math.PI * 2);
     ctx.fillStyle = '#0d1117'; ctx.fill();
     ctx.strokeStyle = '#30363d'; ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Arrow
-    const innerR = R * 0.28, outerR = R * 0.88;
-    const tipX = CX + Math.cos(angle) * outerR;
-    const tipY = CY + Math.sin(angle) * outerR;
-    const headLen = 14;
+    // Needle
+    const needleTip = R - 10;
+    const needleBase = IR * 0.12;
+    const tipX = CX + Math.cos(angle) * needleTip;
+    const tipY = CY + Math.sin(angle) * needleTip;
+    const baseX = CX + Math.cos(angle) * needleBase;
+    const baseY = CY + Math.sin(angle) * needleBase;
+    const px = -Math.sin(angle), py = Math.cos(angle);
+    const headLen = 10;
     const backX = tipX - Math.cos(angle) * headLen;
     const backY = tipY - Math.sin(angle) * headLen;
-    const px = -Math.sin(angle), py = Math.cos(angle);
 
     ctx.save();
-    ctx.shadowColor = '#ffffff'; ctx.shadowBlur = 10;
-
-    // Shaft
+    ctx.shadowColor = 'rgba(255,255,255,0.5)'; ctx.shadowBlur = 6;
     ctx.beginPath();
-    ctx.moveTo(CX + Math.cos(angle) * innerR, CY + Math.sin(angle) * innerR);
+    ctx.moveTo(baseX, baseY);
     ctx.lineTo(backX, backY);
-    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3;
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
     ctx.lineCap = 'round'; ctx.stroke();
-
-    // Arrowhead
     ctx.beginPath();
     ctx.moveTo(tipX, tipY);
-    ctx.lineTo(backX + px * 7, backY + py * 7);
-    ctx.lineTo(backX - px * 7, backY - py * 7);
+    ctx.lineTo(backX + px * 5, backY + py * 5);
+    ctx.lineTo(backX - px * 5, backY - py * 5);
     ctx.closePath();
     ctx.fillStyle = '#ffffff'; ctx.fill();
-
     ctx.restore();
-
 }
 
 function winChance() { return 1/mult; }
@@ -480,7 +486,7 @@ function updateUI() {
 async function doSpin() {
     if (spinning) return;
     const bet = parseFloat(document.getElementById('bet-inp').value);
-    if (!bet || bet < 1) { toast('Введи сумму ставки (мин. 1₽)'); return; }
+    if (!bet || bet < 500) { toast('Минимальная ставка 500₽'); return; }
     if (bet > balance) { toast('Недостаточно средств'); return; }
 
     spinning = true;
@@ -513,7 +519,7 @@ async function doSpin() {
     }
     landAngle = ((landAngle % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
 
-    const fullRots = fastMode ? (5 + Math.floor(Math.random() * 4)) : (5 + Math.floor(Math.random() * 3));
+    const fullRots = fastMode ? 2 : (5 + Math.floor(Math.random() * 3));
     const curNorm = ((arrowAngle % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
     let delta = landAngle - curNorm;
     if (delta < 0.01) delta += Math.PI * 2;
