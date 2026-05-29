@@ -349,7 +349,7 @@ async function loadBalance() {
         const d = await r.json();
         if (d.balance !== undefined) setBalance(d.balance);
         else toast(d.error || 'Ошибка загрузки');
-    } catch { toast('Сервер недоступен'); }
+    } catch(e) { toast('Сервер недоступен: ' + e.message); }
 }
 
 // ── WHEEL ─────────────────────────────────────────────
