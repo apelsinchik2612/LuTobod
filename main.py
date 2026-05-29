@@ -791,16 +791,17 @@ async def web_api_ms_cashout(request: aio_web.Request) -> aio_web.Response:
 # ── КРАШ ─────────────────────────────────────────────
 crash_sessions: dict[str, dict] = {}
 crash_history:  list[float]     = []
-CRASH_GROWTH = 0.06  # mult(t) = e^(t * CRASH_GROWTH)
+CRASH_GROWTH = 0.035  # mult(t) = e^(t * CRASH_GROWTH), ~x2 за ~20 сек
 
 def _crash_mult(elapsed: float) -> float:
     return math.e ** (elapsed * CRASH_GROWTH)
 
 def _gen_crash_point() -> float:
     r = random.random()
-    if r < 0.01:
+    if r < 0.004:          # 0.4% мгновенный краш
         return 1.0
-    return round(max(1.0, 0.97 / (1.0 - r)), 2)
+    cp = 0.97 / (1.0 - r)
+    return round(max(1.01, cp), 2)
 
 async def web_api_crash_start(request: aio_web.Request) -> aio_web.Response:
     try:
