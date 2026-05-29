@@ -18,6 +18,11 @@ html, body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     overflow: hidden; user-select: none; -webkit-tap-highlight-color: transparent;
 }
+/* 1: убираем стрелочки у number input */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; }
+
 .screen {
     position: absolute; inset: 0; display: flex; flex-direction: column;
     opacity: 0; pointer-events: none;
@@ -126,14 +131,6 @@ html, body {
     font-size: 16px; font-weight: 700; outline: none; width: 0;
 }
 .inp-sfx { padding: 0 14px 0 0; color: var(--text2); font-size: 14px; font-weight: 600; }
-.quick-row { display: flex; gap: 6px; margin-top: 7px; }
-.qbtn {
-    flex: 1; padding: 7px 0; border-radius: 8px;
-    border: 1px solid var(--border); background: var(--surface2);
-    color: var(--text2); font-size: 12px; font-weight: 600; cursor: pointer;
-    transition: all .15s;
-}
-.qbtn:active { color: var(--text); border-color: var(--accent); }
 
 .mult-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
 .mbtn {
@@ -144,6 +141,7 @@ html, body {
 }
 .mbtn:active { transform: scale(.95); }
 .mbtn.sel { background: linear-gradient(135deg, #162d1e, #162438); border-color: var(--green); color: var(--green); }
+.mbtn:disabled { opacity: .35; cursor: not-allowed; pointer-events: none; }
 
 .info-row {
     display: flex; justify-content: space-between; width: 100%;
@@ -166,6 +164,8 @@ html, body {
     border-color: var(--accent); color: var(--accent);
     background: rgba(88,166,255,0.08);
 }
+.speed-btn:disabled { opacity: .35; cursor: not-allowed; pointer-events: none; }
+
 .bet-slider {
     width: 100%; margin-top: 10px;
     -webkit-appearance: none; appearance: none;
@@ -185,6 +185,8 @@ html, body {
     background: var(--green); border: 2px solid #0d1117;
     cursor: pointer;
 }
+.bet-slider:disabled { opacity: .35; cursor: not-allowed; pointer-events: none; }
+
 .spin-btn {
     width: 100%; padding: 15px; border-radius: 14px; border: none;
     background: linear-gradient(135deg, #1c6b38, #1a4f8c);
@@ -193,6 +195,48 @@ html, body {
 }
 .spin-btn:active:not(:disabled) { transform: scale(.98); opacity: .9; }
 .spin-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* === ИСТОРИЯ === */
+.hist-section {
+    width: 100%; border: 1px solid var(--border);
+    border-radius: 12px; background: var(--surface); overflow: hidden;
+}
+.hist-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.hist-title { font-size: 13px; font-weight: 700; }
+.hist-meta { display: flex; align-items: center; gap: 8px; }
+.hist-count {
+    font-size: 11px; color: var(--text2);
+    background: var(--surface2); padding: 2px 7px; border-radius: 10px;
+}
+.hist-arrow { font-size: 11px; color: var(--text2); transition: transform .2s; display: inline-block; }
+.hist-arrow.up { transform: rotate(180deg); }
+.hist-body { border-top: 1px solid var(--border); max-height: 300px; overflow-y: auto; }
+.hist-body.collapsed { display: none; }
+.hist-filters { display: flex; gap: 6px; padding: 10px 12px 8px; }
+.hfbtn {
+    flex: 1; padding: 6px 4px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--surface2);
+    color: var(--text2); font-size: 11px; font-weight: 700;
+    cursor: pointer; transition: all .15s;
+}
+.hfbtn.sel { border-color: var(--accent); color: var(--accent); background: rgba(88,166,255,.08); }
+.hist-list { padding: 0 12px 12px; }
+.hist-empty { text-align: center; color: var(--text2); font-size: 12px; padding: 16px 0; }
+.hist-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 10px; border-radius: 10px; margin-bottom: 6px;
+    background: var(--surface2); border: 1px solid var(--border);
+}
+.hist-ico { font-size: 18px; flex-shrink: 0; }
+.hist-info { flex: 1; min-width: 0; }
+.hist-top { font-size: 13px; font-weight: 700; }
+.hist-top.g { color: var(--green); }
+.hist-top.r { color: var(--red); }
+.hist-bot { font-size: 11px; color: var(--text2); margin-top: 1px; }
+.hist-time { font-size: 10px; color: var(--text2); flex-shrink: 0; text-align: right; }
 
 /* RESULT OVERLAY */
 .overlay {
@@ -317,6 +361,27 @@ html, body {
             <button id="speed-btn" class="speed-btn" style="flex-shrink:0;">🐢 Обычно</button>
             <button class="spin-btn" id="spin-btn" style="flex:1;">КРУТИТЬ</button>
         </div>
+
+        <!-- ИСТОРИЯ АПГРЕЙДОВ -->
+        <div class="hist-section">
+            <div class="hist-header" id="hist-toggle">
+                <span class="hist-title">📋 История апгрейдов</span>
+                <div class="hist-meta">
+                    <span class="hist-count" id="hist-count">0</span>
+                    <span class="hist-arrow" id="hist-arrow">▼</span>
+                </div>
+            </div>
+            <div class="hist-body collapsed" id="hist-body">
+                <div class="hist-filters">
+                    <button class="hfbtn sel" data-f="all">Все</button>
+                    <button class="hfbtn" data-f="win">🏆 Победы</button>
+                    <button class="hfbtn" data-f="lose">💸 Поражения</button>
+                </div>
+                <div class="hist-list" id="hist-list">
+                    <div class="hist-empty">Нет записей</div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -345,7 +410,60 @@ let arrowAngle = -Math.PI / 2;
 let raf = null;
 let fastMode = false;
 let displayPct = 50;
-let pctRaf = null;
+let displayWc = 0.5;
+let chanceRaf = null;
+
+// ── ИСТОРИЯ ──────────────────────────────────────────
+let history = [];
+let histFilter = 'all';
+let histCollapsed = true;
+
+function addHistory(entry) {
+    history.unshift(entry);
+    document.getElementById('hist-count').textContent = history.length;
+    renderHistory();
+}
+
+function renderHistory() {
+    const list = document.getElementById('hist-list');
+    const filtered = histFilter === 'all' ? history
+        : histFilter === 'win' ? history.filter(e => e.won)
+        : history.filter(e => !e.won);
+    if (filtered.length === 0) {
+        list.innerHTML = '<div class="hist-empty">' +
+            (history.length === 0 ? 'Нет записей' : 'Нет совпадений') + '</div>';
+        return;
+    }
+    list.innerHTML = '';
+    filtered.forEach(e => {
+        const item = document.createElement('div');
+        item.className = 'hist-item';
+        const timeStr = e.time.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        item.innerHTML =
+            '<div class="hist-ico">' + (e.won ? '🏆' : '💸') + '</div>' +
+            '<div class="hist-info">' +
+                '<div class="hist-top ' + (e.won ? 'g' : 'r') + '">' +
+                    (e.won ? '+' + fmt(e.profit) : '-' + fmt(e.bet)) +
+                '</div>' +
+                '<div class="hist-bot">Ставка ' + fmt(e.bet) + ' · ' + e.mult + '×</div>' +
+            '</div>' +
+            '<div class="hist-time">' + timeStr + '</div>';
+        list.appendChild(item);
+    });
+}
+
+document.getElementById('hist-toggle').onclick = () => {
+    histCollapsed = !histCollapsed;
+    document.getElementById('hist-body').classList.toggle('collapsed', histCollapsed);
+    document.getElementById('hist-arrow').classList.toggle('up', !histCollapsed);
+};
+
+document.querySelectorAll('.hfbtn').forEach(b => b.onclick = () => {
+    document.querySelectorAll('.hfbtn').forEach(x => x.classList.remove('sel'));
+    b.classList.add('sel');
+    histFilter = b.dataset.f;
+    renderHistory();
+});
 
 // ── SCREENS ──────────────────────────────────────────
 const screens = document.querySelectorAll('.screen');
@@ -354,7 +472,7 @@ function go(id) {
         if (s.id === id) { s.classList.remove('out'); s.classList.add('active'); }
         else if (s.classList.contains('active')) {
             s.classList.add('out');
-            setTimeout(() => s.classList.remove('active','out'), 220);
+            setTimeout(() => s.classList.remove('active', 'out'), 220);
         }
     });
 }
@@ -386,6 +504,7 @@ function syncSlider() {
     const pct = maxVal > 500 ? ((cur - 500) / (maxVal - 500)) * 100 : 0;
     slider.style.background = `linear-gradient(to right, var(--green) ${pct}%, var(--border) ${pct}%)`;
 }
+
 async function loadBalance() {
     if (!initData) { setBalance(0); toast('Открой через Telegram'); return; }
     try {
@@ -396,22 +515,28 @@ async function loadBalance() {
     } catch(e) { toast('Сервер недоступен: ' + e.message); }
 }
 
-// ── SMOOTH PERCENT ────────────────────────────────────
-function animatePct(target) {
-    if (pctRaf) cancelAnimationFrame(pctRaf);
-    const start = displayPct, diff = target - start;
-    if (!diff) return;
-    const t0 = performance.now(), dur = 260;
+// ── 3: ПЛАВНАЯ АНИМАЦИЯ ШАНСА + ЗЕЛЁНОЙ ЗОНЫ ─────────
+function animateChance(targetWc) {
+    if (chanceRaf) { cancelAnimationFrame(chanceRaf); chanceRaf = null; }
+    const startWc = displayWc;
+    const startPct = displayPct;
+    const targetPct = Math.round(targetWc * 100);
+    const diffWc = targetWc - startWc;
+    const diffPct = targetPct - startPct;
+    if (!diffWc && !diffPct) return;
+    const t0 = performance.now(), dur = 300;
     function frame(now) {
         const t = Math.min((now - t0) / dur, 1);
         const e = t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
-        const p = Math.round(start + diff * e);
+        displayWc = startWc + diffWc * e;
+        const p = Math.round(startPct + diffPct * e);
         document.getElementById('chance-pct').textContent = p + '%';
         document.getElementById('prev-chance').textContent = p + '%';
-        if (t < 1) { pctRaf = requestAnimationFrame(frame); }
-        else { displayPct = target; pctRaf = null; }
+        drawWheel(arrowAngle, displayWc);
+        if (t < 1) { chanceRaf = requestAnimationFrame(frame); }
+        else { displayWc = targetWc; displayPct = targetPct; chanceRaf = null; }
     }
-    pctRaf = requestAnimationFrame(frame);
+    chanceRaf = requestAnimationFrame(frame);
 }
 
 // ── WHEEL ─────────────────────────────────────────────
@@ -427,13 +552,11 @@ function drawWheel(angle, wc) {
     const winEnd = winMid + wa / 2;
     const IR = R * 0.62;
 
-    // Lose bg (full circle, dark red)
     ctx.beginPath();
     ctx.arc(CX, CY, R, 0, Math.PI * 2);
     ctx.fillStyle = '#1e0808';
     ctx.fill();
 
-    // Win sector (dark green)
     ctx.beginPath();
     ctx.moveTo(CX, CY);
     ctx.arc(CX, CY, R, winStart, winEnd);
@@ -441,7 +564,6 @@ function drawWheel(angle, wc) {
     ctx.fillStyle = '#081a0e';
     ctx.fill();
 
-    // Colored arc borders on outer edge
     ctx.lineWidth = 5;
     ctx.beginPath();
     ctx.arc(CX, CY, R - 3, winStart, winEnd);
@@ -450,7 +572,6 @@ function drawWheel(angle, wc) {
     ctx.arc(CX, CY, R - 3, winEnd, winStart + Math.PI * 2);
     ctx.strokeStyle = '#f85149'; ctx.stroke();
 
-    // Dividers (only in the outer ring)
     [winStart, winEnd].forEach(a => {
         ctx.beginPath();
         ctx.moveTo(CX + Math.cos(a) * IR, CY + Math.sin(a) * IR);
@@ -459,7 +580,6 @@ function drawWheel(angle, wc) {
         ctx.stroke();
     });
 
-    // Tick marks
     for (let i = 0; i < 36; i++) {
         const a = (i / 36) * Math.PI * 2;
         const tLen = i % 3 === 0 ? 7 : 4;
@@ -470,14 +590,12 @@ function drawWheel(angle, wc) {
         ctx.stroke();
     }
 
-    // Large inner dark circle
     ctx.beginPath();
     ctx.arc(CX, CY, IR, 0, Math.PI * 2);
     ctx.fillStyle = '#0d1117'; ctx.fill();
     ctx.strokeStyle = '#30363d'; ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Needle
     const needleTip = R - 10;
     const needleBase = IR * 0.12;
     const tipX = CX + Math.cos(angle) * needleTip;
@@ -509,11 +627,18 @@ function winChance() { return 1/mult; }
 
 function updateUI() {
     const wc = winChance();
-    animatePct(Math.round(wc * 100));
+    animateChance(wc);
     const bet = parseFloat(document.getElementById('bet-inp').value) || 0;
     document.getElementById('prev-bet').textContent = bet > 0 ? fmt(bet) : '—';
     document.getElementById('prev-win').textContent = bet > 0 ? '+'+fmt(bet*(mult-1)) : '—';
-    drawWheel(arrowAngle, wc);
+}
+
+// ── 2: БЛОКИРОВКА UI ВО ВРЕМЯ КРУЧЕНИЯ ───────────────
+function setUILocked(locked) {
+    document.getElementById('bet-inp').disabled = locked;
+    document.getElementById('bet-slider').disabled = locked;
+    document.getElementById('speed-btn').disabled = locked;
+    document.querySelectorAll('.mbtn').forEach(el => { el.disabled = locked; });
 }
 
 // ── SPIN ──────────────────────────────────────────────
@@ -525,17 +650,30 @@ async function doSpin() {
 
     spinning = true;
     document.getElementById('spin-btn').disabled = true;
+    setUILocked(true);
 
     let result;
     try {
         const r = await fetch(API_BASE+'/api/upgrade', {
-            method:'POST', headers:{'Content-Type':'application/json'},
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ init_data: initData, bet, multiplier: mult })
         });
         result = await r.json();
-    } catch { toast('Ошибка сервера'); spinning=false; document.getElementById('spin-btn').disabled=false; return; }
+    } catch {
+        toast('Ошибка сервера');
+        spinning = false;
+        document.getElementById('spin-btn').disabled = false;
+        setUILocked(false);
+        return;
+    }
 
-    if (result.error) { toast(result.error); spinning=false; document.getElementById('spin-btn').disabled=false; return; }
+    if (result.error) {
+        toast(result.error);
+        spinning = false;
+        document.getElementById('spin-btn').disabled = false;
+        setUILocked(false);
+        return;
+    }
 
     const wc = winChance();
     const wa = wc * Math.PI * 2;
@@ -576,16 +714,18 @@ async function doSpin() {
             arrowAngle = startAngle + totalDelta;
             setTimeout(() => {
                 setBalance(result.new_balance);
-                showResult(won, bet, result.profit);
+                showResult(won, bet, result.profit, mult);
                 spinning = false;
                 document.getElementById('spin-btn').disabled = false;
+                setUILocked(false);
             }, 250);
         }
     }
     raf = requestAnimationFrame(frame);
 }
 
-function showResult(won, bet, profit) {
+function showResult(won, bet, profit, m) {
+    addHistory({ won, bet, profit, mult: m, time: new Date() });
     document.getElementById('res-emo').textContent = won ? '🏆' : '💸';
     document.getElementById('res-title').textContent = won ? 'Победа!' : 'Проигрыш';
     if (won) {
@@ -611,16 +751,17 @@ document.getElementById('btn-play').onclick = () => go('s-games');
 document.getElementById('btn-back-games').onclick = () => go('s-main');
 document.getElementById('btn-upgrader').onclick = () => { go('s-upgrader'); syncSlider(); updateUI(); };
 document.getElementById('btn-back-upg').onclick = () => { if (!spinning) go('s-games'); };
+
 document.getElementById('bet-inp').addEventListener('input', () => {
     syncSlider();
     updateUI();
 });
-
 document.getElementById('bet-slider').addEventListener('input', () => {
     document.getElementById('bet-inp').value = document.getElementById('bet-slider').value;
     syncSlider();
     updateUI();
 });
+
 document.getElementById('spin-btn').onclick = doSpin;
 document.getElementById('res-close').onclick = () => {
     document.getElementById('overlay').classList.remove('show');
