@@ -388,6 +388,17 @@ input[type=number] { -moz-appearance: textfield; }
     </div>
     <div class="ms-body">
 
+        <!-- Игровая зона (скрыта до старта) -->
+        <div id="ms-game-area" style="display:none;width:100%;flex-direction:column;gap:14px;align-items:center;">
+            <div class="ms-grid" id="ms-grid"></div>
+            <div class="ms-win-box">
+                <div class="ms-win-lbl">Текущий выигрыш</div>
+                <div class="ms-win-val" id="ms-win-val">—</div>
+                <div class="ms-win-mult" id="ms-win-mult">×1.00</div>
+            </div>
+            <button class="cashout-btn" id="ms-cashout-btn" disabled>ЗАБРАТЬ —</button>
+        </div>
+
         <!-- Ставка -->
         <div class="w100" id="ms-bet-section">
             <div class="field-lbl">Ставка</div>
@@ -420,17 +431,6 @@ input[type=number] { -moz-appearance: textfield; }
 
         <!-- Кнопка старта -->
         <button class="spin-btn" id="ms-start-btn">НАЧАТЬ ИГРУ</button>
-
-        <!-- Игровая зона (скрыта до старта) -->
-        <div id="ms-game-area" style="display:none;width:100%;flex-direction:column;gap:14px;align-items:center;">
-            <div class="ms-win-box">
-                <div class="ms-win-lbl">Текущий выигрыш</div>
-                <div class="ms-win-val" id="ms-win-val">—</div>
-                <div class="ms-win-mult" id="ms-win-mult">×1.00</div>
-            </div>
-            <div class="ms-grid" id="ms-grid"></div>
-            <button class="cashout-btn" id="ms-cashout-btn" disabled>ЗАБРАТЬ —</button>
-        </div>
 
     </div>
 </div>
@@ -816,8 +816,8 @@ document.getElementById('res-close').onclick = () => {
     }
 };
 
-document.querySelectorAll('.mbtn').forEach(b => b.onclick = () => {
-    document.querySelectorAll('.mbtn').forEach(x => x.classList.remove('sel'));
+document.querySelectorAll('.mbtn:not([data-mines])').forEach(b => b.onclick = () => {
+    document.querySelectorAll('.mbtn:not([data-mines])').forEach(x => x.classList.remove('sel'));
     b.classList.add('sel');
     mult = parseInt(b.dataset.m);
     updateUI();
