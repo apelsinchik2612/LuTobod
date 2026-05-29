@@ -371,16 +371,19 @@ function setBalance(v) {
     document.getElementById('bal-main').textContent = t;
     document.getElementById('bal-games').textContent = t;
     document.getElementById('bal-upg').textContent = t;
-    const slider = document.getElementById('bet-slider');
-    slider.max = Math.max(v, 500);
-    syncSliderTrack();
+    syncSlider();
 }
 
-function syncSliderTrack() {
+function syncSlider() {
     const slider = document.getElementById('bet-slider');
-    const pct = slider.max > slider.min
-        ? ((slider.value - slider.min) / (slider.max - slider.min)) * 100
-        : 0;
+    const inp = document.getElementById('bet-inp');
+    const maxVal = Math.max(balance, 500);
+    slider.min = 500;
+    slider.max = maxVal;
+    const betVal = parseFloat(inp.value) || 0;
+    if (betVal > 0) slider.value = Math.min(Math.max(betVal, 500), maxVal);
+    const cur = parseFloat(slider.value);
+    const pct = maxVal > 500 ? ((cur - 500) / (maxVal - 500)) * 100 : 0;
     slider.style.background = `linear-gradient(to right, var(--green) ${pct}%, var(--border) ${pct}%)`;
 }
 async function loadBalance() {
@@ -606,20 +609,16 @@ function toast(msg) {
 // ── EVENTS ────────────────────────────────────────────
 document.getElementById('btn-play').onclick = () => go('s-games');
 document.getElementById('btn-back-games').onclick = () => go('s-main');
-document.getElementById('btn-upgrader').onclick = () => { go('s-upgrader'); updateUI(); };
+document.getElementById('btn-upgrader').onclick = () => { go('s-upgrader'); syncSlider(); updateUI(); };
 document.getElementById('btn-back-upg').onclick = () => { if (!spinning) go('s-games'); };
 document.getElementById('bet-inp').addEventListener('input', () => {
-    const v = parseFloat(document.getElementById('bet-inp').value) || 0;
-    const slider = document.getElementById('bet-slider');
-    slider.value = Math.min(Math.max(v, slider.min), slider.max);
-    syncSliderTrack();
+    syncSlider();
     updateUI();
 });
 
 document.getElementById('bet-slider').addEventListener('input', () => {
-    const slider = document.getElementById('bet-slider');
-    document.getElementById('bet-inp').value = slider.value;
-    syncSliderTrack();
+    document.getElementById('bet-inp').value = document.getElementById('bet-slider').value;
+    syncSlider();
     updateUI();
 });
 document.getElementById('spin-btn').onclick = doSpin;
