@@ -634,6 +634,13 @@ ms_sessions: dict[str, dict] = {}
 
 MS_HOUSE = 0.97
 
+ROULETTE_SEGMENTS = [
+    'blue', 'green', 'red', 'blue', 'blue',
+    'green', 'blue', 'red', 'blue', 'green',
+    'blue', 'red', 'blue', 'green', 'yellow'
+]
+ROULETTE_MULTIPLIERS = {'blue': 1.5, 'green': 2.0, 'red': 3.0, 'yellow': 5.0}
+
 def ms_calc_mult(opened: int, mines: int) -> float:
     m = 1.0
     for i in range(opened):
@@ -780,6 +787,72 @@ async def web_api_ms_cashout(request: aio_web.Request) -> aio_web.Response:
     })
 
 
+async def web_api_roulette(request: aio_web.Request) -> aio_web.Response:
+    try:
+        data = await request.json()
+    except Exception:
+        return aio_web.json_response({'error': 'Неверный запрос'}, status=400)
+
+    user_id = validate_init_data(data.get('init_data', ''))
+    if not user_id:
+        return aio_web.json_response({'error': 'Unauthorized'}, status=401)
+
+    try:
+        bet = round(float(data['bet']), 2)
+        color = str(data['color']).lower()
+    except (KeyError, TypeError, ValueError):
+        return aio_web.json_response({'error': 'Неверные данные'})
+
+    if bet < 500:
+        return aio_web.json_response({'error': 'Минимальная ставка 500₽'})
+    if color not in ROULETTE_MULTIPLIERS:
+        return aio_web.json_response({'error': 'Неверный цвет'})
+
+    user = await get_user(user_id)
+    if not user:
+        return aio_web.json_response({'error': 'Пользователь не найден'})
+    if user.get('banned', 0):
+        return aio_web.json_response({'error': 'Вы заблокированы'})
+
+    balance = round(float(user['balance']), 2)
+    if balance < bet:
+        return aio_web.json_response({'error': 'Недостаточно средств'})
+
+    segment_idx = random.randint(0, len(ROULETTE_SEGMENTS) - 1)
+    result_color = ROULETTE_SEGMENTS[segment_idx]
+    won = result_color == color
+    multiplier = ROULETTE_MULTIPLIERS[color]
+    profit = round(bet * (multiplier - 1), 2) if won else 0.0
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        if won:
+            new_balance = round(balance + profit, 2)
+        else:
+            new_balance = round(balance - bet, 2)
+        await db.execute(
+            "UPDATE users SET balance = ?, games_played = games_played + 1 WHERE id = ?",
+            (new_balance, user_id)
+        )
+        await db.execute(
+            "INSERT INTO transactions (type, to_id, amount, created_at) VALUES (?,?,?,?)",
+            ("roulette_win" if won else "roulette_lose", user_id, profit if won else bet, now_str)
+        )
+        await db.execute(
+            "INSERT INTO game_history (user_id, won, bet, profit, mult, created_at) VALUES (?,?,?,?,?,?)",
+            (user_id, 1 if won else 0, bet, profit, multiplier, now_str)
+        )
+        await db.commit()
+
+    return aio_web.json_response({
+        'won': won,
+        'profit': profit,
+        'result_color': result_color,
+        'segment_idx': segment_idx,
+        'new_balance': new_balance,
+    })
+
+
 @aio_web.middleware
 async def cors_middleware(request: aio_web.Request, handler):
     if request.method == 'OPTIONS':
@@ -808,6 +881,8 @@ def make_web_app() -> aio_web.Application:
     app.router.add_post('/api/minesweeper/start',   web_api_ms_start)
     app.router.add_post('/api/minesweeper/open',    web_api_ms_open)
     app.router.add_post('/api/minesweeper/cashout', web_api_ms_cashout)
+    app.router.add_route('OPTIONS', '/api/roulette', lambda r: aio_web.Response())
+    app.router.add_post('/api/roulette', web_api_roulette)
     return app
 
 
