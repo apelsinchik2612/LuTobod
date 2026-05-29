@@ -31,7 +31,7 @@ DB_PATH = "bot.db"
 PROXY = ""
 WEB_PORT = int(__import__('os').environ.get('PORT', 8080))
 # Вставь сюда свой домен с BotHost (из раздела "Web" в панели хостинга)
-WEB_URL = "https://lutobod-production.up.railway.app"
+WEB_URL = "https://lutobot.bothost.tech"
 WEBAPP_DIR = Path(__file__).parent / "webapp"
 # ==================================================
 
@@ -1165,7 +1165,6 @@ def kb_main() -> ReplyKeyboardMarkup:
         keyboard=[
             [KeyboardButton(text="👤 Профиль"),        KeyboardButton(text="🏆 Топ")],
             [KeyboardButton(text="🎟 Ввод промокода"), KeyboardButton(text="⚙️ Настройки")],
-            [KeyboardButton(text="🎮 Игры", web_app=WebAppInfo(url=WEB_URL))],
         ],
         resize_keyboard=True,
     )
