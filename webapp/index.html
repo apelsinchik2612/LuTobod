@@ -416,8 +416,25 @@ let history = [];
 let histFilter = 'all';
 let histCollapsed = true;
 
+async function loadHistory() {
+    if (!initData) return;
+    try {
+        const r = await fetch(API_BASE + '/api/history?init_data=' + encodeURIComponent(initData));
+        const d = await r.json();
+        if (d.history) {
+            history = d.history.map(e => ({
+                won: !!e.won, bet: e.bet, profit: e.profit,
+                mult: e.mult, time: new Date(e.created_at)
+            }));
+            document.getElementById('hist-count').textContent = history.length;
+            renderHistory();
+        }
+    } catch(e) {}
+}
+
 function addHistory(entry) {
     history.unshift(entry);
+    if (history.length > 50) history.length = 50;
     document.getElementById('hist-count').textContent = history.length;
     renderHistory();
 }
@@ -809,6 +826,7 @@ document.getElementById('speed-btn').onclick = () => {
 };
 
 // ── INIT ──────────────────────────────────────────────
+loadHistory();
 loadBalance().then(() => drawWheel(arrowAngle, 0.5));
 </script>
 </body>
