@@ -192,49 +192,6 @@ input[type=number] { -moz-appearance: textfield; }
 .spin-btn:active:not(:disabled) { transform: scale(.98); opacity: .9; }
 .spin-btn:disabled { opacity: .45; cursor: not-allowed; }
 
-/* === ИСТОРИЯ === */
-.hist-section {
-    width: 100%; border: 1px solid var(--border);
-    border-radius: 12px; background: var(--surface); overflow: hidden;
-}
-.hist-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 12px 16px; cursor: pointer; -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-}
-.hist-title { font-size: 13px; font-weight: 700; }
-.hist-meta { display: flex; align-items: center; gap: 8px; }
-.hist-count {
-    font-size: 11px; color: var(--text2);
-    background: var(--surface2); padding: 2px 7px; border-radius: 10px;
-}
-.hist-arrow { font-size: 11px; color: var(--text2); transition: transform .2s; display: inline-block; }
-.hist-arrow.up { transform: rotate(180deg); }
-.hist-body { border-top: 1px solid var(--border); }
-.hist-body.collapsed { display: none; }
-.hist-filters { display: flex; gap: 6px; padding: 10px 12px 8px; }
-.hfbtn {
-    flex: 1; padding: 6px 4px; border-radius: 8px;
-    border: 1px solid var(--border); background: var(--surface2);
-    color: var(--text2); font-size: 11px; font-weight: 700;
-    cursor: pointer; transition: all .15s;
-}
-.hfbtn.sel { border-color: var(--accent); color: var(--accent); background: rgba(88,166,255,.08); }
-.hist-list { padding: 0 12px 12px; }
-.hist-empty { text-align: center; color: var(--text2); font-size: 12px; padding: 16px 0; }
-.hist-item {
-    display: flex; align-items: center; gap: 10px;
-    padding: 9px 10px; border-radius: 10px; margin-bottom: 6px;
-    background: var(--surface2); border: 1px solid var(--border);
-}
-.hist-ico { font-size: 18px; flex-shrink: 0; }
-.hist-info { flex: 1; min-width: 0; }
-.hist-top { font-size: 13px; font-weight: 700; }
-.hist-top.g { color: var(--green); }
-.hist-top.r { color: var(--red); }
-.hist-bot { font-size: 11px; color: var(--text2); margin-top: 1px; }
-.hist-time { font-size: 10px; color: var(--text2); flex-shrink: 0; text-align: right; }
-
 /* RESULT OVERLAY */
 .overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,.85);
@@ -417,26 +374,6 @@ input[type=number] { -moz-appearance: textfield; }
             <button class="spin-btn" id="spin-btn" style="flex:1;">КРУТИТЬ</button>
         </div>
 
-        <!-- ИСТОРИЯ АПГРЕЙДОВ -->
-        <div class="hist-section">
-            <div class="hist-header" id="hist-toggle">
-                <span class="hist-title">📋 История апгрейдов</span>
-                <div class="hist-meta">
-                    <span class="hist-count" id="hist-count">0</span>
-                    <span class="hist-arrow" id="hist-arrow">▼</span>
-                </div>
-            </div>
-            <div class="hist-body collapsed" id="hist-body">
-                <div class="hist-filters">
-                    <button class="hfbtn sel" data-f="all">Все</button>
-                    <button class="hfbtn" data-f="win">🏆 Победы</button>
-                    <button class="hfbtn" data-f="lose">💸 Поражения</button>
-                </div>
-                <div class="hist-list" id="hist-list">
-                    <div class="hist-empty">Нет записей</div>
-                </div>
-            </div>
-        </div>
     </div>
 </div>
 
@@ -528,89 +465,11 @@ let displayPct = 50;
 let displayWc = 0.5;
 let chanceRaf = null;
 
-// ── ИСТОРИЯ ──────────────────────────────────────────
-let history = [];
-let histFilter = 'all';
-let histCollapsed = true;
-
-async function loadHistory() {
-    if (!initData) return;
-    try {
-        const r = await fetch(API_BASE + '/api/history?init_data=' + encodeURIComponent(initData));
-        const d = await r.json();
-        if (d.history) {
-            history = d.history.map(e => ({
-                won: !!e.won, bet: e.bet, profit: e.profit,
-                mult: e.mult, time: new Date(e.created_at)
-            }));
-            document.getElementById('hist-count').textContent = history.length;
-            renderHistory();
-        }
-    } catch(e) {}
-}
-
-function addHistory(entry) {
-    history.unshift(entry);
-    if (history.length > 50) history.length = 50;
-    document.getElementById('hist-count').textContent = history.length;
-    renderHistory();
-}
-
-function renderHistory() {
-    const list = document.getElementById('hist-list');
-    const filtered = histFilter === 'all' ? history
-        : histFilter === 'win' ? history.filter(e => e.won)
-        : history.filter(e => !e.won);
-    if (filtered.length === 0) {
-        list.innerHTML = '<div class="hist-empty">' +
-            (history.length === 0 ? 'Нет записей' : 'Нет совпадений') + '</div>';
-        return;
-    }
-    list.innerHTML = '';
-    filtered.forEach(e => {
-        const item = document.createElement('div');
-        item.className = 'hist-item';
-        const now = new Date();
-        const isToday = e.time.toDateString() === now.toDateString();
-        const timeOnly = e.time.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-        const dd = String(e.time.getDate()).padStart(2, '0');
-        const mm = String(e.time.getMonth() + 1).padStart(2, '0');
-        const timeStr = isToday ? 'Сегодня · ' + timeOnly : dd + '.' + mm + ' · ' + timeOnly;
-        item.innerHTML =
-            '<div class="hist-ico">' + (e.won ? '🏆' : '💸') + '</div>' +
-            '<div class="hist-info">' +
-                '<div class="hist-top ' + (e.won ? 'g' : 'r') + '">' +
-                    (e.won ? '+' + fmt(e.profit) : '-' + fmt(e.bet)) +
-                '</div>' +
-                '<div class="hist-bot">Ставка ' + fmt(e.bet) + ' · ' + e.mult + '×</div>' +
-            '</div>' +
-            '<div class="hist-time">' + timeStr + '</div>';
-        list.appendChild(item);
-    });
-}
-
-function toggleHistory() {
-    histCollapsed = !histCollapsed;
-    document.getElementById('hist-body').classList.toggle('collapsed', histCollapsed);
-    document.getElementById('hist-arrow').classList.toggle('up', !histCollapsed);
-}
-const histToggleEl = document.getElementById('hist-toggle');
-histToggleEl.addEventListener('click', toggleHistory);
-histToggleEl.addEventListener('touchend', e => { e.preventDefault(); toggleHistory(); });
-
-document.querySelectorAll('.hfbtn').forEach(b => b.onclick = () => {
-    document.querySelectorAll('.hfbtn').forEach(x => x.classList.remove('sel'));
-    b.classList.add('sel');
-    histFilter = b.dataset.f;
-    renderHistory();
-});
-
 // ── SCREENS ──────────────────────────────────────────
 const screens = document.querySelectorAll('.screen');
 function go(id) {
     screens.forEach(s => s.classList.remove('active'));
     document.getElementById(id).classList.add('active');
-    window.scrollTo(0, 0);
 }
 
 // ── BALANCE ───────────────────────────────────────────
@@ -885,7 +744,6 @@ async function doSpin() {
 }
 
 function showResult(won, bet, profit, m) {
-    addHistory({ won, bet, profit, mult: m, time: new Date() });
     document.getElementById('res-emo').textContent = won ? '🏆' : '💸';
     document.getElementById('res-title').textContent = won ? 'Победа!' : 'Проигрыш';
     if (won) {
@@ -1231,7 +1089,6 @@ function msResetUI() {
 }
 
 // ── INIT ──────────────────────────────────────────────
-loadHistory();
 loadBalance().then(() => drawWheel(arrowAngle, 0.5));
 </script>
 </body>
