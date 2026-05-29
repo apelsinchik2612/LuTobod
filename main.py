@@ -29,7 +29,7 @@ DB_PATH = "bot.db"
 PROXY = ""
 WEB_PORT = int(__import__('os').environ.get('PORT', 8080))
 # Вставь сюда свой домен с BotHost (из раздела "Web" в панели хостинга)
-WEB_URL = "https://ВАШ_ДОМЕН_BOTHOST"
+WEB_URL = "https://lutobod-production.up.railway.app"
 WEBAPP_DIR = Path(__file__).parent / "webapp"
 # ==================================================
 
