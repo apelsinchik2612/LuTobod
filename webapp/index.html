@@ -166,6 +166,25 @@ html, body {
     border-color: var(--accent); color: var(--accent);
     background: rgba(88,166,255,0.08);
 }
+.bet-slider {
+    width: 100%; margin-top: 10px;
+    -webkit-appearance: none; appearance: none;
+    height: 4px; border-radius: 4px; outline: none; cursor: pointer;
+    background: var(--border);
+}
+.bet-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--green); border: 2px solid #0d1117;
+    box-shadow: 0 0 6px rgba(63,185,80,0.5);
+    cursor: pointer; transition: transform .1s;
+}
+.bet-slider::-webkit-slider-thumb:active { transform: scale(1.2); }
+.bet-slider::-moz-range-thumb {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--green); border: 2px solid #0d1117;
+    cursor: pointer;
+}
 .spin-btn {
     width: 100%; padding: 15px; border-radius: 14px; border: none;
     background: linear-gradient(135deg, #1c6b38, #1a4f8c);
@@ -275,6 +294,7 @@ html, body {
                 <input type="number" id="bet-inp" class="inp" placeholder="500" min="500" step="1">
                 <span class="inp-sfx">₽</span>
             </div>
+            <input type="range" id="bet-slider" class="bet-slider" min="500" max="500" step="1" value="500">
         </div>
 
         <div class="w100">
@@ -351,6 +371,17 @@ function setBalance(v) {
     document.getElementById('bal-main').textContent = t;
     document.getElementById('bal-games').textContent = t;
     document.getElementById('bal-upg').textContent = t;
+    const slider = document.getElementById('bet-slider');
+    slider.max = Math.max(v, 500);
+    syncSliderTrack();
+}
+
+function syncSliderTrack() {
+    const slider = document.getElementById('bet-slider');
+    const pct = slider.max > slider.min
+        ? ((slider.value - slider.min) / (slider.max - slider.min)) * 100
+        : 0;
+    slider.style.background = `linear-gradient(to right, var(--green) ${pct}%, var(--border) ${pct}%)`;
 }
 async function loadBalance() {
     if (!initData) { setBalance(0); toast('Открой через Telegram'); return; }
@@ -577,7 +608,20 @@ document.getElementById('btn-play').onclick = () => go('s-games');
 document.getElementById('btn-back-games').onclick = () => go('s-main');
 document.getElementById('btn-upgrader').onclick = () => { go('s-upgrader'); updateUI(); };
 document.getElementById('btn-back-upg').onclick = () => { if (!spinning) go('s-games'); };
-document.getElementById('bet-inp').addEventListener('input', updateUI);
+document.getElementById('bet-inp').addEventListener('input', () => {
+    const v = parseFloat(document.getElementById('bet-inp').value) || 0;
+    const slider = document.getElementById('bet-slider');
+    slider.value = Math.min(Math.max(v, slider.min), slider.max);
+    syncSliderTrack();
+    updateUI();
+});
+
+document.getElementById('bet-slider').addEventListener('input', () => {
+    const slider = document.getElementById('bet-slider');
+    document.getElementById('bet-inp').value = slider.value;
+    syncSliderTrack();
+    updateUI();
+});
 document.getElementById('spin-btn').onclick = doSpin;
 document.getElementById('res-close').onclick = () => {
     document.getElementById('overlay').classList.remove('show');
