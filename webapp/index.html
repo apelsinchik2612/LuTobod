@@ -1515,7 +1515,7 @@ document.querySelectorAll('.rl-color-btn').forEach(b => b.addEventListener('clic
 }));
 
 // ── CRASH ─────────────────────────────────────────────
-const CR_GROWTH = 0.06;
+const CR_GROWTH = 0.035;
 let crState      = 'idle'; // idle | flying | crashed | cashedout
 let crSessionId  = null;
 let crBet        = 0;
@@ -1663,9 +1663,9 @@ function crGameLoop() {
     if (crState !== 'flying') return;
     const elapsed = (Date.now() - crStartMs) / 1000;
     const mult    = crCalcMult(elapsed);
-    if (!crPoints.length || elapsed - crPoints[crPoints.length-1][0] >= 0.08) {
-        crPoints.push([elapsed, mult]);
-    }
+    // добавляем каждый кадр, но держим не более 800 точек
+    crPoints.push([elapsed, mult]);
+    if (crPoints.length > 800) crPoints.splice(0, crPoints.length - 800);
     if (crAutoEnabled && mult >= crAutoMult) { crDoCashout(); return; }
     crDrawGraph();
     crRafId = requestAnimationFrame(crGameLoop);
@@ -1686,8 +1686,8 @@ function crHandleCrash(cp, history) {
     crCrashedAt = cp;
     clearInterval(crPollTm);
     cancelAnimationFrame(crRafId);
-    // push final point at crash
-    const crashElapsed = Math.log(cp) / CR_GROWTH;
+    // финальная точка: подгоняем конец линии точно под crash_point
+    const crashElapsed = crPoints.length ? crPoints[crPoints.length-1][0] + 0.05 : Math.log(cp) / CR_GROWTH;
     crPoints.push([crashElapsed, cp]);
     if (history) crHistory = history;
     crRenderHistory();
@@ -1780,9 +1780,9 @@ async function crStartGame() {
 
     crBet       = bet;
     crSessionId = result.session_id;
-    crStartMs   = result.start_ms;
+    crStartMs   = Date.now();   // клиентское время — стартуем с x1.00
     crState     = 'flying';
-    crPoints    = [];
+    crPoints    = [[0, 1.0]];   // первая точка всегда x1.00
     crCrashedAt = null;
     if (result.history) crHistory = result.history;
     setBalance(result.new_balance);
