@@ -204,6 +204,7 @@ input[type=number] { -moz-appearance: textfield; }
 .hist-header {
     display: flex; align-items: center; justify-content: space-between;
     padding: 12px 16px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
 .hist-title { font-size: 13px; font-weight: 700; }
 .hist-meta { display: flex; align-items: center; gap: 8px; }
@@ -458,11 +459,14 @@ function renderHistory() {
     });
 }
 
-document.getElementById('hist-toggle').onclick = () => {
+function toggleHistory() {
     histCollapsed = !histCollapsed;
     document.getElementById('hist-body').classList.toggle('collapsed', histCollapsed);
     document.getElementById('hist-arrow').classList.toggle('up', !histCollapsed);
-};
+}
+const histToggleEl = document.getElementById('hist-toggle');
+histToggleEl.addEventListener('click', toggleHistory);
+histToggleEl.addEventListener('touchend', e => { e.preventDefault(); toggleHistory(); });
 
 document.querySelectorAll('.hfbtn').forEach(b => b.onclick = () => {
     document.querySelectorAll('.hfbtn').forEach(x => x.classList.remove('sel'));
