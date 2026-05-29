@@ -293,10 +293,10 @@ html, body {
             <div class="info-item"><div class="info-item-lbl">Выиграешь</div><div class="info-item-val g" id="prev-win">—</div></div>
         </div>
 
-        <div style="display:flex;justify-content:flex-end;width:100%;">
-            <button id="speed-btn" class="speed-btn">🐢 Обычно</button>
+        <div style="display:flex;gap:8px;width:100%;">
+            <button id="speed-btn" class="speed-btn" style="flex-shrink:0;">🐢 Обычно</button>
+            <button class="spin-btn" id="spin-btn" style="flex:1;">КРУТИТЬ</button>
         </div>
-        <button class="spin-btn w100" id="spin-btn">КРУТИТЬ</button>
     </div>
 </div>
 
@@ -463,12 +463,6 @@ function drawWheel(angle, wc) {
 
     ctx.restore();
 
-    // Center dot
-    ctx.beginPath();
-    ctx.arc(CX, CY, 5, 0, Math.PI * 2);
-    ctx.fillStyle = '#ffffff';
-    ctx.shadowColor = '#ffffff'; ctx.shadowBlur = 6;
-    ctx.fill(); ctx.shadowBlur = 0;
 }
 
 function winChance() { return 1/mult; }
@@ -519,21 +513,23 @@ async function doSpin() {
     }
     landAngle = ((landAngle % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
 
-    const fullRots = fastMode ? 2 : (5 + Math.floor(Math.random() * 4));
+    const fullRots = fastMode ? (5 + Math.floor(Math.random() * 4)) : (5 + Math.floor(Math.random() * 3));
     const curNorm = ((arrowAngle % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
     let delta = landAngle - curNorm;
     if (delta < 0.01) delta += Math.PI * 2;
     const totalDelta = fullRots * Math.PI * 2 + delta;
 
     const startAngle = arrowAngle;
-    const duration = fastMode ? 550 : (3200 + Math.random() * 600);
+    const duration = fastMode ? (3200 + Math.random() * 600) : (5000 + Math.random() * 1000);
     const t0 = performance.now();
 
-    function easeOut(t) { return fastMode ? t : 1 - Math.pow(1-t, 4); }
+    function easeOut(t) { return 1 - Math.pow(1 - t, 4); }
+    function easeInOut(t) { return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2; }
 
     function frame(now) {
         const t = Math.min((now - t0) / duration, 1);
-        arrowAngle = startAngle + totalDelta * easeOut(t);
+        const easedT = fastMode ? easeOut(t) : easeInOut(t);
+        arrowAngle = startAngle + totalDelta * easedT;
         drawWheel(arrowAngle, wc);
         if (t < 1) { raf = requestAnimationFrame(frame); }
         else {
@@ -543,7 +539,7 @@ async function doSpin() {
                 showResult(won, bet, result.profit);
                 spinning = false;
                 document.getElementById('spin-btn').disabled = false;
-            }, fastMode ? 50 : 250);
+            }, 250);
         }
     }
     raf = requestAnimationFrame(frame);
