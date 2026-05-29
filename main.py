@@ -3,6 +3,7 @@ import logging
 import hmac
 import hashlib
 import json
+import math
 import random
 import secrets
 from datetime import datetime
@@ -787,6 +788,194 @@ async def web_api_ms_cashout(request: aio_web.Request) -> aio_web.Response:
     })
 
 
+# ── КРАШ ─────────────────────────────────────────────
+crash_sessions: dict[str, dict] = {}
+crash_history:  list[float]     = []
+CRASH_GROWTH = 0.06  # mult(t) = e^(t * CRASH_GROWTH)
+
+def _crash_mult(elapsed: float) -> float:
+    return math.e ** (elapsed * CRASH_GROWTH)
+
+def _gen_crash_point() -> float:
+    r = random.random()
+    if r < 0.01:
+        return 1.0
+    return round(max(1.0, 0.97 / (1.0 - r)), 2)
+
+async def web_api_crash_start(request: aio_web.Request) -> aio_web.Response:
+    try:
+        data = await request.json()
+    except Exception:
+        return aio_web.json_response({'error': 'Неверный запрос'}, status=400)
+
+    user_id = validate_init_data(data.get('init_data', ''))
+    if not user_id:
+        return aio_web.json_response({'error': 'Unauthorized'}, status=401)
+
+    try:
+        bet = round(float(data['bet']), 2)
+    except (KeyError, TypeError, ValueError):
+        return aio_web.json_response({'error': 'Неверные данные'})
+
+    if bet < 500:
+        return aio_web.json_response({'error': 'Минимальная ставка 500₽'})
+
+    user = await get_user(user_id)
+    if not user:
+        return aio_web.json_response({'error': 'Пользователь не найден'})
+    if user.get('banned', 0):
+        return aio_web.json_response({'error': 'Вы заблокированы'})
+
+    balance = round(float(user['balance']), 2)
+    if balance < bet:
+        return aio_web.json_response({'error': 'Недостаточно средств'})
+
+    new_balance = round(balance - bet, 2)
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE users SET balance = ?, games_played = games_played + 1 WHERE id = ?",
+            (new_balance, user_id)
+        )
+        await db.execute(
+            "INSERT INTO transactions (type, to_id, amount, created_at) VALUES (?,?,?,?)",
+            ("crash_bet", user_id, bet, now_str)
+        )
+        await db.commit()
+
+    crash_point = _gen_crash_point()
+    session_id  = secrets.token_hex(16)
+    start_ts    = datetime.now().timestamp()
+
+    crash_sessions[session_id] = {
+        'user_id': user_id, 'bet': bet,
+        'crash_point': crash_point, 'start_time': start_ts,
+        'active': True, 'cashed_out': False, 'history_recorded': False,
+    }
+
+    return aio_web.json_response({
+        'session_id': session_id,
+        'start_ms':   int(start_ts * 1000),
+        'new_balance': new_balance,
+        'history':    list(crash_history[-10:]),
+    })
+
+
+async def web_api_crash_cashout(request: aio_web.Request) -> aio_web.Response:
+    try:
+        data = await request.json()
+    except Exception:
+        return aio_web.json_response({'error': 'Неверный запрос'}, status=400)
+
+    user_id = validate_init_data(data.get('init_data', ''))
+    if not user_id:
+        return aio_web.json_response({'error': 'Unauthorized'}, status=401)
+
+    session_id = data.get('session_id', '')
+    session = crash_sessions.get(session_id)
+
+    if not session or session['user_id'] != user_id:
+        return aio_web.json_response({'error': 'Сессия не найдена'})
+    if session['cashed_out']:
+        return aio_web.json_response({'error': 'Уже выведено'})
+    if not session['active']:
+        return aio_web.json_response({'crashed': True, 'crash_point': session['crash_point']})
+
+    elapsed      = datetime.now().timestamp() - session['start_time']
+    current_mult = _crash_mult(elapsed)
+
+    if current_mult >= session['crash_point']:
+        session['active'] = False
+        cp = session['crash_point']
+        if not session['history_recorded']:
+            session['history_recorded'] = True
+            crash_history.append(cp)
+            if len(crash_history) > 20:
+                crash_history.pop(0)
+            now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            async with aiosqlite.connect(DB_PATH) as db:
+                await db.execute(
+                    "INSERT INTO game_history (user_id, won, bet, profit, mult, created_at) VALUES (?,?,?,?,?,?)",
+                    (user_id, 0, session['bet'], 0.0, cp, now_str)
+                )
+                await db.commit()
+        crash_sessions.pop(session_id, None)
+        return aio_web.json_response({'crashed': True, 'crash_point': cp})
+
+    cashout_mult = round(current_mult, 2)
+    total        = round(session['bet'] * cashout_mult, 2)
+    profit       = round(total - session['bet'], 2)
+
+    session['active']    = False
+    session['cashed_out'] = True
+
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE users SET balance = balance + ? WHERE id = ?", (total, user_id)
+        )
+        await db.execute(
+            "INSERT INTO game_history (user_id, won, bet, profit, mult, created_at) VALUES (?,?,?,?,?,?)",
+            (user_id, 1, session['bet'], profit, cashout_mult, now_str)
+        )
+        await db.commit()
+
+    crash_sessions.pop(session_id, None)
+    user = await get_user(user_id)
+    return aio_web.json_response({
+        'crashed': False, 'mult': cashout_mult,
+        'profit': profit,
+        'new_balance': round(float(user['balance']), 2),
+    })
+
+
+async def web_api_crash_status(request: aio_web.Request) -> aio_web.Response:
+    session_id = request.query.get('session_id', '')
+    init_data  = request.query.get('init_data', '')
+
+    user_id = validate_init_data(init_data)
+    if not user_id:
+        return aio_web.json_response({'error': 'Unauthorized'}, status=401)
+
+    session = crash_sessions.get(session_id)
+    if not session or session['user_id'] != user_id:
+        return aio_web.json_response({'error': 'Сессия не найдена'})
+
+    if not session['active']:
+        return aio_web.json_response({'active': False, 'cashed_out': session['cashed_out']})
+
+    elapsed      = datetime.now().timestamp() - session['start_time']
+    current_mult = _crash_mult(elapsed)
+
+    if current_mult >= session['crash_point']:
+        session['active'] = False
+        cp = session['crash_point']
+        if not session['history_recorded']:
+            session['history_recorded'] = True
+            crash_history.append(cp)
+            if len(crash_history) > 20:
+                crash_history.pop(0)
+            now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            async with aiosqlite.connect(DB_PATH) as db:
+                await db.execute(
+                    "INSERT INTO game_history (user_id, won, bet, profit, mult, created_at) VALUES (?,?,?,?,?,?)",
+                    (user_id, 0, session['bet'], 0.0, cp, now_str)
+                )
+                await db.commit()
+        crash_sessions.pop(session_id, None)
+        return aio_web.json_response({
+            'active': False, 'crashed': True,
+            'crash_point': cp,
+            'history': list(crash_history[-10:]),
+        })
+
+    return aio_web.json_response({
+        'active': True,
+        'mult':    round(current_mult, 2),
+        'elapsed': round(elapsed, 3),
+    })
+
+
 async def web_api_roulette(request: aio_web.Request) -> aio_web.Response:
     try:
         data = await request.json()
@@ -883,6 +1072,11 @@ def make_web_app() -> aio_web.Application:
     app.router.add_post('/api/minesweeper/cashout', web_api_ms_cashout)
     app.router.add_route('OPTIONS', '/api/roulette', lambda r: aio_web.Response())
     app.router.add_post('/api/roulette', web_api_roulette)
+    for path in ('/api/crash/start', '/api/crash/cashout', '/api/crash/status'):
+        app.router.add_route('OPTIONS', path, lambda r: aio_web.Response())
+    app.router.add_post('/api/crash/start',   web_api_crash_start)
+    app.router.add_post('/api/crash/cashout', web_api_crash_cashout)
+    app.router.add_get ('/api/crash/status',  web_api_crash_status)
     return app
 
 
