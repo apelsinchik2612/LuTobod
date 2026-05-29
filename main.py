@@ -4,6 +4,7 @@ import hmac
 import hashlib
 import json
 import random
+import secrets
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import unquote
@@ -135,6 +136,17 @@ async def db_init():
                 username   TEXT,
                 reason     TEXT    NOT NULL,
                 status     TEXT    NOT NULL DEFAULT 'open',
+                created_at TEXT    NOT NULL
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS game_history (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id    INTEGER NOT NULL,
+                won        INTEGER NOT NULL,
+                bet        REAL    NOT NULL,
+                profit     REAL    NOT NULL,
+                mult       REAL    NOT NULL,
                 created_at TEXT    NOT NULL
             )
         """)
@@ -548,8 +560,8 @@ async def web_api_upgrade(request: aio_web.Request) -> aio_web.Response:
     except (KeyError, TypeError, ValueError):
         return aio_web.json_response({'error': 'Неверные данные'})
 
-    if bet < 1:
-        return aio_web.json_response({'error': 'Минимальная ставка 1₽'})
+    if bet < 500:
+        return aio_web.json_response({'error': 'Минимальная ставка 500₽'})
     if multiplier < 1.1 or multiplier > 100:
         return aio_web.json_response({'error': 'Неверный множитель'})
 
@@ -558,7 +570,9 @@ async def web_api_upgrade(request: aio_web.Request) -> aio_web.Response:
         return aio_web.json_response({'error': 'Пользователь не найден'})
     if user.get('banned', 0):
         return aio_web.json_response({'error': 'Вы заблокированы'})
-    if user['balance'] < bet:
+
+    balance = round(float(user['balance']), 2)
+    if balance < bet:
         return aio_web.json_response({'error': 'Недостаточно средств'})
 
     won = random.random() < (1.0 / multiplier)
@@ -567,30 +581,202 @@ async def web_api_upgrade(request: aio_web.Request) -> aio_web.Response:
 
     async with aiosqlite.connect(DB_PATH) as db:
         if won:
+            new_balance = round(balance + profit, 2)
             await db.execute(
-                "UPDATE users SET balance = balance + ?, games_played = games_played + 1 WHERE id = ?",
-                (profit, user_id),
+                "UPDATE users SET balance = ?, games_played = games_played + 1 WHERE id = ?",
+                (new_balance, user_id),
             )
             await db.execute(
                 "INSERT INTO transactions (type, to_id, amount, created_at) VALUES (?,?,?,?)",
                 ("upgrade_win", user_id, profit, now_str),
             )
         else:
+            new_balance = round(balance - bet, 2)
             await db.execute(
-                "UPDATE users SET balance = balance - ?, games_played = games_played + 1 WHERE id = ?",
-                (bet, user_id),
+                "UPDATE users SET balance = ?, games_played = games_played + 1 WHERE id = ?",
+                (new_balance, user_id),
             )
             await db.execute(
                 "INSERT INTO transactions (type, to_id, amount, created_at) VALUES (?,?,?,?)",
                 ("upgrade_lose", user_id, bet, now_str),
             )
+        await db.execute(
+            "INSERT INTO game_history (user_id, won, bet, profit, mult, created_at) VALUES (?,?,?,?,?,?)",
+            (user_id, 1 if won else 0, bet, profit, multiplier, now_str)
+        )
         await db.commit()
 
     updated = await get_user(user_id)
     return aio_web.json_response({
         'won': won,
         'profit': profit,
-        'new_balance': updated['balance'],
+        'new_balance': round(float(updated['balance']), 2),
+    })
+
+
+async def web_api_history(request: aio_web.Request) -> aio_web.Response:
+    user_id = validate_init_data(request.query.get('init_data', ''))
+    if not user_id:
+        return aio_web.json_response({'error': 'Unauthorized'}, status=401)
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT won, bet, profit, mult, created_at FROM game_history"
+            " WHERE user_id = ? ORDER BY id DESC LIMIT 50",
+            (user_id,)
+        ) as cur:
+            rows = [dict(r) for r in await cur.fetchall()]
+    return aio_web.json_response({'history': rows})
+
+
+# ── САПЁР: сессии в памяти ────────────────────────────
+ms_sessions: dict[str, dict] = {}
+
+MS_HOUSE = 0.97
+
+def ms_calc_mult(opened: int, mines: int) -> float:
+    m = 1.0
+    for i in range(opened):
+        m *= (25 - i) / (25 - mines - i)
+    return round(m * MS_HOUSE, 4)
+
+
+async def web_api_ms_start(request: aio_web.Request) -> aio_web.Response:
+    try:
+        data = await request.json()
+    except Exception:
+        return aio_web.json_response({'error': 'Неверный запрос'}, status=400)
+
+    user_id = validate_init_data(data.get('init_data', ''))
+    if not user_id:
+        return aio_web.json_response({'error': 'Unauthorized'}, status=401)
+
+    try:
+        bet = round(float(data['bet']), 2)
+        mines = int(data['mines'])
+    except (KeyError, TypeError, ValueError):
+        return aio_web.json_response({'error': 'Неверные данные'})
+
+    if bet < 500:
+        return aio_web.json_response({'error': 'Минимальная ставка 500₽'})
+    if mines < 1 or mines > 24:
+        return aio_web.json_response({'error': 'Неверное количество мин'})
+
+    user = await get_user(user_id)
+    if not user:
+        return aio_web.json_response({'error': 'Пользователь не найден'})
+    if user.get('banned', 0):
+        return aio_web.json_response({'error': 'Вы заблокированы'})
+
+    balance = round(float(user['balance']), 2)
+    if balance < bet:
+        return aio_web.json_response({'error': 'Недостаточно средств'})
+
+    new_balance = round(balance - bet, 2)
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE users SET balance = ?, games_played = games_played + 1 WHERE id = ?",
+            (new_balance, user_id)
+        )
+        await db.commit()
+
+    mine_positions = set(random.sample(range(25), mines))
+    session_id = secrets.token_hex(16)
+    ms_sessions[session_id] = {
+        'user_id': user_id,
+        'bet': bet,
+        'mines': mines,
+        'mine_positions': mine_positions,
+        'opened': [],
+        'active': True,
+    }
+
+    return aio_web.json_response({'session_id': session_id, 'new_balance': new_balance})
+
+
+async def web_api_ms_open(request: aio_web.Request) -> aio_web.Response:
+    try:
+        data = await request.json()
+    except Exception:
+        return aio_web.json_response({'error': 'Неверный запрос'}, status=400)
+
+    user_id = validate_init_data(data.get('init_data', ''))
+    if not user_id:
+        return aio_web.json_response({'error': 'Unauthorized'}, status=401)
+
+    session_id = data.get('session_id', '')
+    cell = data.get('cell')
+    session = ms_sessions.get(session_id)
+
+    if not session or session['user_id'] != user_id or not session['active']:
+        return aio_web.json_response({'error': 'Сессия не найдена'})
+    if not isinstance(cell, int) or cell < 0 or cell > 24:
+        return aio_web.json_response({'error': 'Неверная клетка'})
+    if cell in session['opened']:
+        return aio_web.json_response({'error': 'Клетка уже открыта'})
+
+    if cell in session['mine_positions']:
+        session['active'] = False
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        async with aiosqlite.connect(DB_PATH) as db:
+            await db.execute(
+                "INSERT INTO game_history (user_id, won, bet, profit, mult, created_at) VALUES (?,?,?,?,?,?)",
+                (user_id, 0, session['bet'], 0.0, 0.0, now_str)
+            )
+            await db.commit()
+        mine_list = list(session['mine_positions'])
+        del ms_sessions[session_id]
+        user = await get_user(user_id)
+        return aio_web.json_response({
+            'is_mine': True,
+            'mine_positions': mine_list,
+            'new_balance': round(float(user['balance']), 2) if user else 0,
+        })
+    else:
+        session['opened'].append(cell)
+        multiplier = ms_calc_mult(len(session['opened']), session['mines'])
+        return aio_web.json_response({'is_mine': False, 'multiplier': multiplier})
+
+
+async def web_api_ms_cashout(request: aio_web.Request) -> aio_web.Response:
+    try:
+        data = await request.json()
+    except Exception:
+        return aio_web.json_response({'error': 'Неверный запрос'}, status=400)
+
+    user_id = validate_init_data(data.get('init_data', ''))
+    if not user_id:
+        return aio_web.json_response({'error': 'Unauthorized'}, status=401)
+
+    session_id = data.get('session_id', '')
+    session = ms_sessions.get(session_id)
+
+    if not session or session['user_id'] != user_id or not session['active']:
+        return aio_web.json_response({'error': 'Сессия не найдена'})
+    if not session['opened']:
+        return aio_web.json_response({'error': 'Откройте хотя бы одну клетку'})
+
+    multiplier = ms_calc_mult(len(session['opened']), session['mines'])
+    total_win = round(session['bet'] * multiplier, 2)
+    profit = round(total_win - session['bet'], 2)
+
+    session['active'] = False
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE users SET balance = balance + ? WHERE id = ?", (total_win, user_id)
+        )
+        await db.execute(
+            "INSERT INTO game_history (user_id, won, bet, profit, mult, created_at) VALUES (?,?,?,?,?,?)",
+            (user_id, 1, session['bet'], profit, multiplier, now_str)
+        )
+        await db.commit()
+
+    del ms_sessions[session_id]
+    user = await get_user(user_id)
+    return aio_web.json_response({
+        'profit': profit,
+        'new_balance': round(float(user['balance']), 2) if user else 0,
     })
 
 
@@ -615,6 +801,13 @@ def make_web_app() -> aio_web.Application:
     app.router.add_route('OPTIONS', '/api/upgrade', lambda r: aio_web.Response())
     app.router.add_get('/api/user', web_api_user)
     app.router.add_post('/api/upgrade', web_api_upgrade)
+    app.router.add_route('OPTIONS', '/api/history', lambda r: aio_web.Response())
+    app.router.add_get('/api/history', web_api_history)
+    for path in ('/api/minesweeper/start', '/api/minesweeper/open', '/api/minesweeper/cashout'):
+        app.router.add_route('OPTIONS', path, lambda r: aio_web.Response())
+    app.router.add_post('/api/minesweeper/start',   web_api_ms_start)
+    app.router.add_post('/api/minesweeper/open',    web_api_ms_open)
+    app.router.add_post('/api/minesweeper/cashout', web_api_ms_cashout)
     return app
 
 
