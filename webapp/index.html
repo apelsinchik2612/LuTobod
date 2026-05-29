@@ -330,6 +330,54 @@ input[type=number] { -moz-appearance: textfield; }
 .rl-color-btn[data-color="yellow"] .rl-dot { background: #eab308; }
 
 .rl-color-btn:disabled { opacity: .35; cursor: not-allowed; pointer-events: none; }
+
+/* === CRASH === */
+.cr-body {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; padding: 10px 16px 60px; gap: 12px;
+}
+.cr-graph-wrap {
+    width: 100%; border-radius: 14px; overflow: hidden;
+    border: 1px solid var(--border); background: #161b22;
+}
+#cr-canvas { display: block; width: 100%; }
+
+.cr-history {
+    display: flex; gap: 6px; width: 100%;
+    overflow-x: auto; padding-bottom: 2px;
+    scrollbar-width: none;
+}
+.cr-history::-webkit-scrollbar { display: none; }
+.cr-hist-item {
+    flex-shrink: 0; padding: 4px 10px; border-radius: 8px;
+    font-size: 12px; font-weight: 800; border: 1px solid transparent;
+}
+.cr-hist-lo  { background: rgba(239,68,68,.15);  border-color: rgba(239,68,68,.3);  color: #f87171; }
+.cr-hist-mid { background: rgba(34,197,94,.15);  border-color: rgba(34,197,94,.3);  color: #4ade80; }
+.cr-hist-hi  { background: rgba(234,179,8,.15);  border-color: rgba(234,179,8,.3);  color: #facc15; }
+
+.cr-auto-row {
+    display: flex; align-items: center; gap: 10px; width: 100%;
+}
+.cr-auto-label {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 600; flex-shrink: 0; color: var(--text2);
+}
+.cr-switch {
+    width: 38px; height: 22px; border-radius: 11px;
+    background: var(--surface2); border: 1px solid var(--border);
+    position: relative; cursor: pointer; transition: background .2s;
+    flex-shrink: 0;
+}
+.cr-switch::after {
+    content: ''; position: absolute; width: 16px; height: 16px;
+    border-radius: 50%; background: #fff; top: 2px; left: 2px;
+    transition: left .2s; box-shadow: 0 1px 3px rgba(0,0,0,.4);
+}
+.cr-switch.on { background: var(--green); border-color: var(--green); }
+.cr-switch.on::after { left: 18px; }
+.cr-auto-inp-wrap { flex: 1; }
+.cr-auto-inp-wrap .inp { font-size: 15px; }
 </style>
 </head>
 <body>
@@ -380,6 +428,14 @@ input[type=number] { -moz-appearance: textfield; }
         <div>
             <div class="game-name">Рулетка</div>
             <div class="game-desc">Ставь на цвет — до x5 к ставке</div>
+        </div>
+        <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+    </div>
+    <div class="game-card" id="btn-crash">
+        <div class="game-ico">💥</div>
+        <div>
+            <div class="game-name">Краш</div>
+            <div class="game-desc">Выведи до краша — множитель растёт</div>
         </div>
         <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
     </div>
@@ -546,6 +602,47 @@ input[type=number] { -moz-appearance: textfield; }
     </div>
 </div>
 
+<!-- CRASH -->
+<div id="s-crash" class="screen">
+    <div class="hdr">
+        <button class="back-btn" id="btn-back-cr">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>Назад
+        </button>
+        <span class="hdr-title">Краш</span>
+        <div class="bal-chip">💰 <span id="bal-cr">...</span></div>
+    </div>
+    <div class="cr-body">
+
+        <div class="cr-graph-wrap">
+            <canvas id="cr-canvas"></canvas>
+        </div>
+
+        <div class="cr-history" id="cr-history"></div>
+
+        <div class="w100" id="cr-bet-section">
+            <div class="field-lbl">Ставка</div>
+            <div class="inp-wrap">
+                <input type="number" id="cr-bet-inp" class="inp" placeholder="500" min="500" step="1">
+                <span class="inp-sfx">₽</span>
+            </div>
+            <input type="range" id="cr-bet-slider" class="bet-slider" min="500" max="500" step="1" value="500">
+        </div>
+
+        <div class="cr-auto-row">
+            <div class="cr-auto-label">
+                <div class="cr-switch" id="cr-auto-switch"></div>
+                Авто-вывод
+            </div>
+            <div class="inp-wrap cr-auto-inp-wrap">
+                <input type="number" id="cr-auto-inp" class="inp" value="2.00" step="0.1" min="1.1" disabled style="opacity:.4">
+                <span class="inp-sfx">×</span>
+            </div>
+        </div>
+
+        <button class="spin-btn" id="cr-action-btn">ПОСТАВИТЬ</button>
+    </div>
+</div>
+
 <!-- RESULT OVERLAY -->
 <div class="overlay" id="overlay">
     <div class="res-card">
@@ -597,9 +694,11 @@ function setBalance(v) {
     document.getElementById('bal-upg').textContent = t;
     document.getElementById('bal-ms').textContent = t;
     document.getElementById('bal-rl').textContent = t;
+    document.getElementById('bal-cr').textContent = t;
     syncSlider();
     msSyncSlider();
     rlSyncSlider?.();
+    crSyncSlider?.();
 }
 
 function syncSlider() {
@@ -928,6 +1027,12 @@ document.getElementById('res-close').onclick = () => {
         msResetUI();
     } else if (currentGame === 'roulette') {
         rlUpdateInfoRow();
+    } else if (currentGame === 'crash') {
+        crState = 'idle';
+        crSetControlsLocked(false);
+        crSyncSlider();
+        crPoints = [];
+        crDrawGraph();
     }
 };
 
@@ -1408,6 +1513,319 @@ document.querySelectorAll('.rl-color-btn').forEach(b => b.addEventListener('clic
     drawRouletteWheel(rlWheelAngle);
     rlUpdateInfoRow();
 }));
+
+// ── CRASH ─────────────────────────────────────────────
+const CR_GROWTH = 0.06;
+let crState      = 'idle'; // idle | flying | crashed | cashedout
+let crSessionId  = null;
+let crBet        = 0;
+let crStartMs    = 0;
+let crPoints     = []; // [[elapsed, mult], ...]
+let crCrashedAt  = null;
+let crAutoEnabled = false;
+let crAutoMult   = 2.0;
+let crPollTm     = null;
+let crRafId      = null;
+let crHistory    = [];
+
+const crCv  = document.getElementById('cr-canvas');
+const crCtx = crCv.getContext('2d');
+
+function crCalcMult(elapsedSec) {
+    return Math.pow(Math.E, elapsedSec * CR_GROWTH);
+}
+
+function crSetupCanvas() {
+    const wrap = crCv.parentElement;
+    const w = wrap.clientWidth || 340;
+    crCv.width  = w;
+    crCv.height = Math.round(w * 0.55);
+}
+
+function crDrawGraph() {
+    const W = crCv.width || 340, H = crCv.height || 190;
+    if (!W || !H) return;
+    const PAD = { top: 24, right: 14, bottom: 28, left: 38 };
+    const PW = W - PAD.left - PAD.right;
+    const PH = H - PAD.top  - PAD.bottom;
+
+    const crashed   = (crState === 'crashed');
+    const lastMult  = crPoints.length ? crPoints[crPoints.length-1][1] : 1.0;
+    const maxTime   = Math.max(12, crPoints.length ? crPoints[crPoints.length-1][0] + 1.5 : 12);
+    const maxMult   = Math.max(2.0, lastMult * 1.25);
+
+    function px(t) { return PAD.left + (t / maxTime) * PW; }
+    function py(m) { return PAD.top  + PH - Math.min(PH, ((m - 1.0) / (maxMult - 1.0)) * PH); }
+
+    // background
+    crCtx.fillStyle = '#161b22';
+    crCtx.fillRect(0, 0, W, H);
+
+    // grid
+    crCtx.setLineDash([2, 4]);
+    crCtx.lineWidth = 1;
+    const mSteps = [1.2, 1.5, 2, 3, 5, 7, 10, 15, 20, 30, 50];
+    crCtx.font = '10px -apple-system,sans-serif';
+    for (const ms of mSteps) {
+        if (ms > maxMult + 0.5) break;
+        const y = py(ms);
+        crCtx.strokeStyle = 'rgba(255,255,255,0.07)';
+        crCtx.beginPath(); crCtx.moveTo(PAD.left, y); crCtx.lineTo(W - PAD.right, y); crCtx.stroke();
+        crCtx.fillStyle = 'rgba(255,255,255,0.28)';
+        crCtx.textAlign = 'right';
+        crCtx.fillText(ms >= 2 ? ms.toFixed(0) : ms.toFixed(1), PAD.left - 4, y + 4);
+    }
+    const tSteps = [3, 6, 10, 15, 20, 30, 45, 60];
+    for (const ts of tSteps) {
+        if (ts >= maxTime) break;
+        const x = px(ts);
+        crCtx.strokeStyle = 'rgba(255,255,255,0.07)';
+        crCtx.beginPath(); crCtx.moveTo(x, PAD.top); crCtx.lineTo(x, H - PAD.bottom); crCtx.stroke();
+        crCtx.fillStyle = 'rgba(255,255,255,0.28)';
+        crCtx.textAlign = 'center';
+        crCtx.fillText(ts + 's', x, H - PAD.bottom + 12);
+    }
+    crCtx.setLineDash([]);
+
+    // fill + line
+    if (crPoints.length > 1) {
+        crCtx.beginPath();
+        crCtx.moveTo(px(0), py(1.0));
+        for (const [t, m] of crPoints) crCtx.lineTo(px(t), py(m));
+        crCtx.lineTo(px(crPoints[crPoints.length-1][0]), py(1.0));
+        crCtx.closePath();
+        const grad = crCtx.createLinearGradient(0, PAD.top, 0, H - PAD.bottom);
+        if (crashed) { grad.addColorStop(0, 'rgba(239,68,68,0.35)'); grad.addColorStop(1, 'rgba(239,68,68,0)'); }
+        else         { grad.addColorStop(0, 'rgba(59,130,246,0.35)'); grad.addColorStop(1, 'rgba(59,130,246,0)'); }
+        crCtx.fillStyle = grad;
+        crCtx.fill();
+
+        crCtx.beginPath();
+        crCtx.moveTo(px(0), py(1.0));
+        for (const [t, m] of crPoints) crCtx.lineTo(px(t), py(m));
+        crCtx.strokeStyle = crashed ? '#ef4444' : '#3b82f6';
+        crCtx.lineWidth = 2.5; crCtx.lineJoin = 'round'; crCtx.lineCap = 'round';
+        crCtx.stroke();
+
+        // dot at tip
+        const last = crPoints[crPoints.length-1];
+        crCtx.beginPath();
+        crCtx.arc(px(last[0]), py(last[1]), 4, 0, Math.PI*2);
+        crCtx.fillStyle = crashed ? '#ef4444' : '#3b82f6';
+        crCtx.fill();
+    }
+
+    // big mult text
+    const dispMult = crashed ? crCrashedAt : (crPoints.length ? crPoints[crPoints.length-1][1] : 1.0);
+    const fontSize = Math.max(28, Math.min(46, Math.floor(W * 0.13)));
+    crCtx.textAlign = 'center';
+    if (crashed) {
+        crCtx.font = `700 13px -apple-system,sans-serif`;
+        crCtx.fillStyle = '#ef4444';
+        crCtx.fillText('КРАШ!', W/2, H/2 - fontSize/2 - 4);
+    }
+    crCtx.font = `900 ${fontSize}px -apple-system,sans-serif`;
+    crCtx.fillStyle = crashed ? '#ef4444' : '#ffffff';
+    crCtx.fillText(`x${(dispMult || 1.0).toFixed(2)}`, W/2, H/2 + fontSize/3);
+}
+
+function crRenderHistory() {
+    const el = document.getElementById('cr-history');
+    if (!crHistory.length) { el.innerHTML = ''; return; }
+    el.innerHTML = [...crHistory].reverse().slice(0, 10).map(cp => {
+        const cls = cp >= 5 ? 'cr-hist-hi' : cp >= 2 ? 'cr-hist-mid' : 'cr-hist-lo';
+        return `<span class="cr-hist-item ${cls}">x${parseFloat(cp).toFixed(2)}</span>`;
+    }).join('');
+}
+
+function crSyncSlider() {
+    const slider = document.getElementById('cr-bet-slider');
+    const inp    = document.getElementById('cr-bet-inp');
+    if (!slider || !inp) return;
+    const maxVal = Math.max(balance, 500);
+    slider.min = 500; slider.max = maxVal;
+    const betVal = parseFloat(inp.value) || 0;
+    if (betVal > 0) slider.value = Math.min(Math.max(betVal, 500), maxVal);
+    const cur = parseFloat(slider.value);
+    const pct = maxVal > 500 ? ((cur - 500) / (maxVal - 500)) * 100 : 0;
+    slider.style.background = `linear-gradient(to right, var(--green) ${pct}%, var(--border) ${pct}%)`;
+}
+
+function crSetControlsLocked(locked) {
+    document.getElementById('cr-bet-inp').disabled    = locked;
+    document.getElementById('cr-bet-slider').disabled = locked;
+    if (!crAutoEnabled) document.getElementById('cr-auto-inp').disabled = locked || true;
+    else                document.getElementById('cr-auto-inp').disabled = locked;
+    document.getElementById('cr-auto-switch').style.pointerEvents = locked ? 'none' : '';
+}
+
+function crGameLoop() {
+    if (crState !== 'flying') return;
+    const elapsed = (Date.now() - crStartMs) / 1000;
+    const mult    = crCalcMult(elapsed);
+    if (!crPoints.length || elapsed - crPoints[crPoints.length-1][0] >= 0.08) {
+        crPoints.push([elapsed, mult]);
+    }
+    if (crAutoEnabled && mult >= crAutoMult) { crDoCashout(); return; }
+    crDrawGraph();
+    crRafId = requestAnimationFrame(crGameLoop);
+}
+
+async function crPollStatus() {
+    if (crState !== 'flying' || !crSessionId) return;
+    try {
+        const r = await fetch(`${API_BASE}/api/crash/status?session_id=${crSessionId}&init_data=${encodeURIComponent(initData)}`);
+        const d = await r.json();
+        if (!d.active && d.crashed) crHandleCrash(d.crash_point, d.history);
+    } catch { /* ignore */ }
+}
+
+function crHandleCrash(cp, history) {
+    if (crState !== 'flying') return;
+    crState     = 'crashed';
+    crCrashedAt = cp;
+    clearInterval(crPollTm);
+    cancelAnimationFrame(crRafId);
+    // push final point at crash
+    const crashElapsed = Math.log(cp) / CR_GROWTH;
+    crPoints.push([crashElapsed, cp]);
+    if (history) crHistory = history;
+    crRenderHistory();
+    crDrawGraph();
+    tg?.HapticFeedback?.notificationOccurred('error');
+    const btn = document.getElementById('cr-action-btn');
+    btn.textContent = 'ПОСТАВИТЬ'; btn.disabled = false; btn.style.background = '';
+    crSetControlsLocked(false);
+    currentGame = 'crash';
+    setTimeout(() => {
+        document.getElementById('res-emo').textContent   = '💥';
+        document.getElementById('res-title').textContent = 'Краш!';
+        document.getElementById('res-amt').innerHTML     =
+            `Краш на <b style="color:var(--red)">x${parseFloat(cp).toFixed(2)}</b> — ты потерял <b style="color:var(--red)">-${fmt(crBet)}</b>`;
+        document.getElementById('overlay').classList.add('show');
+    }, 500);
+}
+
+async function crDoCashout() {
+    if (crState !== 'flying') return;
+    clearInterval(crPollTm);
+    cancelAnimationFrame(crRafId);
+    crState = 'cashedout';
+
+    let result;
+    try {
+        const r = await fetch(API_BASE + '/api/crash/cashout', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({init_data: initData, session_id: crSessionId})
+        });
+        result = await r.json();
+    } catch {
+        toast('Ошибка сервера');
+        crState = 'flying';
+        crRafId = requestAnimationFrame(crGameLoop);
+        crPollTm = setInterval(crPollStatus, 180);
+        return;
+    }
+
+    if (result.error) {
+        toast(result.error);
+        crState = 'flying';
+        crRafId = requestAnimationFrame(crGameLoop);
+        crPollTm = setInterval(crPollStatus, 180);
+        return;
+    }
+
+    if (result.crashed) { crHandleCrash(result.crash_point, null); return; }
+
+    setBalance(result.new_balance);
+    const btn = document.getElementById('cr-action-btn');
+    btn.textContent = 'ПОСТАВИТЬ'; btn.disabled = false; btn.style.background = '';
+    crSetControlsLocked(false);
+    tg?.HapticFeedback?.notificationOccurred('success');
+    currentGame = 'crash';
+    document.getElementById('res-emo').textContent   = '🏆';
+    document.getElementById('res-title').textContent = 'Забрано!';
+    document.getElementById('res-amt').innerHTML     =
+        `Вывод на <b>x${result.mult.toFixed(2)}</b> — ты выиграл <b style="color:var(--green)">+${fmt(result.profit)}</b>`;
+    document.getElementById('overlay').classList.add('show');
+}
+
+async function crStartGame() {
+    const bet = parseFloat(document.getElementById('cr-bet-inp').value);
+    if (!bet || bet < 500) { toast('Минимальная ставка 500₽'); return; }
+    if (bet > balance)     { toast('Недостаточно средств');     return; }
+
+    crSetControlsLocked(true);
+    document.getElementById('cr-action-btn').disabled = true;
+
+    let result;
+    try {
+        const r = await fetch(API_BASE + '/api/crash/start', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({init_data: initData, bet})
+        });
+        result = await r.json();
+    } catch {
+        toast('Ошибка сервера');
+        crSetControlsLocked(false);
+        document.getElementById('cr-action-btn').disabled = false;
+        return;
+    }
+    if (result.error) {
+        toast(result.error);
+        crSetControlsLocked(false);
+        document.getElementById('cr-action-btn').disabled = false;
+        return;
+    }
+
+    crBet       = bet;
+    crSessionId = result.session_id;
+    crStartMs   = result.start_ms;
+    crState     = 'flying';
+    crPoints    = [];
+    crCrashedAt = null;
+    if (result.history) crHistory = result.history;
+    setBalance(result.new_balance);
+    crRenderHistory();
+
+    const btn = document.getElementById('cr-action-btn');
+    btn.textContent = 'ЗАБРАТЬ';
+    btn.disabled    = false;
+    btn.style.background = 'linear-gradient(135deg, #166534, #15803d)';
+
+    crRafId  = requestAnimationFrame(crGameLoop);
+    crPollTm = setInterval(crPollStatus, 180);
+}
+
+// Crash events
+document.getElementById('btn-crash').onclick = () => {
+    currentGame = 'crash'; go('s-crash');
+    crSetupCanvas(); crSyncSlider(); crDrawGraph(); crRenderHistory();
+};
+document.getElementById('btn-back-cr').onclick = () => {
+    if (crState === 'flying') { toast('Выведите ставку перед выходом'); return; }
+    clearInterval(crPollTm); cancelAnimationFrame(crRafId);
+    go('s-games');
+};
+document.getElementById('cr-action-btn').onclick = () => {
+    if (crState === 'flying') crDoCashout();
+    else { crState = 'idle'; crStartGame(); }
+};
+document.getElementById('cr-bet-inp').addEventListener('input', crSyncSlider);
+document.getElementById('cr-bet-slider').addEventListener('input', () => {
+    document.getElementById('cr-bet-inp').value = document.getElementById('cr-bet-slider').value;
+    crSyncSlider();
+});
+document.getElementById('cr-auto-switch').onclick = () => {
+    if (crState === 'flying') return;
+    crAutoEnabled = !crAutoEnabled;
+    document.getElementById('cr-auto-switch').classList.toggle('on', crAutoEnabled);
+    const inp = document.getElementById('cr-auto-inp');
+    inp.disabled = !crAutoEnabled; inp.style.opacity = crAutoEnabled ? '1' : '0.4';
+};
+document.getElementById('cr-auto-inp').addEventListener('input', e => {
+    crAutoMult = Math.max(1.1, parseFloat(e.target.value) || 2.0);
+});
 
 // ── INIT ──────────────────────────────────────────────
 loadBalance().then(() => drawWheel(arrowAngle, 0.5));
