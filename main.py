@@ -508,18 +508,28 @@ async def web_index(request: aio_web.Request) -> aio_web.Response:
     return aio_web.FileResponse(WEBAPP_DIR / "index.html")
 
 
+async def web_api_ping(request: aio_web.Request) -> aio_web.Response:
+    return aio_web.json_response({'ok': True})
+
+
 async def web_api_user(request: aio_web.Request) -> aio_web.Response:
-    user_id = validate_init_data(request.query.get('init_data', ''))
-    if not user_id:
-        return aio_web.json_response({'error': 'Unauthorized'}, status=401)
-    user = await get_user(user_id)
-    if not user:
-        return aio_web.json_response({'error': 'Пользователь не найден'}, status=404)
-    return aio_web.json_response({
-        'user_id': user_id,
-        'balance': user['balance'],
-        'username': user.get('username', ''),
-    })
+    try:
+        user_id = validate_init_data(request.query.get('init_data', ''))
+        if not user_id:
+            logging.warning("web_api_user: invalid init_data")
+            return aio_web.json_response({'error': 'Unauthorized'}, status=401)
+        user = await get_user(user_id)
+        if not user:
+            logging.warning("web_api_user: user %s not found", user_id)
+            return aio_web.json_response({'error': 'Пользователь не найден'}, status=404)
+        return aio_web.json_response({
+            'user_id': user_id,
+            'balance': user['balance'],
+            'username': user.get('username', ''),
+        })
+    except Exception:
+        logging.exception("web_api_user crashed")
+        return aio_web.json_response({'error': 'Внутренняя ошибка сервера'}, status=500)
 
 
 async def web_api_upgrade(request: aio_web.Request) -> aio_web.Response:
@@ -600,6 +610,7 @@ async def cors_middleware(request: aio_web.Request, handler):
 def make_web_app() -> aio_web.Application:
     app = aio_web.Application(middlewares=[cors_middleware])
     app.router.add_get('/', web_index)
+    app.router.add_get('/api/ping', web_api_ping)
     app.router.add_route('OPTIONS', '/api/user', lambda r: aio_web.Response())
     app.router.add_route('OPTIONS', '/api/upgrade', lambda r: aio_web.Response())
     app.router.add_get('/api/user', web_api_user)
@@ -1748,6 +1759,6 @@ async def main():
 
     await dp.start_polling(bot, skip_updates=True)
 
-# запуск
+
 if __name__ == "__main__":
     asyncio.run(main())
