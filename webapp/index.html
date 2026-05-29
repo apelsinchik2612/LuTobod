@@ -279,6 +279,57 @@ input[type=number] { -moz-appearance: textfield; }
 }
 .cashout-btn:active:not(:disabled) { transform: scale(.98); opacity: .9; }
 .cashout-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+/* === ROULETTE === */
+.rl-body {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; padding: 14px 16px 60px; gap: 14px;
+}
+.rl-wheel-wrap {
+    position: relative; width: 240px; height: 240px; flex-shrink: 0;
+}
+#rl-canvas { display: block; }
+.rl-pointer {
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-top: 22px solid #fff;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,.5));
+    z-index: 2;
+}
+.rl-color-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; width: 100%;
+}
+.rl-color-btn {
+    padding: 12px 10px; border-radius: 12px; border: 2px solid transparent;
+    cursor: pointer; display: flex; align-items: center; gap: 10px;
+    transition: all .15s; font-size: 14px; font-weight: 700;
+}
+.rl-color-btn:active { transform: scale(.96); }
+.rl-color-btn.sel { border-width: 2px; }
+.rl-color-btn .rl-dot {
+    width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0;
+}
+.rl-color-btn .rl-mult { margin-left: auto; font-size: 13px; opacity: .85; }
+
+.rl-color-btn[data-color="blue"]   { background: rgba(59,130,246,.12); color: #60a5fa; }
+.rl-color-btn[data-color="blue"].sel  { border-color: #3b82f6; background: rgba(59,130,246,.22); }
+.rl-color-btn[data-color="blue"]   .rl-dot { background: #3b82f6; }
+
+.rl-color-btn[data-color="green"]  { background: rgba(34,197,94,.12); color: #4ade80; }
+.rl-color-btn[data-color="green"].sel { border-color: #22c55e; background: rgba(34,197,94,.22); }
+.rl-color-btn[data-color="green"]  .rl-dot { background: #22c55e; }
+
+.rl-color-btn[data-color="red"]    { background: rgba(239,68,68,.12); color: #f87171; }
+.rl-color-btn[data-color="red"].sel   { border-color: #ef4444; background: rgba(239,68,68,.22); }
+.rl-color-btn[data-color="red"]    .rl-dot { background: #ef4444; }
+
+.rl-color-btn[data-color="yellow"] { background: rgba(234,179,8,.12); color: #facc15; }
+.rl-color-btn[data-color="yellow"].sel{ border-color: #eab308; background: rgba(234,179,8,.22); }
+.rl-color-btn[data-color="yellow"] .rl-dot { background: #eab308; }
+
+.rl-color-btn:disabled { opacity: .35; cursor: not-allowed; pointer-events: none; }
 </style>
 </head>
 <body>
@@ -321,6 +372,14 @@ input[type=number] { -moz-appearance: textfield; }
         <div>
             <div class="game-name">Сапёр</div>
             <div class="game-desc">Обходи мины — забирай выигрыш</div>
+        </div>
+        <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+    </div>
+    <div class="game-card" id="btn-roulette">
+        <div class="game-ico">🎡</div>
+        <div>
+            <div class="game-name">Рулетка</div>
+            <div class="game-desc">Ставь на цвет — до x5 к ставке</div>
         </div>
         <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
     </div>
@@ -435,6 +494,58 @@ input[type=number] { -moz-appearance: textfield; }
     </div>
 </div>
 
+<!-- ROULETTE -->
+<div id="s-roulette" class="screen">
+    <div class="hdr">
+        <button class="back-btn" id="btn-back-rl">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>Назад
+        </button>
+        <span class="hdr-title">Рулетка</span>
+        <div class="bal-chip">💰 <span id="bal-rl">...</span></div>
+    </div>
+    <div class="rl-body">
+        <div class="rl-wheel-wrap">
+            <canvas id="rl-canvas" width="240" height="240"></canvas>
+            <div class="rl-pointer"></div>
+        </div>
+
+        <div class="w100">
+            <div class="field-lbl">Выбери цвет</div>
+            <div class="rl-color-grid">
+                <button class="rl-color-btn sel" data-color="blue">
+                    <span class="rl-dot"></span>Синий<span class="rl-mult">×1.5</span>
+                </button>
+                <button class="rl-color-btn" data-color="green">
+                    <span class="rl-dot"></span>Зелёный<span class="rl-mult">×2.0</span>
+                </button>
+                <button class="rl-color-btn" data-color="red">
+                    <span class="rl-dot"></span>Красный<span class="rl-mult">×3.0</span>
+                </button>
+                <button class="rl-color-btn" data-color="yellow">
+                    <span class="rl-dot"></span>Жёлтый<span class="rl-mult">×5.0</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="w100">
+            <div class="field-lbl">Ставка</div>
+            <div class="inp-wrap">
+                <input type="number" id="rl-bet-inp" class="inp" placeholder="500" min="500" step="1">
+                <span class="inp-sfx">₽</span>
+            </div>
+            <input type="range" id="rl-bet-slider" class="bet-slider" min="500" max="500" step="1" value="500">
+        </div>
+
+        <div class="info-row">
+            <div class="info-item"><div class="info-item-lbl">Ставка</div><div class="info-item-val" id="rl-info-bet">—</div></div>
+            <div class="info-item"><div class="info-item-lbl">Цвет</div><div class="info-item-val" id="rl-info-color">🔵</div></div>
+            <div class="info-item"><div class="info-item-lbl">Выиграешь</div><div class="info-item-val g" id="rl-info-win">—</div></div>
+        </div>
+
+        <button class="spin-btn" id="rl-spin-btn">КРУТИТЬ</button>
+    </div>
+</div>
+
 <!-- RESULT OVERLAY -->
 <div class="overlay" id="overlay">
     <div class="res-card">
@@ -485,8 +596,10 @@ function setBalance(v) {
     document.getElementById('bal-games').textContent = t;
     document.getElementById('bal-upg').textContent = t;
     document.getElementById('bal-ms').textContent = t;
+    document.getElementById('bal-rl').textContent = t;
     syncSlider();
     msSyncSlider();
+    rlSyncSlider?.();
 }
 
 function syncSlider() {
@@ -813,6 +926,8 @@ document.getElementById('res-close').onclick = () => {
         updateUI();
     } else if (currentGame === 'minesweeper') {
         msResetUI();
+    } else if (currentGame === 'roulette') {
+        rlUpdateInfoRow();
     }
 };
 
@@ -1087,6 +1202,212 @@ function msResetUI() {
     msSyncSlider();
     msUpdateInfoRow();
 }
+
+// ── ROULETTE ──────────────────────────────────────────
+const RL_SEGMENTS = [
+    'blue','green','red','blue','blue',
+    'green','blue','red','blue','green',
+    'blue','red','blue','green','yellow'
+];
+const RL_COLORS = {
+    blue:   { fill: '#1d4ed8', stroke: '#3b82f6', dark: '#1e3a8a' },
+    green:  { fill: '#15803d', stroke: '#22c55e', dark: '#14532d' },
+    red:    { fill: '#b91c1c', stroke: '#ef4444', dark: '#7f1d1d' },
+    yellow: { fill: '#a16207', stroke: '#eab308', dark: '#713f12' },
+};
+const RL_MULTS  = { blue: 1.5, green: 2.0, red: 3.0, yellow: 5.0 };
+const RL_EMOJI  = { blue: '🔵', green: '🟢', red: '🔴', yellow: '🟡' };
+const RL_SEG_COUNT = RL_SEGMENTS.length;
+const RL_SEG_ANGLE = (Math.PI * 2) / RL_SEG_COUNT;
+
+let rlSelectedColor = 'blue';
+let rlSpinning = false;
+let rlWheelAngle = 0;
+let rlRaf = null;
+
+const rlCv  = document.getElementById('rl-canvas');
+const rlCtx = rlCv.getContext('2d');
+const RL_CX = rlCv.width / 2, RL_CY = rlCv.height / 2, RL_R = RL_CX - 6;
+
+function drawRouletteWheel(angle) {
+    rlCtx.clearRect(0, 0, rlCv.width, rlCv.height);
+    for (let i = 0; i < RL_SEG_COUNT; i++) {
+        const color = RL_SEGMENTS[i];
+        const startA = angle + i * RL_SEG_ANGLE;
+        const endA   = angle + (i + 1) * RL_SEG_ANGLE;
+        const c = RL_COLORS[color];
+
+        rlCtx.beginPath();
+        rlCtx.moveTo(RL_CX, RL_CY);
+        rlCtx.arc(RL_CX, RL_CY, RL_R, startA, endA);
+        rlCtx.closePath();
+        rlCtx.fillStyle = c.fill;
+        rlCtx.fill();
+        rlCtx.strokeStyle = '#0d1117';
+        rlCtx.lineWidth = 2;
+        rlCtx.stroke();
+
+        // highlight if selected color
+        if (color === rlSelectedColor) {
+            rlCtx.beginPath();
+            rlCtx.moveTo(RL_CX, RL_CY);
+            rlCtx.arc(RL_CX, RL_CY, RL_R, startA, endA);
+            rlCtx.closePath();
+            rlCtx.fillStyle = 'rgba(255,255,255,0.12)';
+            rlCtx.fill();
+        }
+    }
+
+    // outer ring
+    rlCtx.beginPath();
+    rlCtx.arc(RL_CX, RL_CY, RL_R, 0, Math.PI * 2);
+    rlCtx.strokeStyle = '#30363d';
+    rlCtx.lineWidth = 3;
+    rlCtx.stroke();
+
+    // center circle
+    rlCtx.beginPath();
+    rlCtx.arc(RL_CX, RL_CY, RL_R * 0.18, 0, Math.PI * 2);
+    rlCtx.fillStyle = '#0d1117';
+    rlCtx.fill();
+    rlCtx.strokeStyle = '#30363d';
+    rlCtx.lineWidth = 2;
+    rlCtx.stroke();
+}
+
+function rlUpdateInfoRow() {
+    const bet = parseFloat(document.getElementById('rl-bet-inp').value) || 0;
+    document.getElementById('rl-info-bet').textContent  = bet > 0 ? fmt(bet) : '—';
+    document.getElementById('rl-info-color').textContent = RL_EMOJI[rlSelectedColor] || '—';
+    const m = RL_MULTS[rlSelectedColor];
+    document.getElementById('rl-info-win').textContent  = bet > 0 ? '+' + fmt(bet * (m - 1)) : '—';
+}
+
+function rlSyncSlider() {
+    const slider = document.getElementById('rl-bet-slider');
+    const inp    = document.getElementById('rl-bet-inp');
+    if (!slider || !inp) return;
+    const maxVal = Math.max(balance, 500);
+    slider.min = 500; slider.max = maxVal;
+    const betVal = parseFloat(inp.value) || 0;
+    if (betVal > 0) slider.value = Math.min(Math.max(betVal, 500), maxVal);
+    const cur = parseFloat(slider.value);
+    const pct = maxVal > 500 ? ((cur - 500) / (maxVal - 500)) * 100 : 0;
+    slider.style.background = `linear-gradient(to right, var(--green) ${pct}%, var(--border) ${pct}%)`;
+}
+
+function rlSetUILocked(locked) {
+    document.getElementById('rl-bet-inp').disabled    = locked;
+    document.getElementById('rl-bet-slider').disabled = locked;
+    document.getElementById('rl-spin-btn').disabled   = locked;
+    document.querySelectorAll('.rl-color-btn').forEach(b => { b.disabled = locked; });
+}
+
+async function rlDoSpin() {
+    if (rlSpinning) return;
+    const bet = parseFloat(document.getElementById('rl-bet-inp').value);
+    if (!bet || bet < 500) { toast('Минимальная ставка 500₽'); return; }
+    if (bet > balance)     { toast('Недостаточно средств');     return; }
+
+    rlSpinning = true;
+    rlSetUILocked(true);
+
+    let result;
+    try {
+        const r = await fetch(API_BASE + '/api/roulette', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ init_data: initData, bet, color: rlSelectedColor })
+        });
+        result = await r.json();
+    } catch {
+        toast('Ошибка сервера');
+        rlSpinning = false;
+        rlSetUILocked(false);
+        return;
+    }
+    if (result.error) {
+        toast(result.error);
+        rlSpinning = false;
+        rlSetUILocked(false);
+        return;
+    }
+
+    // Target: land with result segment at top (pointer at -π/2)
+    const targetIdx = result.segment_idx;
+    const POINTER_ANGLE = -Math.PI / 2;
+    // segment center angle in wheel-local coords
+    const segCenterLocal = targetIdx * RL_SEG_ANGLE + RL_SEG_ANGLE / 2;
+    // we want: rlWheelAngle + segCenterLocal = POINTER_ANGLE (mod 2π)
+    let rawFinal = POINTER_ANGLE - segCenterLocal;
+    // normalize so we always spin forward
+    const currentNorm = ((rlWheelAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    const finalNorm   = ((rawFinal % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    let delta = finalNorm - currentNorm;
+    if (delta > 0) delta -= Math.PI * 2; // spin backward so we spin forward (negative delta = CCW)
+    // Actually spin forward (CW): use positive total rotation
+    const fullRots  = 4 + Math.floor(Math.random() * 3);
+    const totalDelta = fullRots * Math.PI * 2 + (((finalNorm - currentNorm) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2));
+    const startAngle = rlWheelAngle;
+    const duration   = 4500 + Math.random() * 800;
+    const t0 = performance.now();
+
+    function easeOut(t) { return 1 - Math.pow(1 - t, 4); }
+
+    function rlFrame(now) {
+        const t = Math.min((now - t0) / duration, 1);
+        rlWheelAngle = startAngle + totalDelta * easeOut(t);
+        drawRouletteWheel(rlWheelAngle);
+        if (t < 1) {
+            rlRaf = requestAnimationFrame(rlFrame);
+        } else {
+            rlWheelAngle = startAngle + totalDelta;
+            drawRouletteWheel(rlWheelAngle);
+            setBalance(result.new_balance);
+            currentGame = 'roulette';
+            const won = result.won;
+            const rc  = result.result_color;
+            tg?.HapticFeedback?.notificationOccurred(won ? 'success' : 'error');
+            document.getElementById('res-emo').textContent   = won ? '🏆' : '💸';
+            document.getElementById('res-title').textContent = won ? 'Победа!' : 'Проигрыш';
+            if (won) {
+                document.getElementById('res-amt').innerHTML =
+                    `Выпало <b>${RL_EMOJI[rc]}</b> — ты выиграл <b style="color:var(--green)">+${fmt(result.profit)}</b>`;
+            } else {
+                document.getElementById('res-amt').innerHTML =
+                    `Выпало <b>${RL_EMOJI[rc]}</b> — ты потерял <b style="color:var(--red)">-${fmt(bet)}</b>`;
+            }
+            document.getElementById('overlay').classList.add('show');
+            rlSpinning = false;
+            rlSetUILocked(false);
+        }
+    }
+    rlRaf = requestAnimationFrame(rlFrame);
+}
+
+// Roulette events
+document.getElementById('btn-roulette').onclick = () => {
+    currentGame = 'roulette';
+    go('s-roulette');
+    rlSyncSlider();
+    rlUpdateInfoRow();
+    drawRouletteWheel(rlWheelAngle);
+};
+document.getElementById('btn-back-rl').onclick = () => { if (!rlSpinning) go('s-games'); };
+document.getElementById('rl-spin-btn').onclick = rlDoSpin;
+
+document.getElementById('rl-bet-inp').addEventListener('input', () => { rlSyncSlider(); rlUpdateInfoRow(); });
+document.getElementById('rl-bet-slider').addEventListener('input', () => {
+    document.getElementById('rl-bet-inp').value = document.getElementById('rl-bet-slider').value;
+    rlSyncSlider(); rlUpdateInfoRow();
+});
+
+document.querySelectorAll('.rl-color-btn').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('.rl-color-btn').forEach(x => x.classList.remove('sel'));
+    b.classList.add('sel');
+    rlSelectedColor = b.dataset.color;
+    drawRouletteWheel(rlWheelAngle);
+    rlUpdateInfoRow();
+}));
 
 // ── INIT ──────────────────────────────────────────────
 loadBalance().then(() => drawWheel(arrowAngle, 0.5));
