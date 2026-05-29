@@ -439,7 +439,12 @@ function renderHistory() {
     filtered.forEach(e => {
         const item = document.createElement('div');
         item.className = 'hist-item';
-        const timeStr = e.time.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const now = new Date();
+        const isToday = e.time.toDateString() === now.toDateString();
+        const timeOnly = e.time.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+        const dd = String(e.time.getDate()).padStart(2, '0');
+        const mm = String(e.time.getMonth() + 1).padStart(2, '0');
+        const timeStr = isToday ? 'Сегодня · ' + timeOnly : dd + '.' + mm + ' · ' + timeOnly;
         item.innerHTML =
             '<div class="hist-ico">' + (e.won ? '🏆' : '💸') + '</div>' +
             '<div class="hist-info">' +
@@ -788,6 +793,8 @@ document.getElementById('bet-slider').addEventListener('input', () => {
 document.getElementById('spin-btn').onclick = doSpin;
 document.getElementById('res-close').onclick = () => {
     document.getElementById('overlay').classList.remove('show');
+    arrowAngle = INITIAL_ANGLE;
+    drawWheel(INITIAL_ANGLE, displayWc);
     updateUI();
 };
 
