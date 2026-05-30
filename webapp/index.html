@@ -960,15 +960,14 @@ function syncSlider() {
     slider.style.background = `linear-gradient(to right, var(--green) ${pct}%, var(--border) ${pct}%)`;
 }
 
-function apiUrl(path, params) {
-    const p = new URLSearchParams({ ...params, _t: Date.now() });
-    return `${API_BASE}${path}?${p}`;
+function bustUrl(url) {
+    return url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
 }
 
 async function loadBalance() {
     if (!initData) { setBalance(0); toast('Открой через Telegram'); return; }
     try {
-        const r = await fetch(apiUrl('/api/user', { init_data: initData }));
+        const r = await fetch(bustUrl(API_BASE+'/api/user?init_data='+encodeURIComponent(initData)));
         const d = await r.json();
         if (d.balance !== undefined) setBalance(d.balance);
         else toast(d.error || 'Ошибка загрузки');
@@ -2013,7 +2012,7 @@ function crGameLoop() {
 async function crPollStatus() {
     if (crState !== 'flying' || !crSessionId) return;
     try {
-        const r = await fetch(apiUrl('/api/crash/status', { session_id: crSessionId, init_data: initData }));
+        const r = await fetch(bustUrl(`${API_BASE}/api/crash/status?session_id=${crSessionId}&init_data=${encodeURIComponent(initData)}`));
         const d = await r.json();
         if (!d.active && d.crashed) crHandleCrash(d.crash_point, d.history);
     } catch { /* ignore */ }
@@ -2256,7 +2255,7 @@ async function pollEvents() {
     try {
         const ctrl = new AbortController();
         const tid  = setTimeout(() => ctrl.abort(), 5000);
-        const r = await fetch(apiUrl('/api/events', { init_data: initData }), { signal: ctrl.signal });
+        const r = await fetch(bustUrl(API_BASE+'/api/events?init_data='+encodeURIComponent(initData)), { signal: ctrl.signal });
         clearTimeout(tid);
         if (!r.ok) { _polling = false; return; }
         const d = await r.json();
