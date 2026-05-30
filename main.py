@@ -237,6 +237,10 @@ async def toggle_setting(user_id: int, setting: str):
         await db.commit()
 
 
+# user_id -> asyncio.Event для long polling
+_event_watchers: dict[int, asyncio.Event] = {}
+
+
 async def create_event(user_id: int, etype: str, amount: float, from_name: str = None):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
@@ -244,6 +248,9 @@ async def create_event(user_id: int, etype: str, amount: float, from_name: str =
             (user_id, etype, amount, from_name)
         )
         await db.commit()
+    # Мгновенно будим ждущий long-poll клиент
+    if user_id in _event_watchers:
+        _event_watchers[user_id].set()
 
 
 async def transfer(from_id: int, to_id: int, amount: float) -> str:
@@ -1076,29 +1083,52 @@ async def cors_middleware(request: aio_web.Request, handler):
     return resp
 
 
+async def _fetch_and_clear_events(user_id: int) -> tuple[float, list]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT balance FROM users WHERE id = ?", (user_id,)) as cur:
+            row = await cur.fetchone()
+        if not row:
+            return None, []
+        bal = round(float(row['balance']), 2)
+        async with db.execute(
+            "SELECT id, type, amount, from_name FROM pending_events WHERE user_id = ? ORDER BY id ASC",
+            (user_id,)
+        ) as cur:
+            events = [dict(r) for r in await cur.fetchall()]
+        if events:
+            ids = [e['id'] for e in events]
+            await db.execute(
+                f"DELETE FROM pending_events WHERE id IN ({','.join('?'*len(ids))})", ids
+            )
+            await db.commit()
+    return bal, events
+
+
 async def web_api_events(request: aio_web.Request) -> aio_web.Response:
     try:
         user_id = validate_init_data(request.query.get('init_data', ''))
         if not user_id:
             return aio_web.json_response({'error': 'Unauthorized'}, status=401)
-        async with aiosqlite.connect(DB_PATH) as db:
-            db.row_factory = aiosqlite.Row
-            async with db.execute("SELECT balance FROM users WHERE id = ?", (user_id,)) as cur:
-                row = await cur.fetchone()
-            if not row:
+
+        # Long polling: если нет готовых событий — ждём до 20 сек
+        bal, events = await _fetch_and_clear_events(user_id)
+        if bal is None:
+            return aio_web.json_response({'error': 'Not found'}, status=404)
+
+        if not events:
+            watcher = asyncio.Event()
+            _event_watchers[user_id] = watcher
+            try:
+                await asyncio.wait_for(watcher.wait(), timeout=20)
+            except asyncio.TimeoutError:
+                pass
+            finally:
+                _event_watchers.pop(user_id, None)
+            bal, events = await _fetch_and_clear_events(user_id)
+            if bal is None:
                 return aio_web.json_response({'error': 'Not found'}, status=404)
-            bal = round(float(row['balance']), 2)
-            async with db.execute(
-                "SELECT id, type, amount, from_name FROM pending_events WHERE user_id = ? ORDER BY id ASC",
-                (user_id,)
-            ) as cur:
-                events = [dict(r) for r in await cur.fetchall()]
-            if events:
-                ids = [e['id'] for e in events]
-                await db.execute(
-                    f"DELETE FROM pending_events WHERE id IN ({','.join('?'*len(ids))})", ids
-                )
-                await db.commit()
+
         return aio_web.json_response({
             'balance': bal,
             'events': [{'type': e['type'], 'amount': e['amount'], 'from_name': e['from_name']} for e in events],
