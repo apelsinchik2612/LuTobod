@@ -881,7 +881,7 @@ input[type=number] { -moz-appearance: textfield; }
     </div>
 </div>
 
-<!-- MARKET -->
+<!-- MARKET HUB -->
 <div id="s-market" class="screen">
     <div class="hdr">
         <button class="back-btn" id="btn-back-market">
@@ -890,14 +890,24 @@ input[type=number] { -moz-appearance: textfield; }
         <span class="hdr-title">Рынок</span>
         <div class="bal-chip">💰 <span id="bal-market">...</span></div>
     </div>
-    <div class="mkt-tabs" id="mkt-tabs">
-        <button class="mkt-tab active" data-tab="shop">🏪 Магазин</button>
-        <button class="mkt-tab" data-tab="inv">📦 Инвентарь</button>
-        <button class="mkt-tab" data-tab="sell">💸 Продажа</button>
-        <button class="mkt-tab" data-tab="jobs">💼 Работы</button>
+    <div class="main-body">
+        <button class="menu-btn primary" id="btn-to-shop"><span class="ico">🏪</span>Магазин</button>
+        <button class="menu-btn" id="btn-to-inv"><span class="ico">📦</span>Инвентарь</button>
+        <button class="menu-btn" id="btn-to-sell"><span class="ico">💸</span>Продажа</button>
+        <button class="menu-btn" id="btn-to-jobs"><span class="ico">💼</span>Работы</button>
     </div>
-    <!-- Магазин -->
-    <div class="mkt-panel sh-body active" id="mkt-shop">
+</div>
+
+<!-- SHOP -->
+<div id="s-shop" class="screen">
+    <div class="hdr">
+        <button class="back-btn" id="btn-back-shop">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>Назад
+        </button>
+        <span class="hdr-title">Магазин</span>
+        <div class="bal-chip">💰 <span id="bal-shop">...</span></div>
+    </div>
+    <div class="sh-body">
         <div class="sh-tabs" id="shop-tabs">
             <button class="sh-tab active" data-cat="cars">🚗 Машины</button>
             <button class="sh-tab" data-cat="apartments">🏠 Квартиры</button>
@@ -906,18 +916,42 @@ input[type=number] { -moz-appearance: textfield; }
         </div>
         <div class="sh-list" id="shop-list"><div class="sh-empty">Загрузка…</div></div>
     </div>
-    <!-- Инвентарь -->
-    <div class="mkt-panel" id="mkt-inv">
-        <div class="sh-list" id="inv-list"><div class="sh-empty">Загрузка…</div></div>
+</div>
+
+<!-- INVENTORY -->
+<div id="s-inv" class="screen">
+    <div class="hdr">
+        <button class="back-btn" id="btn-back-inv">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>Назад
+        </button>
+        <span class="hdr-title">Инвентарь</span>
+        <div style="width:60px"></div>
     </div>
-    <!-- Продажа -->
-    <div class="mkt-panel" id="mkt-sell">
-        <div class="sh-list" id="sell-list"><div class="sh-empty">Загрузка…</div></div>
+    <div class="sh-list" id="inv-list"><div class="sh-empty">Загрузка…</div></div>
+</div>
+
+<!-- SELL -->
+<div id="s-sell" class="screen">
+    <div class="hdr">
+        <button class="back-btn" id="btn-back-sell">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>Назад
+        </button>
+        <span class="hdr-title">Продажа</span>
+        <div class="bal-chip">💰 <span id="bal-sell">...</span></div>
     </div>
-    <!-- Работы -->
-    <div class="mkt-panel" id="mkt-jobs">
-        <div class="sh-list" id="jobs-list"><div class="sh-empty">Загрузка…</div></div>
+    <div class="sh-list" id="sell-list"><div class="sh-empty">Загрузка…</div></div>
+</div>
+
+<!-- JOBS -->
+<div id="s-jobs" class="screen">
+    <div class="hdr">
+        <button class="back-btn" id="btn-back-jobs">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>Назад
+        </button>
+        <span class="hdr-title">Работы</span>
+        <div style="width:60px"></div>
     </div>
+    <div class="sh-list" id="jobs-list"><div class="sh-empty">Загрузка…</div></div>
 </div>
 
 <!-- SETTINGS -->
@@ -1124,6 +1158,8 @@ function setBalance(v) {
     document.getElementById('bal-rl').textContent = t;
     document.getElementById('bal-cr').textContent = t;
     document.getElementById('bal-market').textContent = t;
+    document.getElementById('bal-shop').textContent = t;
+    document.getElementById('bal-sell').textContent = t;
     syncSlider();
     msSyncSlider();
     rlSyncSlider?.();
@@ -2353,27 +2389,16 @@ document.getElementById('cr-auto-inp').addEventListener('input', e => {
 });
 
 // ── MARKET ────────────────────────────────────────────
-let mktActiveTab = 'shop';
-
-function mktSwitch(tab) {
-    mktActiveTab = tab;
-    document.querySelectorAll('.mkt-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-    document.querySelectorAll('.mkt-panel').forEach(p => p.classList.remove('active'));
-    document.getElementById('mkt-' + tab).classList.add('active');
-    if (tab === 'shop')  { if (!shopItems.length) shopLoad(); }
-    if (tab === 'inv')   invLoad();
-    if (tab === 'sell')  sellLoad();
-    if (tab === 'jobs')  jobsLoad();
-}
-
-document.getElementById('mkt-tabs').addEventListener('click', e => {
-    const t = e.target.closest('.mkt-tab');
-    if (t) mktSwitch(t.dataset.tab);
-});
+document.getElementById('btn-market').onclick  = () => { go('s-market'); setBalance(balance); };
 document.getElementById('btn-back-market').onclick = () => go('s-main');
-document.getElementById('btn-market').onclick = () => {
-    go('s-market'); setBalance(balance); mktSwitch(mktActiveTab);
-};
+document.getElementById('btn-to-shop').onclick = () => { go('s-shop'); setBalance(balance); if (!shopItems.length) shopLoad(); };
+document.getElementById('btn-to-inv').onclick  = () => { go('s-inv'); invLoad(); };
+document.getElementById('btn-to-sell').onclick = () => { go('s-sell'); setBalance(balance); sellLoad(); };
+document.getElementById('btn-to-jobs').onclick = () => { go('s-jobs'); jobsLoad(); };
+document.getElementById('btn-back-shop').onclick = () => go('s-market');
+document.getElementById('btn-back-inv').onclick  = () => go('s-market');
+document.getElementById('btn-back-sell').onclick = () => go('s-market');
+document.getElementById('btn-back-jobs').onclick = () => go('s-market');
 
 // ── SHOP ──────────────────────────────────────────────
 const CAT_LABELS = { cars:'🚗 Машины', apartments:'🏠 Квартиры', houses:'🏡 Дома', tech:'💻 Техника' };
