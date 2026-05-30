@@ -6,7 +6,7 @@ import json
 import math
 import random
 import secrets
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.parse import unquote
 import aiosqlite
@@ -37,6 +37,69 @@ WEBAPP_DIR = Path(__file__).parent / "webapp"
 # ==================================================
 
 SHOP_TAX = 0.15   # 15% налог при продаже
+
+# ─── КЕЙСЫ ────────────────────────────────────────────────────────────────────
+CASE_PRICES: dict[str, int] = {
+    'cars':       150_000,
+    'apartments': 900_000,
+    'houses':   1_700_000,
+    'tech':       100_000,
+    'daily':            0,
+}
+
+# (reward_type, value_or_None, weight)
+CASE_LOOT: dict[str, list] = {
+    'cars': [
+        ('nothing', None, 450),
+        ('item', 'ВАЗ 2107', 200),
+        ('item', 'Lada Vesta', 100),
+        ('item', 'Toyota Camry', 50),
+        ('item', 'BMW 5 Series', 20),
+        ('item', 'Mercedes S-Class', 8),
+        ('item', 'Porsche 911', 3),
+        ('item', 'Lamborghini Huracán', 1),
+        ('item', 'Bugatti Chiron', 1),
+    ],
+    'apartments': [
+        ('nothing', None, 400),
+        ('item', 'Комната в общежитии', 350),
+        ('item', 'Студия', 150),
+        ('item', '1-комнатная', 60),
+        ('item', '2-комнатная', 25),
+        ('item', '3-комнатная', 10),
+        ('item', 'Пентхаус', 5),
+    ],
+    'houses': [
+        ('nothing', None, 400),
+        ('item', 'Дача', 350),
+        ('item', 'Загородный дом', 150),
+        ('item', 'Коттедж', 70),
+        ('item', 'Особняк', 25),
+        ('item', 'Вилла на Рублёвке', 5),
+    ],
+    'tech': [
+        ('nothing', None, 400),
+        ('item', 'Мышь Logitech G102', 250),
+        ('item', 'Клавиатура HyperX', 150),
+        ('item', 'ОЗУ 32GB DDR5', 70),
+        ('item', 'SSD Samsung 2TB', 50),
+        ('item', 'Монитор 27" QHD', 40),
+        ('item', 'Наушники Sony XM5', 20),
+        ('item', 'Игровой ПК (средний)', 10),
+        ('item', 'RTX 4070 Ti', 7),
+        ('item', 'Ноутбук Lenovo Legion', 2),
+        ('item', 'MacBook Pro M3 Max', 1),
+        ('item', 'Игровой ПК (топ)', 1),
+        ('item', 'RTX 4090', 1),
+    ],
+    'daily': [
+        ('nothing', None, 400),
+        ('key', 'tech', 300),
+        ('key', 'cars', 200),
+        ('key', 'apartments', 70),
+        ('key', 'houses', 30),
+    ],
+}
 
 VALID_SETTINGS = {
     "short_numbers", "notify_transfers", "hide_from_top",
@@ -195,9 +258,22 @@ async def db_init():
                 last_collected TEXT    NOT NULL
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS case_keys (
+                user_id   INTEGER NOT NULL,
+                case_type TEXT    NOT NULL,
+                amount    INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (user_id, case_type)
+            )
+        """)
         # Добавляем rent_rate в shop_items если ещё нет
         try:
             await db.execute("ALTER TABLE shop_items ADD COLUMN rent_rate REAL DEFAULT 0")
+        except Exception:
+            pass
+        # Добавляем daily_case_at в users если ещё нет
+        try:
+            await db.execute("ALTER TABLE users ADD COLUMN daily_case_at TEXT DEFAULT NULL")
         except Exception:
             pass
         # Заполняем магазин если пуст
@@ -1476,6 +1552,111 @@ async def web_api_rental_stop(request: aio_web.Request) -> aio_web.Response:
     return aio_web.json_response({'ok': True, 'income': income, 'utility': utility, 'net': net, 'new_balance': new_bal})
 
 
+async def web_api_case_status(request: aio_web.Request) -> aio_web.Response:
+    user_id = validate_init_data(request.query.get('init_data', ''))
+    if not user_id:
+        return aio_web.json_response({'error': 'Unauthorized'}, status=401)
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT daily_case_at FROM users WHERE id=?", (user_id,)) as cur:
+            row = await cur.fetchone()
+        daily_at = row['daily_case_at'] if row else None
+        daily_available = True
+        daily_next_at = None
+        if daily_at:
+            try:
+                last = datetime.strptime(daily_at, "%Y-%m-%d %H:%M:%S")
+                if (datetime.utcnow() - last).total_seconds() < 86400:
+                    daily_available = False
+                    daily_next_at = (last + timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
+            except Exception:
+                pass
+        keys = {'cars': 0, 'apartments': 0, 'houses': 0, 'tech': 0}
+        async with db.execute("SELECT case_type, amount FROM case_keys WHERE user_id=?", (user_id,)) as cur:
+            async for r in cur:
+                if r['case_type'] in keys:
+                    keys[r['case_type']] = r['amount']
+    return aio_web.json_response({'ok': True, 'daily_available': daily_available, 'daily_next_at': daily_next_at, 'keys': keys})
+
+
+async def web_api_case_open(request: aio_web.Request) -> aio_web.Response:
+    try:
+        data = await request.json()
+    except Exception:
+        return aio_web.json_response({'error': 'Неверный запрос'}, status=400)
+    user_id = validate_init_data(data.get('init_data', ''))
+    if not user_id:
+        return aio_web.json_response({'error': 'Unauthorized'}, status=401)
+    case_type = data.get('case_type', '')
+    use_key = bool(data.get('use_key', False))
+    if case_type not in CASE_LOOT:
+        return aio_web.json_response({'error': 'Неверный кейс'}, status=400)
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT balance, daily_case_at FROM users WHERE id=?", (user_id,)) as cur:
+            row = await cur.fetchone()
+        if not row:
+            return aio_web.json_response({'error': 'Пользователь не найден'}, status=404)
+        balance = row['balance']
+        daily_at = row['daily_case_at']
+        price = CASE_PRICES[case_type]
+        now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        if case_type == 'daily':
+            if daily_at:
+                try:
+                    last = datetime.strptime(daily_at, "%Y-%m-%d %H:%M:%S")
+                    if (datetime.utcnow() - last).total_seconds() < 86400:
+                        return aio_web.json_response({'error': 'Подождите 24 часа'}, status=400)
+                except Exception:
+                    pass
+            await db.execute("UPDATE users SET daily_case_at=? WHERE id=?", (now_str, user_id))
+        elif use_key:
+            async with db.execute("SELECT amount FROM case_keys WHERE user_id=? AND case_type=?", (user_id, case_type)) as cur:
+                key_row = await cur.fetchone()
+            if not key_row or key_row['amount'] < 1:
+                return aio_web.json_response({'error': 'Нет ключа для этого кейса'}, status=400)
+            await db.execute("UPDATE case_keys SET amount=amount-1 WHERE user_id=? AND case_type=?", (user_id, case_type))
+        else:
+            if balance < price:
+                return aio_web.json_response({'error': 'Недостаточно средств'}, status=400)
+            await db.execute("UPDATE users SET balance=balance-? WHERE id=?", (price, user_id))
+        # Бросаем кубик
+        loot_table = CASE_LOOT[case_type]
+        total_weight = sum(w for _, _, w in loot_table)
+        roll = random.randint(1, total_weight)
+        cumulative = 0
+        reward_type, reward_value = 'nothing', None
+        for rtype, rval, weight in loot_table:
+            cumulative += weight
+            if roll <= cumulative:
+                reward_type, reward_value = rtype, rval
+                break
+        result: dict = {'ok': True, 'reward': reward_type}
+        if reward_type == 'item':
+            async with db.execute("SELECT id, icon FROM shop_items WHERE name=?", (reward_value,)) as cur:
+                item_row = await cur.fetchone()
+            if item_row:
+                await db.execute(
+                    "INSERT INTO inventory (user_id, item_id, price_paid, bought_at) VALUES (?,?,?,?)",
+                    (user_id, item_row['id'], 0, now_str)
+                )
+                result['item'] = {'name': reward_value, 'icon': item_row['icon']}
+            else:
+                result['reward'] = 'nothing'
+        elif reward_type == 'key':
+            await db.execute(
+                "INSERT INTO case_keys (user_id, case_type, amount) VALUES (?,?,1) "
+                "ON CONFLICT(user_id, case_type) DO UPDATE SET amount=amount+1",
+                (user_id, reward_value)
+            )
+            result['key_type'] = reward_value
+        await db.commit()
+        async with db.execute("SELECT balance FROM users WHERE id=?", (user_id,)) as cur:
+            new_bal = round(float((await cur.fetchone())['balance']), 2)
+        result['new_balance'] = new_bal
+    return aio_web.json_response(result)
+
+
 def make_web_app() -> aio_web.Application:
     app = aio_web.Application(middlewares=[cors_middleware])
     app.router.add_get('/', web_index)
@@ -1502,6 +1683,10 @@ def make_web_app() -> aio_web.Application:
     app.router.add_post('/api/rental/start',   web_api_rental_start)
     app.router.add_post('/api/rental/collect', web_api_rental_collect)
     app.router.add_post('/api/rental/stop',    web_api_rental_stop)
+    for path in ('/api/case/status', '/api/case/open'):
+        app.router.add_route('OPTIONS', path, lambda r: aio_web.Response())
+    app.router.add_get ('/api/case/status', web_api_case_status)
+    app.router.add_post('/api/case/open',   web_api_case_open)
     for path in ('/api/minesweeper/start', '/api/minesweeper/open', '/api/minesweeper/cashout'):
         app.router.add_route('OPTIONS', path, lambda r: aio_web.Response())
     app.router.add_post('/api/minesweeper/start',   web_api_ms_start)
