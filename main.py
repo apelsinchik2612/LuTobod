@@ -183,6 +183,29 @@ async def db_init():
                 bought_at  TEXT    NOT NULL
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS rentals (
+                id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id        INTEGER NOT NULL,
+                inv_id         INTEGER NOT NULL UNIQUE,
+                item_id        INTEGER NOT NULL,
+                rate           REAL    NOT NULL,
+                started_at     TEXT    NOT NULL,
+                last_collected TEXT    NOT NULL
+            )
+        """)
+        # Добавляем rent_rate в shop_items если ещё нет
+        try:
+            await db.execute("ALTER TABLE shop_items ADD COLUMN rent_rate REAL DEFAULT 0")
+        except Exception:
+            pass
+        # Ставки аренды для квартир
+        for name, rate in [
+            ('Комната в общежитии', 20_000), ('Студия', 35_000),
+            ('1-комнатная', 50_000), ('2-комнатная', 65_000),
+            ('3-комнатная', 80_000), ('Пентхаус', 100_000),
+        ]:
+            await db.execute("UPDATE shop_items SET rent_rate=? WHERE name=?", (rate, name))
         # Заполняем магазин если пуст
         async with db.execute("SELECT COUNT(*) FROM shop_items") as cur:
             if (await cur.fetchone())[0] == 0:
@@ -1187,6 +1210,11 @@ async def web_api_events(request: aio_web.Request) -> aio_web.Response:
         return aio_web.json_response({'error': 'Internal error'}, status=500)
 
 
+def calc_rental_income(last_collected: str, rate: float) -> float:
+    last = datetime.strptime(last_collected, "%Y-%m-%d %H:%M:%S")
+    return (datetime.now() - last).total_seconds() / 3600 * rate
+
+
 async def web_api_shop(request: aio_web.Request) -> aio_web.Response:
     user_id = validate_init_data(request.query.get('init_data', ''))
     if not user_id:
@@ -1243,8 +1271,10 @@ async def web_api_inventory(request: aio_web.Request) -> aio_web.Response:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             """SELECT i.id, i.price_paid, i.bought_at,
-                      s.name, s.description, s.icon, s.category
+                      s.name, s.description, s.icon, s.category,
+                      CASE WHEN r.id IS NOT NULL THEN 1 ELSE 0 END as is_rented
                FROM inventory i JOIN shop_items s ON i.item_id = s.id
+               LEFT JOIN rentals r ON r.inv_id = i.id
                WHERE i.user_id = ? ORDER BY i.bought_at DESC""",
             (user_id,)
         ) as cur:
@@ -1273,6 +1303,9 @@ async def web_api_inventory_sell(request: aio_web.Request) -> aio_web.Response:
             inv = await cur.fetchone()
         if not inv:
             return aio_web.json_response({'error': 'Предмет не найден'})
+        async with db.execute("SELECT 1 FROM rentals WHERE inv_id=?", (inv_id,)) as cur:
+            if await cur.fetchone():
+                return aio_web.json_response({'error': 'Сначала остановите аренду'})
         sell_price = round(inv['price_paid'] * (1 - SHOP_TAX), 2)
         await db.execute("DELETE FROM inventory WHERE id = ?", (inv_id,))
         await db.execute("UPDATE users SET balance = balance + ? WHERE id = ?", (sell_price, user_id))
@@ -1280,6 +1313,125 @@ async def web_api_inventory_sell(request: aio_web.Request) -> aio_web.Response:
         async with db.execute("SELECT balance FROM users WHERE id = ?", (user_id,)) as cur:
             new_bal = round(float((await cur.fetchone())['balance']), 2)
     return aio_web.json_response({'ok': True, 'sell_price': sell_price, 'new_balance': new_bal})
+
+
+async def web_api_rentals(request: aio_web.Request) -> aio_web.Response:
+    user_id = validate_init_data(request.query.get('init_data', ''))
+    if not user_id:
+        return aio_web.json_response({'error': 'Unauthorized'}, status=401)
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            """SELECT r.id, r.inv_id, r.rate, r.last_collected,
+                      s.name, s.icon
+               FROM rentals r JOIN shop_items s ON r.item_id = s.id
+               WHERE r.user_id = ?""", (user_id,)
+        ) as cur:
+            rentals = [dict(r) for r in await cur.fetchall()]
+        async with db.execute(
+            """SELECT i.id, s.name, s.icon, s.rent_rate
+               FROM inventory i JOIN shop_items s ON i.item_id = s.id
+               WHERE i.user_id = ? AND s.category='apartments' AND s.rent_rate > 0
+                 AND i.id NOT IN (SELECT inv_id FROM rentals WHERE user_id = ?)""",
+            (user_id, user_id)
+        ) as cur:
+            available = [dict(r) for r in await cur.fetchall()]
+    for r in rentals:
+        r['accumulated'] = math.floor(calc_rental_income(r['last_collected'], r['rate']))
+    return aio_web.json_response({'rentals': rentals, 'available': available})
+
+
+async def web_api_rental_start(request: aio_web.Request) -> aio_web.Response:
+    try:
+        data = await request.json()
+    except Exception:
+        return aio_web.json_response({'error': 'Неверный запрос'}, status=400)
+    user_id = validate_init_data(data.get('init_data', ''))
+    if not user_id:
+        return aio_web.json_response({'error': 'Unauthorized'}, status=401)
+    try:
+        inv_id = int(data['inv_id'])
+    except (KeyError, ValueError):
+        return aio_web.json_response({'error': 'Неверные данные'})
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT i.*,s.rent_rate,s.name FROM inventory i JOIN shop_items s ON i.item_id=s.id WHERE i.id=? AND i.user_id=?",
+            (inv_id, user_id)
+        ) as cur:
+            item = await cur.fetchone()
+        if not item:
+            return aio_web.json_response({'error': 'Предмет не найден'})
+        if not item['rent_rate']:
+            return aio_web.json_response({'error': 'Этот предмет нельзя сдавать в аренду'})
+        async with db.execute("SELECT 1 FROM rentals WHERE inv_id=?", (inv_id,)) as cur:
+            if await cur.fetchone():
+                return aio_web.json_response({'error': 'Уже сдаётся'})
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        await db.execute(
+            "INSERT INTO rentals (user_id,inv_id,item_id,rate,started_at,last_collected) VALUES (?,?,?,?,?,?)",
+            (user_id, inv_id, item['item_id'], item['rent_rate'], now, now)
+        )
+        await db.commit()
+    return aio_web.json_response({'ok': True})
+
+
+async def web_api_rental_collect(request: aio_web.Request) -> aio_web.Response:
+    try:
+        data = await request.json()
+    except Exception:
+        return aio_web.json_response({'error': 'Неверный запрос'}, status=400)
+    user_id = validate_init_data(data.get('init_data', ''))
+    if not user_id:
+        return aio_web.json_response({'error': 'Unauthorized'}, status=401)
+    try:
+        rental_id = int(data['rental_id'])
+    except (KeyError, ValueError):
+        return aio_web.json_response({'error': 'Неверные данные'})
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM rentals WHERE id=? AND user_id=?", (rental_id, user_id)) as cur:
+            rental = await cur.fetchone()
+        if not rental:
+            return aio_web.json_response({'error': 'Аренда не найдена'})
+        income = math.floor(calc_rental_income(rental['last_collected'], rental['rate']))
+        if income < 1:
+            return aio_web.json_response({'error': 'Ещё не накопилось достаточно'})
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        await db.execute("UPDATE users SET balance=balance+? WHERE id=?", (income, user_id))
+        await db.execute("UPDATE rentals SET last_collected=? WHERE id=?", (now, rental_id))
+        await db.commit()
+        async with db.execute("SELECT balance FROM users WHERE id=?", (user_id,)) as cur:
+            new_bal = round(float((await cur.fetchone())['balance']), 2)
+    return aio_web.json_response({'ok': True, 'income': income, 'new_balance': new_bal})
+
+
+async def web_api_rental_stop(request: aio_web.Request) -> aio_web.Response:
+    try:
+        data = await request.json()
+    except Exception:
+        return aio_web.json_response({'error': 'Неверный запрос'}, status=400)
+    user_id = validate_init_data(data.get('init_data', ''))
+    if not user_id:
+        return aio_web.json_response({'error': 'Unauthorized'}, status=401)
+    try:
+        rental_id = int(data['rental_id'])
+    except (KeyError, ValueError):
+        return aio_web.json_response({'error': 'Неверные данные'})
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM rentals WHERE id=? AND user_id=?", (rental_id, user_id)) as cur:
+            rental = await cur.fetchone()
+        if not rental:
+            return aio_web.json_response({'error': 'Аренда не найдена'})
+        income = math.floor(calc_rental_income(rental['last_collected'], rental['rate']))
+        if income > 0:
+            await db.execute("UPDATE users SET balance=balance+? WHERE id=?", (income, user_id))
+        await db.execute("DELETE FROM rentals WHERE id=?", (rental_id,))
+        await db.commit()
+        async with db.execute("SELECT balance FROM users WHERE id=?", (user_id,)) as cur:
+            new_bal = round(float((await cur.fetchone())['balance']), 2)
+    return aio_web.json_response({'ok': True, 'income': income, 'new_balance': new_bal})
 
 
 def make_web_app() -> aio_web.Application:
@@ -1302,6 +1454,12 @@ def make_web_app() -> aio_web.Application:
     app.router.add_get('/api/inventory', web_api_inventory)
     app.router.add_route('OPTIONS', '/api/inventory/sell', lambda r: aio_web.Response())
     app.router.add_post('/api/inventory/sell', web_api_inventory_sell)
+    for path in ('/api/rentals', '/api/rental/start', '/api/rental/collect', '/api/rental/stop'):
+        app.router.add_route('OPTIONS', path, lambda r: aio_web.Response())
+    app.router.add_get ('/api/rentals',        web_api_rentals)
+    app.router.add_post('/api/rental/start',   web_api_rental_start)
+    app.router.add_post('/api/rental/collect', web_api_rental_collect)
+    app.router.add_post('/api/rental/stop',    web_api_rental_stop)
     for path in ('/api/minesweeper/start', '/api/minesweeper/open', '/api/minesweeper/cashout'):
         app.router.add_route('OPTIONS', path, lambda r: aio_web.Response())
     app.router.add_post('/api/minesweeper/start',   web_api_ms_start)
