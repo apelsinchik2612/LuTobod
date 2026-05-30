@@ -1110,25 +1110,9 @@ async def web_api_events(request: aio_web.Request) -> aio_web.Response:
         user_id = validate_init_data(request.query.get('init_data', ''))
         if not user_id:
             return aio_web.json_response({'error': 'Unauthorized'}, status=401)
-
-        # Long polling: если нет готовых событий — ждём до 20 сек
         bal, events = await _fetch_and_clear_events(user_id)
         if bal is None:
             return aio_web.json_response({'error': 'Not found'}, status=404)
-
-        if not events:
-            watcher = asyncio.Event()
-            _event_watchers[user_id] = watcher
-            try:
-                await asyncio.wait_for(watcher.wait(), timeout=20)
-            except asyncio.TimeoutError:
-                pass
-            finally:
-                _event_watchers.pop(user_id, None)
-            bal, events = await _fetch_and_clear_events(user_id)
-            if bal is None:
-                return aio_web.json_response({'error': 'Not found'}, status=404)
-
         return aio_web.json_response({
             'balance': bal,
             'events': [{'type': e['type'], 'amount': e['amount'], 'from_name': e['from_name']} for e in events],
