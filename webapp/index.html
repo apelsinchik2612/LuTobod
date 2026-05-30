@@ -447,6 +447,26 @@ input[type=number] { -moz-appearance: textfield; }
 }
 .st-row.on .st-toggle { background: var(--green); border-color: var(--green); }
 .st-row.on .st-toggle::after { left: 20px; }
+
+/* === NOTIFICATION (Minecraft toast) === */
+.ntf {
+    position: fixed; top: 0; left: 50%;
+    transform: translateX(-50%) translateY(-110%);
+    max-width: 380px; width: calc(100% - 20px);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 0 0 18px 18px;
+    padding: 13px 16px 16px; display: flex; align-items: center; gap: 13px;
+    z-index: 3000; pointer-events: none; overflow: hidden;
+    box-shadow: 0 8px 28px rgba(0,0,0,.5);
+    transition: transform .38s cubic-bezier(.34,1.56,.64,1);
+}
+.ntf.show { transform: translateX(-50%) translateY(0); }
+.ntf-ico { font-size: 28px; flex-shrink: 0; line-height: 1; }
+.ntf-body { flex: 1; min-width: 0; }
+.ntf-title { font-size: 14px; font-weight: 800; color: var(--text); }
+.ntf-sub { font-size: 12px; color: var(--text2); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ntf-prog { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: var(--surface2); }
+.ntf-bar { height: 100%; background: var(--accent); width: 100%; }
 </style>
 </head>
 <body>
@@ -795,6 +815,41 @@ input[type=number] { -moz-appearance: textfield; }
                 </div>
                 <div class="st-toggle"></div>
             </div>
+            <div class="st-divider"></div>
+            <div class="st-row" id="sw-fast-upgrader">
+                <div>
+                    <div class="st-row-name">Быстрый апгрейдер</div>
+                    <div class="st-row-desc">Быстрый режим спина по умолчанию</div>
+                </div>
+                <div class="st-toggle"></div>
+            </div>
+            <div class="st-divider"></div>
+            <div class="st-row" id="sw-remember-bet">
+                <div>
+                    <div class="st-row-name">Запоминать ставку</div>
+                    <div class="st-row-desc">Сохраняет последнюю ставку между сессиями</div>
+                </div>
+                <div class="st-toggle"></div>
+            </div>
+        </div>
+
+        <div class="st-section-lbl">Уведомления</div>
+        <div class="st-card">
+            <div class="st-row" id="sw-notify-win">
+                <div>
+                    <div class="st-row-name">Выигрыши</div>
+                    <div class="st-row-desc">Уведомление вверху при победе в игре</div>
+                </div>
+                <div class="st-toggle"></div>
+            </div>
+            <div class="st-divider"></div>
+            <div class="st-row" id="sw-notify-settings">
+                <div>
+                    <div class="st-row-name">Изменения настроек</div>
+                    <div class="st-row-desc">Уведомление при изменении настройки</div>
+                </div>
+                <div class="st-toggle"></div>
+            </div>
         </div>
 
     </div>
@@ -810,6 +865,14 @@ input[type=number] { -moz-appearance: textfield; }
     </div>
 </div>
 
+<div class="ntf" id="ntf">
+    <div class="ntf-ico" id="ntf-ico"></div>
+    <div class="ntf-body">
+        <div class="ntf-title" id="ntf-title"></div>
+        <div class="ntf-sub" id="ntf-sub"></div>
+    </div>
+    <div class="ntf-prog"><div class="ntf-bar" id="ntf-bar"></div></div>
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -826,11 +889,15 @@ const ST_THEMES = {
     black: {'--bg':'#000000','--surface':'#111111','--surface2':'#1a1a1a','--text':'#ffffff','--text2':'#777777','--border':'#2a2a2a','--green':'#3fb950','--red':'#f85149','--accent':'#58a6ff'},
 };
 const stSettings = {
-    theme:       localStorage.getItem('st_theme')       || 'dark',
-    shortNums:   localStorage.getItem('st_shortNums')   !== '0',
-    hideBalance: localStorage.getItem('st_hideBalance') === '1',
-    haptic:      localStorage.getItem('st_haptic')      !== '0',
-    autoClose:   localStorage.getItem('st_autoClose')   === '1',
+    theme:          localStorage.getItem('st_theme')          || 'dark',
+    shortNums:      localStorage.getItem('st_shortNums')      !== '0',
+    hideBalance:    localStorage.getItem('st_hideBalance')    === '1',
+    haptic:         localStorage.getItem('st_haptic')         !== '0',
+    autoClose:      localStorage.getItem('st_autoClose')      === '1',
+    fastUpgrader:   localStorage.getItem('st_fastUpgrader')   === '1',
+    rememberBet:    localStorage.getItem('st_rememberBet')    === '1',
+    notifyWin:      localStorage.getItem('st_notifyWin')      !== '0',
+    notifySettings: localStorage.getItem('st_notifySettings') !== '0',
 };
 (function(){ const v=ST_THEMES[stSettings.theme]||ST_THEMES.dark; for(const[k,val] of Object.entries(v)) document.documentElement.style.setProperty(k,val); })();
 
@@ -1050,6 +1117,7 @@ async function doSpin() {
     const bet = parseFloat(document.getElementById('bet-inp').value);
     if (!bet || bet < 500) { toast('Минимальная ставка 500₽'); return; }
     if (bet > balance) { toast('Недостаточно средств'); return; }
+    saveBet(bet);
 
     spinning = true;
     document.getElementById('spin-btn').disabled = true;
@@ -1137,6 +1205,7 @@ function showResult(won, bet, profit, m) {
     }
     showOverlay();
     haptic(won ? 'success' : 'error');
+    if (won && stSettings.notifyWin) notify('💰', 'Победа!', '+' + fmt(profit));
 }
 
 // ── TOAST ─────────────────────────────────────────────
@@ -1146,6 +1215,51 @@ function toast(msg) {
     el.textContent = msg; el.classList.add('show');
     clearTimeout(toastTm);
     toastTm = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+// ── NOTIFICATIONS ─────────────────────────────────────
+const NTF_DUR = 3200;
+let ntfQueue = [], ntfBusy = false, ntfHideTm = null;
+
+function notify(icon, title, sub) {
+    ntfQueue.push({ icon, title, sub: sub || '' });
+    if (!ntfBusy) ntfFlush();
+}
+
+function ntfFlush() {
+    if (!ntfQueue.length) { ntfBusy = false; return; }
+    ntfBusy = true;
+    const { icon, title, sub } = ntfQueue.shift();
+    document.getElementById('ntf-ico').textContent   = icon;
+    document.getElementById('ntf-title').textContent = title;
+    document.getElementById('ntf-sub').textContent   = sub;
+    const bar = document.getElementById('ntf-bar');
+    bar.style.transition = 'none';
+    bar.style.width = '100%';
+    const el = document.getElementById('ntf');
+    el.classList.add('show');
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+        bar.style.transition = `width ${NTF_DUR}ms linear`;
+        bar.style.width = '0%';
+    }));
+    clearTimeout(ntfHideTm);
+    ntfHideTm = setTimeout(() => {
+        el.classList.remove('show');
+        setTimeout(ntfFlush, 420);
+    }, NTF_DUR);
+}
+
+// ── BET MEMORY ────────────────────────────────────────
+function saveBet(v) {
+    if (stSettings.rememberBet) localStorage.setItem('last_bet', String(v));
+}
+function loadBet(inputId, syncFn) {
+    if (!stSettings.rememberBet) return;
+    const v = localStorage.getItem('last_bet');
+    if (v && document.getElementById(inputId)) {
+        document.getElementById(inputId).value = v;
+        syncFn?.();
+    }
 }
 
 function haptic(type) {
@@ -1166,12 +1280,13 @@ function showOverlay() {
 // ── EVENTS ────────────────────────────────────────────
 document.getElementById('btn-play').onclick = () => go('s-games');
 document.getElementById('btn-back-games').onclick = () => go('s-main');
-document.getElementById('btn-upgrader').onclick = () => { currentGame = 'upgrader'; go('s-upgrader'); syncSlider(); updateUI(); };
+document.getElementById('btn-upgrader').onclick = () => { currentGame = 'upgrader'; go('s-upgrader'); loadBet('bet-inp', syncSlider); syncSlider(); updateUI(); };
 document.getElementById('btn-back-upg').onclick = () => { if (!spinning) go('s-games'); };
 
 document.getElementById('btn-minesweeper').onclick = () => {
     currentGame = 'minesweeper';
     go('s-minesweeper');
+    loadBet('ms-bet-inp', msSyncSlider);
     msSyncSlider();
     msUpdateInfoRow();
 };
@@ -1333,6 +1448,7 @@ async function msStartGame() {
     const bet = parseFloat(document.getElementById('ms-bet-inp').value);
     if (!bet || bet < 500) { toast('Минимальная ставка 500₽'); return; }
     if (bet > balance) { toast('Недостаточно средств'); return; }
+    saveBet(bet);
 
     msSetControlsLocked(true);
 
@@ -1475,6 +1591,7 @@ async function msCashout() {
 
 function msCashoutResult(profit) {
     haptic('success');
+    if (stSettings.notifyWin) notify('💎', 'Кэшаут!', '+' + fmt(profit));
     currentGame = 'minesweeper';
     document.getElementById('res-emo').textContent = '💎';
     document.getElementById('res-title').textContent = 'Забрано!';
@@ -1598,6 +1715,7 @@ async function rlDoSpin() {
     const bet = parseFloat(document.getElementById('rl-bet-inp').value);
     if (!bet || bet < 500) { toast('Минимальная ставка 500₽'); return; }
     if (bet > balance)     { toast('Недостаточно средств');     return; }
+    saveBet(bet);
 
     rlSpinning = true;
     rlSetUILocked(true);
@@ -1657,6 +1775,7 @@ async function rlDoSpin() {
             const won = result.won;
             const rc  = result.result_color;
             haptic(won ? 'success' : 'error');
+            if (won && stSettings.notifyWin) notify('🎡', 'Победа!', '+' + fmt(result.profit));
             document.getElementById('res-emo').textContent   = won ? '🏆' : '💸';
             document.getElementById('res-title').textContent = won ? 'Победа!' : 'Проигрыш';
             if (won) {
@@ -1678,6 +1797,7 @@ async function rlDoSpin() {
 document.getElementById('btn-roulette').onclick = () => {
     currentGame = 'roulette';
     go('s-roulette');
+    loadBet('rl-bet-inp', rlSyncSlider);
     rlSyncSlider();
     rlUpdateInfoRow();
     drawRouletteWheel(rlWheelAngle);
@@ -1952,6 +2072,7 @@ async function crDoCashout() {
     btn.textContent = 'ПОСТАВИТЬ'; btn.disabled = false; btn.style.background = '';
     crSetControlsLocked(false);
     haptic('success');
+    if (stSettings.notifyWin) notify('🚀', 'Кэшаут!', 'x' + result.mult.toFixed(2) + ' · +' + fmt(result.profit));
     currentGame = 'crash';
     document.getElementById('res-emo').textContent   = '🏆';
     document.getElementById('res-title').textContent = 'Забрано!';
@@ -1964,6 +2085,7 @@ async function crStartGame() {
     const bet = parseFloat(document.getElementById('cr-bet-inp').value);
     if (!bet || bet < 500) { toast('Минимальная ставка 500₽'); return; }
     if (bet > balance)     { toast('Недостаточно средств');     return; }
+    saveBet(bet);
 
     crSetControlsLocked(true);
     document.getElementById('cr-action-btn').disabled = true;
@@ -2011,6 +2133,7 @@ async function crStartGame() {
 // Crash events
 document.getElementById('btn-crash').onclick = () => {
     currentGame = 'crash'; go('s-crash');
+    loadBet('cr-bet-inp', crSyncSlider);
     crSetupCanvas(); crSyncSlider(); crDrawGraph(); crRenderHistory();
 };
 document.getElementById('btn-back-cr').onclick = () => {
@@ -2049,35 +2172,58 @@ function stSave(key, val) {
     localStorage.setItem('st_' + key, typeof val === 'boolean' ? (val ? '1' : '0') : val);
 }
 
+const ST_TOGGLE_ROWS = [
+    ['sw-short-nums',      'shortNums',      'Сокращение чисел'],
+    ['sw-hide-balance',    'hideBalance',    'Скрывать баланс'],
+    ['sw-haptic',          'haptic',         'Вибрация'],
+    ['sw-auto-close',      'autoClose',      'Авто-закрытие итогов'],
+    ['sw-fast-upgrader',   'fastUpgrader',   'Быстрый апгрейдер'],
+    ['sw-remember-bet',    'rememberBet',    'Запоминать ставку'],
+    ['sw-notify-win',      'notifyWin',      'Уведомления выигрышей'],
+    ['sw-notify-settings', 'notifySettings', 'Уведомления настроек'],
+];
+const ST_THEME_NAMES = { light: 'Светлая', dark: 'Тёмная', black: 'Чёрная' };
+
 function stUpdateUI() {
     document.querySelectorAll('.theme-opt').forEach(el =>
         el.classList.toggle('sel', el.dataset.theme === stSettings.theme)
     );
-    [['sw-short-nums','shortNums'],['sw-hide-balance','hideBalance'],
-     ['sw-haptic','haptic'],['sw-auto-close','autoClose']].forEach(([id, key]) => {
+    ST_TOGGLE_ROWS.forEach(([id, key]) => {
         const row = document.getElementById(id);
         if (row) row.classList.toggle('on', !!stSettings[key]);
     });
 }
 
+function stSyncFastUpgrader() {
+    fastMode = stSettings.fastUpgrader;
+    const btn = document.getElementById('speed-btn');
+    if (btn) { btn.textContent = fastMode ? '⚡ Быстро' : '🐢 Обычно'; btn.classList.toggle('fast', fastMode); }
+}
+
 function stInit() {
     stUpdateUI();
+    if (stSettings.fastUpgrader) stSyncFastUpgrader();
 
     document.querySelectorAll('.theme-opt').forEach(el => {
         el.onclick = () => {
             stSave('theme', el.dataset.theme);
             stApplyTheme(el.dataset.theme);
             stUpdateUI();
+            if (stSettings.notifySettings)
+                notify('🎨', 'Тема изменена', ST_THEME_NAMES[el.dataset.theme] || el.dataset.theme);
         };
     });
 
-    [['sw-short-nums','shortNums'],['sw-hide-balance','hideBalance'],
-     ['sw-haptic','haptic'],['sw-auto-close','autoClose']].forEach(([id, key]) => {
+    ST_TOGGLE_ROWS.forEach(([id, key, label]) => {
         const row = document.getElementById(id);
-        if (row) row.onclick = () => {
+        if (!row) return;
+        row.onclick = () => {
             stSave(key, !stSettings[key]);
             stUpdateUI();
             if (key === 'shortNums' || key === 'hideBalance') setBalance(balance);
+            if (key === 'fastUpgrader') stSyncFastUpgrader();
+            if (stSettings.notifySettings)
+                notify('⚙️', label, stSettings[key] ? 'включено' : 'выключено');
         };
     });
 
