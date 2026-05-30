@@ -1426,8 +1426,8 @@ async def web_api_rental_collect(request: aio_web.Request) -> aio_web.Response:
         if not rental:
             return aio_web.json_response({'error': 'Аренда не найдена'})
         income = math.floor(calc_rental_income(rental['last_collected'], rental['rate']))
-        if income < 1:
-            return aio_web.json_response({'error': 'Ещё не накопилось достаточно'})
+        if income < 1500:
+            return aio_web.json_response({'error': 'Минимум для сбора — 1 500₽'})
         utility = random.randint(8_000, 15_000)
         net = income - utility
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
