@@ -144,6 +144,60 @@ input[type=number] { -moz-appearance: textfield; }
 }
 .case-daily-cd { font-size:11px; color:var(--text2); margin-top:4px; }
 
+/* === CASE DETAIL SCREEN === */
+.case-hero {
+    display:flex; flex-direction:column; align-items:center;
+    padding:20px 16px 8px; gap:10px;
+}
+.case-hero-emoji {
+    font-size:96px; line-height:1;
+    filter:drop-shadow(0 6px 24px rgba(63,185,80,.35));
+    animation: casePulse 3s ease-in-out infinite;
+}
+@keyframes casePulse {
+    0%,100%{filter:drop-shadow(0 6px 24px rgba(63,185,80,.35))}
+    50%{filter:drop-shadow(0 8px 32px rgba(63,185,80,.6))}
+}
+.case-hero-price {
+    font-size:15px; font-weight:700; color:var(--green);
+    background:rgba(63,185,80,.12); border:1px solid rgba(63,185,80,.3);
+    border-radius:20px; padding:5px 16px;
+}
+.case-hero-price.has-key { color:#f59e0b; background:rgba(245,158,11,.12); border-color:rgba(245,158,11,.3); }
+.case-hero-price.used { color:var(--text2); background:none; border-color:var(--border); }
+.case-open-wrap { padding:0 16px 12px; display:flex; flex-direction:column; gap:8px; }
+.case-contents-hdr {
+    font-size:13px; font-weight:700; color:var(--text2);
+    text-transform:uppercase; letter-spacing:.5px;
+    padding:8px 16px 6px; border-top:1px solid var(--border); margin-top:4px;
+}
+.case-contents-grid {
+    display:grid; grid-template-columns:repeat(3,1fr);
+    gap:8px; padding:0 16px 80px;
+}
+.cci {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:12px; padding:10px 6px 8px;
+    display:flex; flex-direction:column; align-items:center; text-align:center; gap:3px;
+}
+.cci-ico { font-size:32px; line-height:1.1; }
+.cci-name { font-size:10px; font-weight:700; line-height:1.3; word-break:break-word; }
+.cci-price { font-size:10px; color:var(--green); font-weight:600; }
+.cci-pct {
+    font-size:9px; font-weight:700; padding:1px 6px; border-radius:6px;
+    margin-top:2px;
+}
+.cci.rarity-common   { border-color:rgba(63,185,80,.35); }
+.cci.rarity-common   .cci-pct { background:rgba(63,185,80,.15); color:var(--green); }
+.cci.rarity-uncommon { border-color:rgba(88,166,255,.35); }
+.cci.rarity-uncommon .cci-pct { background:rgba(88,166,255,.15); color:var(--accent); }
+.cci.rarity-rare     { border-color:rgba(163,113,247,.4); }
+.cci.rarity-rare     .cci-pct { background:rgba(163,113,247,.15); color:#a371f7; }
+.cci.rarity-legendary{ border-color:rgba(245,158,11,.45); }
+.cci.rarity-legendary .cci-pct { background:rgba(245,158,11,.15); color:#f59e0b; }
+.cci.rarity-nothing  { opacity:.5; }
+.cci.rarity-nothing  .cci-pct { background:var(--surface2); color:var(--text2); }
+
 /* === CASE RESULT MODAL === */
 .case-modal-bg {
     position:fixed; inset:0; background:rgba(0,0,0,.82); z-index:150;
@@ -777,7 +831,7 @@ input[type=number] { -moz-appearance: textfield; }
         <div class="sec-label">Открой кейс — получи предмет в инвентарь</div>
         <div class="cases-grid">
             <!-- Техника (100к) -->
-            <div class="case-card" id="case-card-tech" onclick="openCase('tech')">
+            <div class="case-card" id="case-card-tech" onclick="showCaseDetail('tech')">
                 <span class="case-key-badge" id="case-key-tech" style="display:none">🔑 ×0</span>
                 <div class="case-emoji">💻</div>
                 <div class="case-info">
@@ -786,7 +840,7 @@ input[type=number] { -moz-appearance: textfield; }
                 </div>
             </div>
             <!-- Машины (150к) -->
-            <div class="case-card" id="case-card-cars" onclick="openCase('cars')">
+            <div class="case-card" id="case-card-cars" onclick="showCaseDetail('cars')">
                 <span class="case-key-badge" id="case-key-cars" style="display:none">🔑 ×0</span>
                 <div class="case-emoji">🚗</div>
                 <div class="case-info">
@@ -795,7 +849,7 @@ input[type=number] { -moz-appearance: textfield; }
                 </div>
             </div>
             <!-- Квартиры (900к) -->
-            <div class="case-card" id="case-card-apartments" onclick="openCase('apartments')">
+            <div class="case-card" id="case-card-apartments" onclick="showCaseDetail('apartments')">
                 <span class="case-key-badge" id="case-key-apartments" style="display:none">🔑 ×0</span>
                 <div class="case-emoji">🏠</div>
                 <div class="case-info">
@@ -804,7 +858,7 @@ input[type=number] { -moz-appearance: textfield; }
                 </div>
             </div>
             <!-- Дома (1.7кк) -->
-            <div class="case-card" id="case-card-houses" onclick="openCase('houses')">
+            <div class="case-card" id="case-card-houses" onclick="showCaseDetail('houses')">
                 <span class="case-key-badge" id="case-key-houses" style="display:none">🔑 ×0</span>
                 <div class="case-emoji">🏡</div>
                 <div class="case-info">
@@ -813,7 +867,7 @@ input[type=number] { -moz-appearance: textfield; }
                 </div>
             </div>
             <!-- Ежедневный (бесплатно) -->
-            <div class="case-card case-daily" id="case-card-daily" onclick="openCase('daily')">
+            <div class="case-card case-daily" id="case-card-daily" onclick="showCaseDetail('daily')">
                 <div class="case-emoji">🎁</div>
                 <div class="case-info">
                     <div class="case-name">Ежедневный кейс</div>
@@ -833,6 +887,28 @@ input[type=number] { -moz-appearance: textfield; }
         <div class="case-modal-sub" id="case-modal-sub"></div>
         <button class="case-modal-btn" onclick="closeCaseModal()">ОК</button>
     </div>
+</div>
+
+<!-- CASE DETAIL -->
+<div id="s-case-detail" class="screen">
+    <div class="hdr">
+        <button class="back-btn" id="btn-back-case">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>Назад
+        </button>
+        <span class="hdr-title" id="case-detail-title">Кейс</span>
+        <div class="bal-chip">💰 <span id="bal-case">...</span></div>
+    </div>
+    <div class="case-hero">
+        <div class="case-hero-emoji" id="case-detail-emoji">📦</div>
+        <div class="case-hero-price" id="case-detail-price">—</div>
+    </div>
+    <div class="case-open-wrap">
+        <button class="menu-btn primary w100" id="case-open-btn" onclick="doOpenCase()">
+            <span class="ico" id="case-open-ico">🔓</span><span id="case-open-txt">Открыть</span>
+        </button>
+    </div>
+    <div class="case-contents-hdr" id="case-contents-hdr">Содержимое кейса</div>
+    <div class="case-contents-grid" id="case-contents-grid"></div>
 </div>
 
 <!-- UPGRADER -->
@@ -1329,6 +1405,7 @@ function setBalance(v) {
     const t = stSettings.hideBalance ? '●●●●●' : fmt(v);
     document.getElementById('bal-main').textContent = t;
     document.getElementById('bal-games').textContent = t;
+    document.getElementById('bal-case').textContent = t;
     document.getElementById('bal-upg').textContent = t;
     document.getElementById('bal-ms').textContent = t;
     document.getElementById('bal-rl').textContent = t;
@@ -1684,6 +1761,63 @@ function showOverlay() {
 // ── CASES ─────────────────────────────────────────────
 let caseStatus = { daily_available: true, daily_next_at: null, keys: {cars:0,apartments:0,houses:0,tech:0} };
 let caseOpening = false;
+let currentCaseType = null;
+
+const CASE_INFO = {
+    cars:       { name: 'Кейс с машинами',   emoji: '🚗', price: 150000 },
+    apartments: { name: 'Кейс с квартирами', emoji: '🏠', price: 900000 },
+    houses:     { name: 'Кейс с домами',     emoji: '🏡', price: 1700000 },
+    tech:       { name: 'Кейс с техникой',   emoji: '💻', price: 100000 },
+    daily:      { name: 'Ежедневный кейс',   emoji: '🎁', price: 0 },
+};
+
+const CASE_LOOT_FE = {
+    cars: { nothingW: 450, items: [
+        { name: 'ВАЗ 2107',              icon: '🚗', price: 120000,    w: 200 },
+        { name: 'Lada Vesta',            icon: '🚙', price: 850000,    w: 100 },
+        { name: 'Toyota Camry',          icon: '🚘', price: 2400000,   w: 50  },
+        { name: 'BMW 5 Series',          icon: '🏎',  price: 6500000,   w: 20  },
+        { name: 'Mercedes S-Class',      icon: '🚐', price: 14000000,  w: 8   },
+        { name: 'Porsche 911',           icon: '🏁', price: 22000000,  w: 3   },
+        { name: 'Lamborghini Huracán',   icon: '⚡', price: 35000000,  w: 1   },
+        { name: 'Bugatti Chiron',        icon: '👑', price: 200000000, w: 1   },
+    ]},
+    apartments: { nothingW: 400, items: [
+        { name: 'Комната в общежитии', icon: '🏠', price: 800000,   w: 350 },
+        { name: 'Студия',              icon: '🏡', price: 3500000,  w: 150 },
+        { name: '1-комнатная',         icon: '🏠', price: 6000000,  w: 60  },
+        { name: '2-комнатная',         icon: '🏘', price: 10500000, w: 25  },
+        { name: '3-комнатная',         icon: '🏰', price: 18000000, w: 10  },
+        { name: 'Пентхаус',            icon: '🌆', price: 75000000, w: 5   },
+    ]},
+    houses: { nothingW: 400, items: [
+        { name: 'Дача',              icon: '🌿', price: 1500000,   w: 350 },
+        { name: 'Загородный дом',    icon: '🏡', price: 7000000,   w: 150 },
+        { name: 'Коттедж',          icon: '🏘', price: 18000000,  w: 70  },
+        { name: 'Особняк',          icon: '🏰', price: 65000000,  w: 25  },
+        { name: 'Вилла на Рублёвке', icon: '👑', price: 250000000, w: 5   },
+    ]},
+    tech: { nothingW: 400, items: [
+        { name: 'Мышь Logitech G102',    icon: '🖱',  price: 2500,   w: 250 },
+        { name: 'Клавиатура HyperX',     icon: '⌨',  price: 5500,   w: 150 },
+        { name: 'ОЗУ 32GB DDR5',         icon: '💾', price: 18000,  w: 70  },
+        { name: 'SSD Samsung 2TB',       icon: '💿', price: 18000,  w: 50  },
+        { name: 'Монитор 27" QHD',       icon: '🖥',  price: 28000,  w: 40  },
+        { name: 'Наушники Sony XM5',     icon: '🎧', price: 32000,  w: 20  },
+        { name: 'Игровой ПК (средний)',  icon: '🖥',  price: 150000, w: 10  },
+        { name: 'RTX 4070 Ti',           icon: '🎮', price: 85000,  w: 7   },
+        { name: 'Ноутбук Lenovo Legion', icon: '💻', price: 95000,  w: 2   },
+        { name: 'MacBook Pro M3 Max',    icon: '🍎', price: 380000, w: 1   },
+        { name: 'Игровой ПК (топ)',      icon: '💎', price: 500000, w: 1   },
+        { name: 'RTX 4090',             icon: '🔥', price: 180000, w: 1   },
+    ]},
+    daily: { nothingW: 400, items: [
+        { name: 'Ключ: Кейс с техникой',   icon: '🔑', price: 0, w: 300, isKey: true },
+        { name: 'Ключ: Кейс с машинами',   icon: '🔑', price: 0, w: 200, isKey: true },
+        { name: 'Ключ: Кейс с квартирами', icon: '🔑', price: 0, w: 70,  isKey: true },
+        { name: 'Ключ: Кейс с домами',     icon: '🔑', price: 0, w: 30,  isKey: true },
+    ]},
+};
 
 function switchGamesTab(tab) {
     document.getElementById('games-tab-content').classList.toggle('active', tab === 'games');
@@ -1702,9 +1836,9 @@ async function loadCaseStatus() {
 }
 
 function renderCases() {
-    const dailyCard = document.getElementById('case-card-daily');
+    const dailyCard  = document.getElementById('case-card-daily');
     const dailyBadge = document.getElementById('case-price-daily');
-    const dailyCd = document.getElementById('case-cd-daily');
+    const dailyCd    = document.getElementById('case-cd-daily');
     if (caseStatus.daily_available) {
         dailyBadge.textContent = 'Бесплатно';
         dailyBadge.className = 'case-price-badge free';
@@ -1733,40 +1867,131 @@ function formatCaseCd(nextAt) {
     return 'Через ' + h + 'ч ' + m + 'м';
 }
 
-async function openCase(type) {
+async function showCaseDetail(type) {
     if (caseOpening) return;
-    if (type === 'daily' && !caseStatus.daily_available) return;
-    const prices = {cars:150000, apartments:900000, houses:1700000, tech:100000};
-    const hasKey = type !== 'daily' && ((caseStatus.keys || {})[type] || 0) > 0;
-    if (type !== 'daily' && !hasKey && balance < (prices[type] || 0)) {
-        haptic('error');
-        notify('❌', 'Недостаточно средств', 'Нужно ' + fmt(prices[type]));
+    currentCaseType = type;
+    await loadCaseStatus();
+    _renderCaseDetail(type);
+    go('s-case-detail');
+}
+
+function _renderCaseDetail(type) {
+    const info     = CASE_INFO[type];
+    const keyCount = (caseStatus.keys || {})[type] || 0;
+
+    document.getElementById('case-detail-title').textContent = info.name;
+    document.getElementById('case-detail-emoji').textContent = info.emoji;
+    document.getElementById('case-contents-hdr').textContent = 'Содержимое: ' + info.name;
+
+    const priceEl = document.getElementById('case-detail-price');
+    const openIco = document.getElementById('case-open-ico');
+    const openTxt = document.getElementById('case-open-txt');
+    const openBtn = document.getElementById('case-open-btn');
+
+    if (type === 'daily') {
+        if (caseStatus.daily_available) {
+            priceEl.textContent = 'Бесплатно';
+            priceEl.className = 'case-hero-price';
+            openIco.textContent = '🎁'; openTxt.textContent = 'Открыть бесплатно';
+            openBtn.disabled = false;
+        } else {
+            priceEl.textContent = formatCaseCd(caseStatus.daily_next_at) || 'Уже открыт сегодня';
+            priceEl.className = 'case-hero-price used';
+            openIco.textContent = '⏳'; openTxt.textContent = 'Уже открыт сегодня';
+            openBtn.disabled = true;
+        }
+    } else if (keyCount > 0) {
+        priceEl.textContent = '🔑 Есть ключ ×' + keyCount;
+        priceEl.className = 'case-hero-price has-key';
+        openIco.textContent = '🔑'; openTxt.textContent = 'Открыть ключом (×' + keyCount + ')';
+        openBtn.disabled = false;
+    } else {
+        priceEl.textContent = fmt(info.price);
+        priceEl.className = 'case-hero-price';
+        openIco.textContent = '🔓'; openTxt.textContent = 'Открыть за ' + fmt(info.price);
+        openBtn.disabled = balance < info.price;
+    }
+
+    _renderCaseContents(type);
+}
+
+function _renderCaseContents(type) {
+    const grid = document.getElementById('case-contents-grid');
+    const data  = CASE_LOOT_FE[type];
+    if (!data) { grid.innerHTML = ''; return; }
+
+    const all = [
+        ...data.items,
+        { name: 'Ничего', icon: '💨', price: 0, w: data.nothingW, isNothing: true },
+    ];
+    const totalW = all.reduce((s, i) => s + i.w, 0);
+
+    grid.innerHTML = all.map(item => {
+        const pct = (item.w / totalW * 100).toFixed(1);
+        let rc = 'rarity-nothing';
+        if (!item.isNothing) {
+            if (pct >= 15) rc = 'rarity-common';
+            else if (pct >= 5) rc = 'rarity-uncommon';
+            else if (pct >= 1) rc = 'rarity-rare';
+            else rc = 'rarity-legendary';
+        }
+        const priceStr = (!item.isNothing && !item.isKey && item.price > 0) ? `<div class="cci-price">${fmt(item.price)}</div>` : '';
+        return `<div class="cci ${rc}">
+            <div class="cci-ico">${item.icon}</div>
+            <div class="cci-name">${item.name}</div>
+            ${priceStr}
+            <div class="cci-pct">${pct}%</div>
+        </div>`;
+    }).join('');
+}
+
+async function doOpenCase() {
+    if (caseOpening || !currentCaseType) return;
+    const type = currentCaseType;
+
+    // Получаем актуальный статус перед открытием (исправляет баг с ключами)
+    await loadCaseStatus();
+
+    const info    = CASE_INFO[type];
+    const hasKey  = type !== 'daily' && ((caseStatus.keys || {})[type] || 0) > 0;
+
+    if (type === 'daily' && !caseStatus.daily_available) {
+        notify('⏳', 'Кейс уже открыт', formatCaseCd(caseStatus.daily_next_at));
+        _renderCaseDetail(type);
         return;
     }
+    if (type !== 'daily' && !hasKey && balance < info.price) {
+        haptic('error');
+        notify('❌', 'Недостаточно средств', 'Нужно ' + fmt(info.price));
+        return;
+    }
+
     caseOpening = true;
-    const card = document.getElementById('case-card-' + type);
-    card.style.opacity = '0.5';
+    const openBtn = document.getElementById('case-open-btn');
+    openBtn.disabled = true;
+
     try {
         const r = await fetch(API_BASE + '/api/case/open', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({init_data: initData, case_type: type, use_key: hasKey}),
+            body: JSON.stringify({ init_data: initData, case_type: type, use_key: hasKey }),
         });
         const d = await r.json();
-        card.style.opacity = '';
         if (!d.ok) {
             haptic('error');
             notify('❌', 'Ошибка', d.error || 'Попробуй снова');
             caseOpening = false;
+            openBtn.disabled = false;
             return;
         }
         setBalance(d.new_balance);
         showCaseResult(d);
         await loadCaseStatus();
+        _renderCaseDetail(type);
     } catch(e) {
-        card.style.opacity = '';
         haptic('error');
         notify('❌', 'Ошибка', 'Нет соединения');
+        openBtn.disabled = false;
     }
     caseOpening = false;
 }
@@ -1794,6 +2019,7 @@ function closeCaseModal() {
 // ── EVENTS ────────────────────────────────────────────
 document.getElementById('btn-play').onclick = () => go('s-games');
 document.getElementById('btn-back-games').onclick = () => go('s-main');
+document.getElementById('btn-back-case').onclick  = () => { if (!caseOpening) go('s-games'); };
 document.getElementById('btn-upgrader').onclick = () => { currentGame = 'upgrader'; go('s-upgrader'); loadBet('bet-inp', syncSlider); syncSlider(); updateUI(); };
 document.getElementById('btn-back-upg').onclick = () => { if (!spinning) go('s-games'); };
 
