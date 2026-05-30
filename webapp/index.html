@@ -36,10 +36,10 @@ input[type=number] { -moz-appearance: textfield; }
 }
 .hdr-title { font-size: 17px; font-weight: 700; }
 .bal-chip {
-    display: flex; align-items: center; gap: 5px;
+    display: flex; align-items: center; gap: 6px;
     background: var(--surface); border: 1px solid var(--border);
-    border-radius: 20px; padding: 5px 12px;
-    font-size: 13px; font-weight: 700; color: var(--green);
+    border-radius: 20px; padding: 8px 18px;
+    font-size: 16px; font-weight: 700; color: var(--green);
 }
 .back-btn {
     display: flex; align-items: center; gap: 4px;
@@ -618,6 +618,12 @@ input[type=number] { -moz-appearance: textfield; }
         </div>
 
         <div class="cr-history" id="cr-history"></div>
+
+        <div class="info-row" id="cr-info-row">
+            <div class="info-item"><div class="info-item-lbl">Ставка</div><div class="info-item-val" id="cr-info-bet">—</div></div>
+            <div class="info-item"><div class="info-item-lbl">Множитель</div><div class="info-item-val" id="cr-info-mult">×1.00</div></div>
+            <div class="info-item"><div class="info-item-lbl">Выигрыш</div><div class="info-item-val g" id="cr-info-win">—</div></div>
+        </div>
 
         <div class="w100" id="cr-bet-section">
             <div class="field-lbl">Ставка</div>
@@ -1649,6 +1655,29 @@ function crSyncSlider() {
     const cur = parseFloat(slider.value);
     const pct = maxVal > 500 ? ((cur - 500) / (maxVal - 500)) * 100 : 0;
     slider.style.background = `linear-gradient(to right, var(--green) ${pct}%, var(--border) ${pct}%)`;
+    crUpdateInfoRow();
+}
+
+function crUpdateInfoRow() {
+    const inp = document.getElementById('cr-bet-inp');
+    const bet = crState !== 'idle' ? crBet : (inp ? parseFloat(inp.value) || 0 : 0);
+    const lastMult = crPoints.length ? crPoints[crPoints.length-1][1] : 1.0;
+    const dispMult = crState === 'crashed' ? (crCrashedAt || 1.0) : lastMult;
+
+    document.getElementById('cr-info-bet').textContent = bet > 0 ? fmt(bet) : '—';
+
+    const multEl = document.getElementById('cr-info-mult');
+    multEl.textContent = '×' + dispMult.toFixed(2);
+    multEl.className = 'info-item-val' + (crState === 'flying' ? ' g' : crState === 'crashed' ? ' r' : '');
+
+    const winEl = document.getElementById('cr-info-win');
+    if (bet > 0 && crState === 'flying') {
+        winEl.textContent = fmt(Math.floor(bet * dispMult));
+        winEl.className = 'info-item-val g';
+    } else {
+        winEl.textContent = '—';
+        winEl.className = 'info-item-val g';
+    }
 }
 
 function crSetControlsLocked(locked) {
@@ -1668,6 +1697,7 @@ function crGameLoop() {
     if (crPoints.length > 800) crPoints.splice(0, crPoints.length - 800);
     if (crAutoEnabled && mult >= crAutoMult) { crDoCashout(); return; }
     crDrawGraph();
+    crUpdateInfoRow();
     crRafId = requestAnimationFrame(crGameLoop);
 }
 
@@ -1692,6 +1722,7 @@ function crHandleCrash(cp, history) {
     if (history) crHistory = history;
     crRenderHistory();
     crDrawGraph();
+    crUpdateInfoRow();
     tg?.HapticFeedback?.notificationOccurred('error');
     const btn = document.getElementById('cr-action-btn');
     btn.textContent = 'ПОСТАВИТЬ'; btn.disabled = false; btn.style.background = '';
@@ -1787,6 +1818,7 @@ async function crStartGame() {
     if (result.history) crHistory = result.history;
     setBalance(result.new_balance);
     crRenderHistory();
+    crUpdateInfoRow();
 
     const btn = document.getElementById('cr-action-btn');
     btn.textContent = 'ЗАБРАТЬ';
