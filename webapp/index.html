@@ -456,7 +456,7 @@ input[type=number] { -moz-appearance: textfield; }
     background: var(--surface); border: 1px solid var(--border);
     border-radius: 0 0 18px 18px;
     padding: 13px 16px 16px; display: flex; align-items: center; gap: 13px;
-    z-index: 3000; pointer-events: none; overflow: hidden;
+    z-index: 3000; cursor: pointer; overflow: hidden;
     box-shadow: 0 8px 28px rgba(0,0,0,.5);
     transition: transform .38s cubic-bezier(.34,1.56,.64,1);
 }
@@ -2236,8 +2236,42 @@ function stInit() {
     document.getElementById('btn-settings').onclick = () => { go('s-settings'); stUpdateUI(); };
 }
 
+// ── EVENTS POLLING ────────────────────────────────────
+document.getElementById('ntf').onclick = () => {
+    clearTimeout(ntfHideTm);
+    document.getElementById('ntf').classList.remove('show');
+    ntfBusy = false;
+    setTimeout(ntfFlush, 420);
+};
+
+async function pollEvents() {
+    if (!initData) return;
+    try {
+        const r = await fetch(`${API_BASE}/api/events?init_data=${encodeURIComponent(initData)}`);
+        if (!r.ok) return;
+        const d = await r.json();
+        if (d.balance !== undefined && d.balance !== balance) setBalance(d.balance);
+        if (d.events && d.events.length) {
+            for (const ev of d.events) {
+                const amt = '+' + fmt(ev.amount);
+                if (ev.type === 'transfer') {
+                    notify('💳', 'Пополнение!', amt + (ev.from_name ? ' от @' + ev.from_name : ''));
+                } else if (ev.type === 'give') {
+                    notify('🎁', 'Начисление от админа', amt);
+                } else if (ev.type === 'promo') {
+                    notify('🎟', 'Промокод активирован!', amt);
+                }
+            }
+        }
+    } catch {}
+}
+
 // ── INIT ──────────────────────────────────────────────
-loadBalance().then(() => { drawWheel(arrowAngle, 0.5); stInit(); });
+loadBalance().then(() => {
+    drawWheel(arrowAngle, 0.5);
+    stInit();
+    setInterval(pollEvents, 6000);
+});
 </script>
 </body>
 </html>
