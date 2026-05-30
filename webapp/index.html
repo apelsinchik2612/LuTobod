@@ -448,6 +448,67 @@ input[type=number] { -moz-appearance: textfield; }
 .st-row.on .st-toggle { background: var(--green); border-color: var(--green); }
 .st-row.on .st-toggle::after { left: 20px; }
 
+/* === MARKET TABS === */
+.mkt-tabs {
+    display:flex; gap:4px; padding:8px 16px; overflow-x:auto;
+    scrollbar-width:none; flex-shrink:0; border-bottom:1px solid var(--border);
+}
+.mkt-tabs::-webkit-scrollbar { display:none; }
+.mkt-tab {
+    flex-shrink:0; padding:7px 16px; border-radius:20px;
+    border:1px solid var(--border); background:var(--surface);
+    color:var(--text2); font-size:13px; font-weight:600; cursor:pointer;
+    transition:all .15s; white-space:nowrap;
+}
+.mkt-tab.active { background:var(--green); border-color:var(--green); color:#fff; }
+.mkt-panel { display:none; flex:1; overflow:hidden; flex-direction:column; }
+.mkt-panel.active { display:flex; }
+.mkt-section-lbl {
+    font-size:11px; color:var(--text2); text-transform:uppercase;
+    letter-spacing:.6px; padding:10px 0 6px; flex-shrink:0;
+}
+
+/* Jobs/Rental */
+.job-card {
+    background:var(--surface); border:1px solid var(--green);
+    border-radius:14px; padding:13px; display:flex; flex-direction:column; gap:10px;
+}
+.job-card-top { display:flex; align-items:center; gap:10px; }
+.job-ico { font-size:26px; flex-shrink:0; }
+.job-info { flex:1; min-width:0; }
+.job-name { font-size:14px; font-weight:700; }
+.job-rate { font-size:12px; color:var(--green); font-weight:600; margin-top:2px; }
+.job-earned { font-size:12px; color:var(--text2); }
+.job-earned b { color:var(--green); font-size:13px; }
+.job-collect-btn {
+    padding:6px 14px; border-radius:8px; border:none;
+    background:var(--green); color:#fff; font-size:12px; font-weight:700; cursor:pointer;
+    transition:opacity .15s; flex-shrink:0;
+}
+.job-collect-btn:disabled { opacity:.4; cursor:not-allowed; }
+.job-collect-btn:active { opacity:.7; }
+.job-stop-btn {
+    width:100%; padding:8px; border-radius:8px; background:transparent;
+    border:1px solid var(--border); color:var(--text2); font-size:12px; cursor:pointer;
+}
+.job-stop-btn:active { background:var(--surface2); }
+.job-avail-card {
+    display:flex; align-items:center; gap:10px;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:14px; padding:12px 14px;
+}
+.job-rent-btn {
+    padding:6px 14px; border-radius:8px; border:none;
+    background:var(--accent); color:#fff; font-size:12px; font-weight:700; cursor:pointer;
+    flex-shrink:0; transition:opacity .15s;
+}
+.job-rent-btn:active { opacity:.7; }
+.inv-rented-badge {
+    font-size:10px; background:rgba(88,166,255,.15); color:var(--accent);
+    border:1px solid rgba(88,166,255,.3); border-radius:6px;
+    padding:1px 6px; margin-left:6px;
+}
+
 /* === SHOP / INVENTORY / SELL === */
 .sh-body { flex:1; display:flex; flex-direction:column; overflow:hidden; }
 .sh-tabs {
@@ -563,9 +624,7 @@ input[type=number] { -moz-appearance: textfield; }
         <div class="logo">ЛУТОБОТ</div>
         <div class="logo-sub">Игровая платформа</div>
         <button class="menu-btn primary" id="btn-play"><span class="ico">🎮</span>Играть</button>
-        <button class="menu-btn" id="btn-shop"><span class="ico">🏪</span>Магазин</button>
-        <button class="menu-btn" id="btn-inv"><span class="ico">📦</span>Инвентарь</button>
-        <button class="menu-btn" id="btn-sell-screen"><span class="ico">💸</span>Продажа</button>
+        <button class="menu-btn" id="btn-market"><span class="ico">🛒</span>Рынок</button>
         <button class="menu-btn" id="btn-settings"><span class="ico">⚙️</span>Настройки</button>
     </div>
 </div>
@@ -822,16 +881,23 @@ input[type=number] { -moz-appearance: textfield; }
     </div>
 </div>
 
-<!-- SHOP -->
-<div id="s-shop" class="screen">
+<!-- MARKET -->
+<div id="s-market" class="screen">
     <div class="hdr">
-        <button class="back-btn" id="btn-back-shop">
+        <button class="back-btn" id="btn-back-market">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>Назад
         </button>
-        <span class="hdr-title">Магазин</span>
-        <div class="bal-chip">💰 <span id="bal-shop">...</span></div>
+        <span class="hdr-title">Рынок</span>
+        <div class="bal-chip">💰 <span id="bal-market">...</span></div>
     </div>
-    <div class="sh-body">
+    <div class="mkt-tabs" id="mkt-tabs">
+        <button class="mkt-tab active" data-tab="shop">🏪 Магазин</button>
+        <button class="mkt-tab" data-tab="inv">📦 Инвентарь</button>
+        <button class="mkt-tab" data-tab="sell">💸 Продажа</button>
+        <button class="mkt-tab" data-tab="jobs">💼 Работы</button>
+    </div>
+    <!-- Магазин -->
+    <div class="mkt-panel sh-body active" id="mkt-shop">
         <div class="sh-tabs" id="shop-tabs">
             <button class="sh-tab active" data-cat="cars">🚗 Машины</button>
             <button class="sh-tab" data-cat="apartments">🏠 Квартиры</button>
@@ -840,30 +906,18 @@ input[type=number] { -moz-appearance: textfield; }
         </div>
         <div class="sh-list" id="shop-list"><div class="sh-empty">Загрузка…</div></div>
     </div>
-</div>
-
-<!-- INVENTORY -->
-<div id="s-inv" class="screen">
-    <div class="hdr">
-        <button class="back-btn" id="btn-back-inv">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>Назад
-        </button>
-        <span class="hdr-title">Инвентарь</span>
-        <div style="width:60px"></div>
+    <!-- Инвентарь -->
+    <div class="mkt-panel" id="mkt-inv">
+        <div class="sh-list" id="inv-list"><div class="sh-empty">Загрузка…</div></div>
     </div>
-    <div class="sh-list" id="inv-list"><div class="sh-empty">Загрузка…</div></div>
-</div>
-
-<!-- SELL -->
-<div id="s-sell" class="screen">
-    <div class="hdr">
-        <button class="back-btn" id="btn-back-sell">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>Назад
-        </button>
-        <span class="hdr-title">Продажа</span>
-        <div class="bal-chip">💰 <span id="bal-sell">...</span></div>
+    <!-- Продажа -->
+    <div class="mkt-panel" id="mkt-sell">
+        <div class="sh-list" id="sell-list"><div class="sh-empty">Загрузка…</div></div>
     </div>
-    <div class="sh-list" id="sell-list"><div class="sh-empty">Загрузка…</div></div>
+    <!-- Работы -->
+    <div class="mkt-panel" id="mkt-jobs">
+        <div class="sh-list" id="jobs-list"><div class="sh-empty">Загрузка…</div></div>
+    </div>
 </div>
 
 <!-- SETTINGS -->
@@ -1069,8 +1123,7 @@ function setBalance(v) {
     document.getElementById('bal-ms').textContent = t;
     document.getElementById('bal-rl').textContent = t;
     document.getElementById('bal-cr').textContent = t;
-    document.getElementById('bal-shop').textContent = t;
-    document.getElementById('bal-sell').textContent = t;
+    document.getElementById('bal-market').textContent = t;
     syncSlider();
     msSyncSlider();
     rlSyncSlider?.();
@@ -2299,6 +2352,29 @@ document.getElementById('cr-auto-inp').addEventListener('input', e => {
     crAutoMult = Math.max(1.1, parseFloat(e.target.value) || 2.0);
 });
 
+// ── MARKET ────────────────────────────────────────────
+let mktActiveTab = 'shop';
+
+function mktSwitch(tab) {
+    mktActiveTab = tab;
+    document.querySelectorAll('.mkt-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+    document.querySelectorAll('.mkt-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('mkt-' + tab).classList.add('active');
+    if (tab === 'shop')  { if (!shopItems.length) shopLoad(); }
+    if (tab === 'inv')   invLoad();
+    if (tab === 'sell')  sellLoad();
+    if (tab === 'jobs')  jobsLoad();
+}
+
+document.getElementById('mkt-tabs').addEventListener('click', e => {
+    const t = e.target.closest('.mkt-tab');
+    if (t) mktSwitch(t.dataset.tab);
+});
+document.getElementById('btn-back-market').onclick = () => go('s-main');
+document.getElementById('btn-market').onclick = () => {
+    go('s-market'); setBalance(balance); mktSwitch(mktActiveTab);
+};
+
 // ── SHOP ──────────────────────────────────────────────
 const CAT_LABELS = { cars:'🚗 Машины', apartments:'🏠 Квартиры', houses:'🏡 Дома', tech:'💻 Техника' };
 let shopItems = [], shopCat = 'cars';
@@ -2358,8 +2434,6 @@ document.getElementById('shop-tabs').onclick = e => {
     document.querySelectorAll('.sh-tab').forEach(t => t.classList.toggle('active', t===tab));
     shopRender();
 };
-document.getElementById('btn-back-shop').onclick = () => go('s-main');
-document.getElementById('btn-shop').onclick = () => { go('s-shop'); setBalance(balance); shopLoad(); };
 
 // ── INVENTORY ─────────────────────────────────────────
 let invItems = [];
@@ -2384,7 +2458,7 @@ function invRender() {
             <div class="inv-item-hdr">
                 <span class="inv-item-ico">${i.icon}</span>
                 <div style="flex:1;min-width:0">
-                    <div class="inv-item-name">${i.name}</div>
+                    <div class="inv-item-name">${i.name}${i.is_rented ? '<span class="inv-rented-badge">📤 Сдаётся</span>' : ''}</div>
                     <div class="inv-item-cat">${CAT_LABELS[i.category]||i.category}</div>
                 </div>
                 <svg class="inv-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
@@ -2402,8 +2476,6 @@ function invRender() {
     });
 }
 
-document.getElementById('btn-back-inv').onclick = () => go('s-main');
-document.getElementById('btn-inv').onclick = () => { go('s-inv'); invLoad(); };
 
 // ── SELL ──────────────────────────────────────────────
 let sellItems = [];
@@ -2420,8 +2492,9 @@ async function sellLoad() {
 
 function sellRender() {
     const el = document.getElementById('sell-list');
-    if (!sellItems.length) { el.innerHTML = '<div class="sh-empty">Нечего продавать</div>'; return; }
-    el.innerHTML = sellItems.map(i => {
+    const sellable = sellItems.filter(i => !i.is_rented);
+    if (!sellable.length) { el.innerHTML = '<div class="sh-empty">Нечего продавать</div>'; return; }
+    el.innerHTML = sellable.map(i => {
         const sellP = Math.floor(i.price_paid * 0.85);
         return `<div class="sell-item">
             <div class="sell-item-ico">${i.icon}</div>
@@ -2457,8 +2530,107 @@ async function doSell(btn) {
     } catch { toast('Ошибка сервера'); btn.disabled=false; btn.textContent='Продать'; }
 }
 
-document.getElementById('btn-back-sell').onclick = () => go('s-main');
-document.getElementById('btn-sell-screen').onclick = () => { go('s-sell'); setBalance(balance); sellLoad(); };
+// ── JOBS / RENTAL ─────────────────────────────────────
+async function jobsLoad() {
+    document.getElementById('jobs-list').innerHTML = '<div class="sh-empty">Загрузка…</div>';
+    try {
+        const r = await fetch(bustUrl(API_BASE+'/api/rentals?init_data='+encodeURIComponent(initData)));
+        const d = await r.json();
+        jobsRender(d.rentals||[], d.available||[]);
+    } catch { document.getElementById('jobs-list').innerHTML = '<div class="sh-empty">Нет соединения</div>'; }
+}
+
+function jobsRender(rentals, available) {
+    const el = document.getElementById('jobs-list');
+    let html = '';
+    if (rentals.length) {
+        html += '<div class="mkt-section-lbl">🏠 Активная аренда</div>';
+        html += rentals.map(r => `
+            <div class="job-card">
+                <div class="job-card-top">
+                    <span class="job-ico">${r.icon}</span>
+                    <div class="job-info">
+                        <div class="job-name">${r.name}</div>
+                        <div class="job-rate">+${fmt(r.rate)}/час</div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
+                        <div class="job-earned">Накоплено: <b>${fmt(r.accumulated)}</b></div>
+                        <button class="job-collect-btn" data-rental-id="${r.id}" ${r.accumulated<1?'disabled':''}>Собрать</button>
+                    </div>
+                </div>
+                <button class="job-stop-btn" data-rental-id="${r.id}" data-name="${r.name}" data-icon="${r.icon}">Остановить аренду</button>
+            </div>`).join('');
+    }
+    if (available.length) {
+        html += '<div class="mkt-section-lbl">📋 Доступно для аренды</div>';
+        html += available.map(a => `
+            <div class="job-avail-card">
+                <span class="job-ico">${a.icon}</span>
+                <div class="job-info" style="flex:1">
+                    <div class="job-name">${a.name}</div>
+                    <div class="job-rate">+${fmt(a.rent_rate)}/час</div>
+                </div>
+                <button class="job-rent-btn" data-inv-id="${a.id}" data-name="${a.name}" data-icon="${a.icon}">Сдать</button>
+            </div>`).join('');
+    }
+    if (!rentals.length && !available.length)
+        html = '<div class="sh-empty">Нет квартир для аренды.<br>Купите квартиру в Магазине!</div>';
+    el.innerHTML = html;
+    el.querySelectorAll('.job-collect-btn').forEach(b => b.onclick = () => rentCollect(b));
+    el.querySelectorAll('.job-stop-btn').forEach(b => b.onclick = () => rentStop(b));
+    el.querySelectorAll('.job-rent-btn').forEach(b => b.onclick = () => rentStart(b));
+}
+
+async function rentStart(btn) {
+    btn.disabled = true; btn.textContent = '…';
+    try {
+        const r = await fetch(API_BASE+'/api/rental/start', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({init_data:initData, inv_id:parseInt(btn.dataset.invId)})
+        });
+        const d = await r.json();
+        if (d.error) { toast(d.error); btn.disabled=false; btn.textContent='Сдать'; return; }
+        haptic('success');
+        notify('🏠', 'Аренда начата!', btn.dataset.icon+' '+btn.dataset.name);
+        invItems=[]; sellItems=[];
+        jobsLoad();
+    } catch { toast('Ошибка сервера'); btn.disabled=false; btn.textContent='Сдать'; }
+}
+
+async function rentCollect(btn) {
+    btn.disabled = true;
+    try {
+        const r = await fetch(API_BASE+'/api/rental/collect', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({init_data:initData, rental_id:parseInt(btn.dataset.rentalId)})
+        });
+        const d = await r.json();
+        if (d.error) { toast(d.error); btn.disabled=false; return; }
+        setBalance(d.new_balance);
+        haptic('success');
+        notify('💰', 'Аренда получена!', '+'+fmt(d.income));
+        jobsLoad();
+    } catch { toast('Ошибка сервера'); btn.disabled=false; }
+}
+
+async function rentStop(btn) {
+    btn.disabled = true;
+    try {
+        const r = await fetch(API_BASE+'/api/rental/stop', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({init_data:initData, rental_id:parseInt(btn.dataset.rentalId)})
+        });
+        const d = await r.json();
+        if (d.error) { toast(d.error); btn.disabled=false; return; }
+        setBalance(d.new_balance);
+        haptic('success');
+        notify(d.income>0 ? '💰' : '🏠',
+               d.income>0 ? 'Аренда остановлена' : btn.dataset.icon+' '+btn.dataset.name,
+               d.income>0 ? '+'+fmt(d.income)+' собрано' : 'Аренда завершена');
+        invItems=[]; sellItems=[];
+        jobsLoad();
+    } catch { toast('Ошибка сервера'); btn.disabled=false; }
+}
 
 // ── SETTINGS ──────────────────────────────────────────
 function stApplyTheme(name) {
