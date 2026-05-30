@@ -1339,6 +1339,8 @@ async def web_api_inventory_sell(request: aio_web.Request) -> aio_web.Response:
         async with db.execute("SELECT 1 FROM rentals WHERE inv_id=?", (inv_id,)) as cur:
             if await cur.fetchone():
                 return aio_web.json_response({'error': 'Сначала остановите аренду'})
+        if inv['name'] == 'Комната в общежитии' and inv['price_paid'] == 0:
+            return aio_web.json_response({'error': 'Стартовую квартиру нельзя продать'})
         sell_price = round(inv['price_paid'] * (1 - SHOP_TAX), 2)
         await db.execute("DELETE FROM inventory WHERE id = ?", (inv_id,))
         await db.execute("UPDATE users SET balance = balance + ? WHERE id = ?", (sell_price, user_id))
