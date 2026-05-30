@@ -63,12 +63,13 @@ input[type=number] { -moz-appearance: textfield; }
 .logo-sub { font-size: 13px; color: var(--text2); margin-bottom: 28px; }
 .menu-btn {
     width: 100%; max-width: 310px; padding: 15px 20px;
-    border-radius: 14px; border: 1px solid var(--border);
+    border-radius: 14px; border: 1px solid transparent;
     background: var(--surface); color: var(--text);
     font-size: 15px; font-weight: 600; cursor: pointer;
     display: flex; align-items: center; justify-content: center; gap: 10px;
     transition: all .15s;
 }
+.menu-btn:hover:not(:disabled) { border-color: var(--green); }
 .menu-btn:active { transform: scale(.97); }
 .menu-btn.primary {
     background: var(--pill-bg);
@@ -99,6 +100,73 @@ input[type=number] { -moz-appearance: textfield; }
 .game-name { font-size: 15px; font-weight: 700; }
 .game-desc { font-size: 12px; color: var(--text2); margin-top: 2px; }
 .chev { margin-left: auto; color: var(--text2); flex-shrink: 0; }
+
+/* === TABS (Игры / Кейсы) === */
+.tab-bar { display:flex; margin:10px 16px 0; gap:8px; }
+.tab-btn {
+    flex:1; padding:9px 0; border:1px solid transparent;
+    background:var(--surface); color:var(--text2);
+    border-radius:10px; font-size:13px; font-weight:600; cursor:pointer; transition:all .15s;
+}
+.tab-btn:hover:not(.active) { border-color:var(--green); }
+.tab-btn.active { background:var(--green); border-color:var(--green); color:#fff; }
+.games-tab-content { display:none; flex-direction:column; flex:1; }
+.games-tab-content.active { display:flex; }
+
+/* === CASE CARDS === */
+.cases-grid {
+    display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:14px 16px 80px;
+}
+.case-card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:16px; padding:16px 12px 14px;
+    display:flex; flex-direction:column; align-items:center; text-align:center;
+    cursor:pointer; transition:all .15s; position:relative; overflow:hidden;
+}
+.case-card:active { transform:scale(.95); border-color:var(--green); }
+.case-card.case-disabled { opacity:.5; pointer-events:none; }
+.case-card.case-daily { grid-column:span 2; flex-direction:row; gap:16px; text-align:left; padding:16px 18px; }
+.case-emoji { font-size:58px; margin-bottom:10px; line-height:1; filter:drop-shadow(0 4px 14px rgba(0,0,0,.55)); }
+.case-card.case-daily .case-emoji { font-size:52px; margin-bottom:0; }
+.case-info { display:flex; flex-direction:column; flex:1; }
+.case-name { font-size:13px; font-weight:700; margin-bottom:8px; line-height:1.3; }
+.case-card.case-daily .case-name { font-size:15px; margin-bottom:4px; }
+.case-price-badge {
+    display:inline-block; font-size:12px; font-weight:700; padding:4px 12px; border-radius:20px;
+    background:rgba(63,185,80,.15); color:var(--green); border:1px solid rgba(63,185,80,.3);
+}
+.case-price-badge.free { background:rgba(245,158,11,.15); color:#f59e0b; border-color:rgba(245,158,11,.3); }
+.case-price-badge.used { background:rgba(139,148,158,.1); color:var(--text2); border-color:var(--border); }
+.case-key-badge {
+    position:absolute; top:8px; right:8px;
+    background:var(--green); color:#fff; font-size:10px; font-weight:700;
+    padding:2px 7px; border-radius:8px;
+}
+.case-daily-cd { font-size:11px; color:var(--text2); margin-top:4px; }
+
+/* === CASE RESULT MODAL === */
+.case-modal-bg {
+    position:fixed; inset:0; background:rgba(0,0,0,.82); z-index:150;
+    display:flex; align-items:center; justify-content:center;
+    opacity:0; pointer-events:none; transition:opacity .25s;
+}
+.case-modal-bg.show { opacity:1; pointer-events:all; }
+.case-modal-box {
+    background:var(--surface); border:1px solid var(--border); border-radius:22px;
+    padding:32px 28px 24px; text-align:center; width:82%; max-width:300px;
+    transform:scale(.85); transition:transform .3s cubic-bezier(.34,1.56,.64,1);
+}
+.case-modal-bg.show .case-modal-box { transform:scale(1); }
+.case-modal-emo { font-size:72px; margin-bottom:14px; line-height:1; }
+.case-modal-title { font-size:20px; font-weight:900; margin-bottom:6px; }
+.case-modal-sub { font-size:13px; color:var(--text2); margin-bottom:22px; }
+.case-modal-btn {
+    width:100%; padding:13px; border-radius:12px;
+    border:1px solid transparent; background:var(--surface); color:var(--text);
+    font-size:15px; font-weight:700; cursor:pointer; transition:all .15s;
+}
+.case-modal-btn:hover { border-color:var(--green); }
+.case-modal-btn:active { opacity:.8; }
 
 /* === SCREEN UPGRADER === */
 .upg-body {
@@ -131,10 +199,11 @@ input[type=number] { -moz-appearance: textfield; }
 .mult-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
 .mbtn {
     padding: 9px 4px; border-radius: 10px;
-    border: 1px solid var(--border); background: var(--surface);
+    border: 1px solid transparent; background: var(--surface);
     color: var(--text); font-size: 15px; font-weight: 700;
     cursor: pointer; text-align: center; transition: all .15s;
 }
+.mbtn:hover:not(:disabled) { border-color: var(--green); }
 .mbtn:active { transform: scale(.95); }
 .mbtn.sel { background: var(--pill-bg); border-color: var(--green); color: var(--green); }
 .mbtn:disabled { opacity: .35; cursor: not-allowed; pointer-events: none; }
@@ -152,14 +221,12 @@ input[type=number] { -moz-appearance: textfield; }
 
 .speed-btn {
     padding: 6px 12px; border-radius: 8px;
-    border: 1px solid var(--border); background: var(--surface);
+    border: 1px solid transparent; background: var(--surface);
     color: var(--text2); font-size: 12px; font-weight: 600;
     cursor: pointer; transition: all .15s;
 }
-.speed-btn.fast {
-    border-color: var(--accent); color: var(--accent);
-    background: rgba(88,166,255,0.08);
-}
+.speed-btn:hover:not(:disabled) { border-color: var(--green); }
+.speed-btn.fast { border-color: var(--accent); color: var(--accent); background: rgba(88,166,255,0.08); }
 .speed-btn:disabled { opacity: .35; cursor: not-allowed; pointer-events: none; }
 
 .bet-slider {
@@ -184,12 +251,13 @@ input[type=number] { -moz-appearance: textfield; }
 .bet-slider:disabled { opacity: .35; cursor: not-allowed; pointer-events: none; }
 
 .spin-btn {
-    width: 100%; padding: 15px; border-radius: 14px; border: none;
-    background: linear-gradient(135deg, #1c6b38, #1a4f8c);
-    color: #fff; font-size: 16px; font-weight: 900; letter-spacing: .5px;
+    width: 100%; padding: 15px; border-radius: 14px;
+    border: 1px solid transparent; background: var(--surface);
+    color: var(--text); font-size: 16px; font-weight: 900; letter-spacing: .5px;
     cursor: pointer; text-transform: uppercase; transition: all .15s;
 }
-.spin-btn:active:not(:disabled) { transform: scale(.98); opacity: .9; }
+.spin-btn:hover:not(:disabled) { border-color: var(--green); }
+.spin-btn:active:not(:disabled) { transform: scale(.98); }
 .spin-btn:disabled { opacity: .45; cursor: not-allowed; }
 
 /* RESULT OVERLAY */
@@ -211,10 +279,11 @@ input[type=number] { -moz-appearance: textfield; }
 .res-amt { font-size: 17px; font-weight: 600; color: var(--text2); margin-bottom: 22px; }
 .res-amt b { font-weight: 900; }
 .res-btn {
-    padding: 11px 30px; border-radius: 12px; border: none;
-    background: var(--surface2); color: var(--text);
-    font-size: 15px; font-weight: 700; cursor: pointer;
+    padding: 11px 30px; border-radius: 12px;
+    border: 1px solid transparent; background: var(--surface);
+    color: var(--text); font-size: 15px; font-weight: 700; cursor: pointer; transition: all .15s;
 }
+.res-btn:hover { border-color: var(--green); }
 .res-btn:active { opacity: .7; }
 
 /* TOAST */
@@ -272,12 +341,13 @@ input[type=number] { -moz-appearance: textfield; }
 .ms-win-val { font-size: 28px; font-weight: 900; color: var(--green); margin: 4px 0 1px; }
 .ms-win-mult { font-size: 13px; color: var(--text2); font-weight: 600; }
 .cashout-btn {
-    width: 100%; padding: 15px; border-radius: 14px; border: none;
-    background: linear-gradient(135deg, #1c4e1c, #1a6e2a);
-    color: #fff; font-size: 16px; font-weight: 900; letter-spacing: .5px;
+    width: 100%; padding: 15px; border-radius: 14px;
+    border: 1px solid transparent; background: var(--surface);
+    color: var(--text); font-size: 16px; font-weight: 900; letter-spacing: .5px;
     cursor: pointer; text-transform: uppercase; transition: all .15s;
 }
-.cashout-btn:active:not(:disabled) { transform: scale(.98); opacity: .9; }
+.cashout-btn:hover:not(:disabled) { border-color: var(--green); }
+.cashout-btn:active:not(:disabled) { transform: scale(.98); }
 .cashout-btn:disabled { opacity: .35; cursor: not-allowed; }
 
 /* === ROULETTE === */
@@ -302,10 +372,11 @@ input[type=number] { -moz-appearance: textfield; }
     display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; width: 100%;
 }
 .rl-color-btn {
-    padding: 12px 10px; border-radius: 12px; border: 2px solid transparent;
+    padding: 12px 10px; border-radius: 12px; border: 1px solid transparent;
     cursor: pointer; display: flex; align-items: center; gap: 10px;
-    transition: all .15s; font-size: 14px; font-weight: 700;
+    transition: all .15s; font-size: 14px; font-weight: 700; background: var(--surface);
 }
+.rl-color-btn:hover:not(:disabled) { border-color: var(--green); }
 .rl-color-btn:active { transform: scale(.96); }
 .rl-color-btn.sel { border-width: 2px; }
 .rl-color-btn .rl-dot {
@@ -313,20 +384,20 @@ input[type=number] { -moz-appearance: textfield; }
 }
 .rl-color-btn .rl-mult { margin-left: auto; font-size: 13px; opacity: .85; }
 
-.rl-color-btn[data-color="blue"]   { background: rgba(59,130,246,.12); color: #60a5fa; }
-.rl-color-btn[data-color="blue"].sel  { border-color: #3b82f6; background: rgba(59,130,246,.22); }
+.rl-color-btn[data-color="blue"]   { color: #60a5fa; }
+.rl-color-btn[data-color="blue"].sel  { border-color: #3b82f6; background: rgba(59,130,246,.12); }
 .rl-color-btn[data-color="blue"]   .rl-dot { background: #3b82f6; }
 
-.rl-color-btn[data-color="green"]  { background: rgba(34,197,94,.12); color: #4ade80; }
-.rl-color-btn[data-color="green"].sel { border-color: #22c55e; background: rgba(34,197,94,.22); }
+.rl-color-btn[data-color="green"]  { color: #4ade80; }
+.rl-color-btn[data-color="green"].sel { border-color: #22c55e; background: rgba(34,197,94,.12); }
 .rl-color-btn[data-color="green"]  .rl-dot { background: #22c55e; }
 
-.rl-color-btn[data-color="red"]    { background: rgba(239,68,68,.12); color: #f87171; }
-.rl-color-btn[data-color="red"].sel   { border-color: #ef4444; background: rgba(239,68,68,.22); }
+.rl-color-btn[data-color="red"]    { color: #f87171; }
+.rl-color-btn[data-color="red"].sel   { border-color: #ef4444; background: rgba(239,68,68,.12); }
 .rl-color-btn[data-color="red"]    .rl-dot { background: #ef4444; }
 
-.rl-color-btn[data-color="yellow"] { background: rgba(234,179,8,.12); color: #facc15; }
-.rl-color-btn[data-color="yellow"].sel{ border-color: #eab308; background: rgba(234,179,8,.22); }
+.rl-color-btn[data-color="yellow"] { color: #facc15; }
+.rl-color-btn[data-color="yellow"].sel{ border-color: #eab308; background: rgba(234,179,8,.12); }
 .rl-color-btn[data-color="yellow"] .rl-dot { background: #eab308; }
 
 .rl-color-btn:disabled { opacity: .35; cursor: not-allowed; pointer-events: none; }
@@ -456,10 +527,11 @@ input[type=number] { -moz-appearance: textfield; }
 .mkt-tabs::-webkit-scrollbar { display:none; }
 .mkt-tab {
     flex-shrink:0; padding:7px 16px; border-radius:20px;
-    border:1px solid var(--border); background:var(--surface);
+    border:1px solid transparent; background:var(--surface);
     color:var(--text2); font-size:13px; font-weight:600; cursor:pointer;
     transition:all .15s; white-space:nowrap;
 }
+.mkt-tab:hover:not(.active) { border-color:var(--green); }
 .mkt-tab.active { background:var(--green); border-color:var(--green); color:#fff; }
 .mkt-panel { display:none; flex:1; overflow:hidden; flex-direction:column; }
 .mkt-panel.active { display:flex; }
@@ -481,27 +553,31 @@ input[type=number] { -moz-appearance: textfield; }
 .job-earned { font-size:12px; color:var(--text2); }
 .job-earned b { color:var(--green); font-size:13px; }
 .job-collect-btn {
-    padding:6px 14px; border-radius:8px; border:none;
-    background:var(--green); color:#fff; font-size:12px; font-weight:700; cursor:pointer;
-    transition:opacity .15s; flex-shrink:0;
+    padding:6px 14px; border-radius:8px;
+    border:1px solid transparent; background:var(--surface2); color:var(--text);
+    font-size:12px; font-weight:700; cursor:pointer; transition:all .15s; flex-shrink:0;
 }
+.job-collect-btn:hover:not(:disabled) { border-color:var(--green); }
 .job-collect-btn:disabled { opacity:.4; cursor:not-allowed; }
 .job-collect-btn:active { opacity:.7; }
 .job-stop-btn {
-    width:100%; padding:8px; border-radius:8px; background:transparent;
-    border:1px solid var(--border); color:var(--text2); font-size:12px; cursor:pointer;
+    width:100%; padding:8px; border-radius:8px;
+    border:1px solid transparent; background:var(--surface2);
+    color:var(--text2); font-size:12px; cursor:pointer; transition:all .15s;
 }
-.job-stop-btn:active { background:var(--surface2); }
+.job-stop-btn:hover { border-color:var(--border); }
+.job-stop-btn:active { opacity:.7; }
 .job-avail-card {
     display:flex; align-items:center; gap:10px;
     background:var(--surface); border:1px solid var(--border);
     border-radius:14px; padding:12px 14px;
 }
 .job-rent-btn {
-    padding:6px 14px; border-radius:8px; border:none;
-    background:var(--accent); color:#fff; font-size:12px; font-weight:700; cursor:pointer;
-    flex-shrink:0; transition:opacity .15s;
+    padding:6px 14px; border-radius:8px;
+    border:1px solid transparent; background:var(--surface2); color:var(--text);
+    font-size:12px; font-weight:700; cursor:pointer; flex-shrink:0; transition:all .15s;
 }
+.job-rent-btn:hover { border-color:var(--green); }
 .job-rent-btn:active { opacity:.7; }
 .inv-rented-badge {
     font-size:10px; background:rgba(88,166,255,.15); color:var(--accent);
@@ -533,10 +609,11 @@ input[type=number] { -moz-appearance: textfield; }
 @media (hover:none) { .sh-scroll-btn { display:none !important; } }
 .sh-tab {
     flex-shrink:0; padding:6px 14px; border-radius:20px;
-    border:1px solid var(--border); background:var(--surface);
+    border:1px solid transparent; background:var(--surface);
     color:var(--text2); font-size:13px; font-weight:600; cursor:pointer;
     transition:all .15s; white-space:nowrap;
 }
+.sh-tab:hover:not(.active) { border-color:var(--green); }
 .sh-tab.active { background:var(--green); border-color:var(--green); color:#fff; }
 .sh-list { flex:1; overflow-y:auto; padding:10px 16px 30px; display:flex; flex-direction:column; gap:8px; }
 .sh-item {
@@ -552,10 +629,11 @@ input[type=number] { -moz-appearance: textfield; }
 .sh-item-right { display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0; }
 .sh-item-price { font-size:13px; font-weight:800; color:var(--green); white-space:nowrap; }
 .sh-buy-btn {
-    padding:5px 12px; border-radius:8px; border:none;
-    background:var(--green); color:#fff; font-size:12px; font-weight:700; cursor:pointer;
-    transition:opacity .15s;
+    padding:5px 12px; border-radius:8px;
+    border:1px solid transparent; background:var(--surface2); color:var(--text);
+    font-size:12px; font-weight:700; cursor:pointer; transition:all .15s;
 }
+.sh-buy-btn:hover:not(:disabled) { border-color:var(--green); }
 .sh-buy-btn:active { opacity:.75; }
 .sh-buy-btn:disabled { opacity:.4; cursor:not-allowed; }
 .sh-empty { text-align:center; color:var(--text2); font-size:14px; padding:40px 20px; }
@@ -599,11 +677,11 @@ input[type=number] { -moz-appearance: textfield; }
 .sell-price { font-size:13px; font-weight:800; color:var(--red); white-space:nowrap; }
 .sell-tax { font-size:10px; color:var(--text2); }
 .sell-btn {
-    padding:5px 12px; border-radius:8px; border:1px solid var(--border);
-    background:var(--surface2); color:var(--text); font-size:12px; font-weight:700; cursor:pointer;
-    transition:background .15s, border-color .15s, color .15s;
+    padding:5px 12px; border-radius:8px;
+    border:1px solid transparent; background:var(--surface2); color:var(--text);
+    font-size:12px; font-weight:700; cursor:pointer; transition:all .15s;
 }
-.sell-btn:hover { background:var(--green); border-color:var(--green); color:#fff; }
+.sell-btn:hover:not(:disabled) { border-color:var(--green); }
 .sell-btn:active { opacity:.75; }
 .sell-btn:disabled { opacity:.4; cursor:not-allowed; }
 
@@ -639,7 +717,7 @@ input[type=number] { -moz-appearance: textfield; }
     <div class="main-body">
         <div class="logo">ЛУТОБОТ</div>
         <div class="logo-sub">Игровая платформа</div>
-        <button class="menu-btn primary" id="btn-play"><span class="ico">🎮</span>Играть</button>
+        <button class="menu-btn primary" id="btn-play"><span class="ico">🎮</span>Бурмалдить</button>
         <button class="menu-btn" id="btn-market"><span class="ico">🛒</span>Рынок</button>
         <button class="menu-btn" id="btn-settings"><span class="ico">⚙️</span>Настройки</button>
     </div>
@@ -654,38 +732,106 @@ input[type=number] { -moz-appearance: textfield; }
         <span class="hdr-title">Игры</span>
         <div class="bal-chip">💰 <span id="bal-games">...</span></div>
     </div>
-    <div class="sec-label">Доступные игры</div>
-    <div class="game-card" id="btn-upgrader">
-        <div class="game-ico">⬆️</div>
-        <div>
-            <div class="game-name">Апгрейдер</div>
-            <div class="game-desc">Рискни балансом ради большего</div>
-        </div>
-        <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+    <div class="tab-bar">
+        <button class="tab-btn active" id="tab-games-btn" onclick="switchGamesTab('games')">🎮 Игры</button>
+        <button class="tab-btn" id="tab-cases-btn" onclick="switchGamesTab('cases')">📦 Кейсы</button>
     </div>
-    <div class="game-card" id="btn-minesweeper">
-        <div class="game-ico">💣</div>
-        <div>
-            <div class="game-name">Сапёр</div>
-            <div class="game-desc">Обходи мины — забирай выигрыш</div>
+    <!-- Вкладка: Игры -->
+    <div class="games-tab-content active" id="games-tab-content">
+        <div class="sec-label">Доступные игры</div>
+        <div class="game-card" id="btn-upgrader">
+            <div class="game-ico">⬆️</div>
+            <div>
+                <div class="game-name">Апгрейдер</div>
+                <div class="game-desc">Рискни балансом ради большего</div>
+            </div>
+            <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
         </div>
-        <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+        <div class="game-card" id="btn-minesweeper">
+            <div class="game-ico">💣</div>
+            <div>
+                <div class="game-name">Сапёр</div>
+                <div class="game-desc">Обходи мины — забирай выигрыш</div>
+            </div>
+            <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+        </div>
+        <div class="game-card" id="btn-roulette">
+            <div class="game-ico">🎡</div>
+            <div>
+                <div class="game-name">Рулетка</div>
+                <div class="game-desc">Ставь на цвет — до x5 к ставке</div>
+            </div>
+            <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+        </div>
+        <div class="game-card" id="btn-crash">
+            <div class="game-ico">💥</div>
+            <div>
+                <div class="game-name">Краш</div>
+                <div class="game-desc">Выведи до краша — множитель растёт</div>
+            </div>
+            <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+        </div>
     </div>
-    <div class="game-card" id="btn-roulette">
-        <div class="game-ico">🎡</div>
-        <div>
-            <div class="game-name">Рулетка</div>
-            <div class="game-desc">Ставь на цвет — до x5 к ставке</div>
+    <!-- Вкладка: Кейсы -->
+    <div class="games-tab-content" id="cases-tab-content">
+        <div class="sec-label">Открой кейс — получи предмет в инвентарь</div>
+        <div class="cases-grid">
+            <!-- Техника (100к) -->
+            <div class="case-card" id="case-card-tech" onclick="openCase('tech')">
+                <span class="case-key-badge" id="case-key-tech" style="display:none">🔑 ×0</span>
+                <div class="case-emoji">💻</div>
+                <div class="case-info">
+                    <div class="case-name">Кейс с техникой</div>
+                    <span class="case-price-badge" id="case-price-tech">100 000₽</span>
+                </div>
+            </div>
+            <!-- Машины (150к) -->
+            <div class="case-card" id="case-card-cars" onclick="openCase('cars')">
+                <span class="case-key-badge" id="case-key-cars" style="display:none">🔑 ×0</span>
+                <div class="case-emoji">🚗</div>
+                <div class="case-info">
+                    <div class="case-name">Кейс с машинами</div>
+                    <span class="case-price-badge" id="case-price-cars">150 000₽</span>
+                </div>
+            </div>
+            <!-- Квартиры (900к) -->
+            <div class="case-card" id="case-card-apartments" onclick="openCase('apartments')">
+                <span class="case-key-badge" id="case-key-apartments" style="display:none">🔑 ×0</span>
+                <div class="case-emoji">🏠</div>
+                <div class="case-info">
+                    <div class="case-name">Кейс с квартирами</div>
+                    <span class="case-price-badge" id="case-price-apartments">900 000₽</span>
+                </div>
+            </div>
+            <!-- Дома (1.7кк) -->
+            <div class="case-card" id="case-card-houses" onclick="openCase('houses')">
+                <span class="case-key-badge" id="case-key-houses" style="display:none">🔑 ×0</span>
+                <div class="case-emoji">🏡</div>
+                <div class="case-info">
+                    <div class="case-name">Кейс с домами</div>
+                    <span class="case-price-badge" id="case-price-houses">1 700 000₽</span>
+                </div>
+            </div>
+            <!-- Ежедневный (бесплатно) -->
+            <div class="case-card case-daily" id="case-card-daily" onclick="openCase('daily')">
+                <div class="case-emoji">🎁</div>
+                <div class="case-info">
+                    <div class="case-name">Ежедневный кейс</div>
+                    <span class="case-price-badge free" id="case-price-daily">Бесплатно</span>
+                    <div class="case-daily-cd" id="case-cd-daily"></div>
+                </div>
+            </div>
         </div>
-        <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
     </div>
-    <div class="game-card" id="btn-crash">
-        <div class="game-ico">💥</div>
-        <div>
-            <div class="game-name">Краш</div>
-            <div class="game-desc">Выведи до краша — множитель растёт</div>
-        </div>
-        <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+</div>
+
+<!-- CASE RESULT MODAL -->
+<div class="case-modal-bg" id="case-modal">
+    <div class="case-modal-box">
+        <div class="case-modal-emo" id="case-modal-emo"></div>
+        <div class="case-modal-title" id="case-modal-title"></div>
+        <div class="case-modal-sub" id="case-modal-sub"></div>
+        <button class="case-modal-btn" onclick="closeCaseModal()">ОК</button>
     </div>
 </div>
 
@@ -1533,6 +1679,116 @@ function showOverlay() {
         clearTimeout(autoCloseTm);
         autoCloseTm = setTimeout(() => document.getElementById('res-close').click(), 2000);
     }
+}
+
+// ── CASES ─────────────────────────────────────────────
+let caseStatus = { daily_available: true, daily_next_at: null, keys: {cars:0,apartments:0,houses:0,tech:0} };
+let caseOpening = false;
+
+function switchGamesTab(tab) {
+    document.getElementById('games-tab-content').classList.toggle('active', tab === 'games');
+    document.getElementById('cases-tab-content').classList.toggle('active', tab === 'cases');
+    document.getElementById('tab-games-btn').classList.toggle('active', tab === 'games');
+    document.getElementById('tab-cases-btn').classList.toggle('active', tab === 'cases');
+    if (tab === 'cases') loadCaseStatus();
+}
+
+async function loadCaseStatus() {
+    try {
+        const r = await fetch(bustUrl(API_BASE + '/api/case/status?init_data=' + encodeURIComponent(initData)));
+        const d = await r.json();
+        if (d.ok) { caseStatus = d; renderCases(); }
+    } catch(e) {}
+}
+
+function renderCases() {
+    const dailyCard = document.getElementById('case-card-daily');
+    const dailyBadge = document.getElementById('case-price-daily');
+    const dailyCd = document.getElementById('case-cd-daily');
+    if (caseStatus.daily_available) {
+        dailyBadge.textContent = 'Бесплатно';
+        dailyBadge.className = 'case-price-badge free';
+        dailyCd.textContent = '';
+        dailyCard.classList.remove('case-disabled');
+    } else {
+        dailyBadge.textContent = 'Использован';
+        dailyBadge.className = 'case-price-badge used';
+        dailyCd.textContent = formatCaseCd(caseStatus.daily_next_at);
+        dailyCard.classList.add('case-disabled');
+    }
+    for (const type of ['cars','apartments','houses','tech']) {
+        const badge = document.getElementById('case-key-' + type);
+        const cnt = (caseStatus.keys || {})[type] || 0;
+        if (cnt > 0) { badge.textContent = '🔑 ×' + cnt; badge.style.display = ''; }
+        else { badge.style.display = 'none'; }
+    }
+}
+
+function formatCaseCd(nextAt) {
+    if (!nextAt) return '';
+    const diff = new Date(nextAt + 'Z') - Date.now();
+    if (diff <= 0) return '';
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    return 'Через ' + h + 'ч ' + m + 'м';
+}
+
+async function openCase(type) {
+    if (caseOpening) return;
+    if (type === 'daily' && !caseStatus.daily_available) return;
+    const prices = {cars:150000, apartments:900000, houses:1700000, tech:100000};
+    const hasKey = type !== 'daily' && ((caseStatus.keys || {})[type] || 0) > 0;
+    if (type !== 'daily' && !hasKey && balance < (prices[type] || 0)) {
+        haptic('error');
+        notify('❌', 'Недостаточно средств', 'Нужно ' + fmt(prices[type]));
+        return;
+    }
+    caseOpening = true;
+    const card = document.getElementById('case-card-' + type);
+    card.style.opacity = '0.5';
+    try {
+        const r = await fetch(API_BASE + '/api/case/open', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({init_data: initData, case_type: type, use_key: hasKey}),
+        });
+        const d = await r.json();
+        card.style.opacity = '';
+        if (!d.ok) {
+            haptic('error');
+            notify('❌', 'Ошибка', d.error || 'Попробуй снова');
+            caseOpening = false;
+            return;
+        }
+        setBalance(d.new_balance);
+        showCaseResult(d);
+        await loadCaseStatus();
+    } catch(e) {
+        card.style.opacity = '';
+        haptic('error');
+        notify('❌', 'Ошибка', 'Нет соединения');
+    }
+    caseOpening = false;
+}
+
+function showCaseResult(d) {
+    let emo, title, sub;
+    if (d.reward === 'nothing') {
+        emo = '💨'; title = 'Ничего...'; sub = 'В следующий раз повезёт!'; haptic('error');
+    } else if (d.reward === 'item') {
+        emo = d.item.icon; title = d.item.name; sub = '🎉 Добавлено в инвентарь!'; haptic('success');
+    } else if (d.reward === 'key') {
+        const names = {cars:'машинам', apartments:'квартирам', houses:'домам', tech:'технике'};
+        emo = '🔑'; title = 'Ключ!'; sub = 'Ключ к кейсу с ' + (names[d.key_type] || d.key_type); haptic('success');
+    }
+    document.getElementById('case-modal-emo').textContent = emo;
+    document.getElementById('case-modal-title').textContent = title;
+    document.getElementById('case-modal-sub').textContent = sub;
+    document.getElementById('case-modal').classList.add('show');
+}
+
+function closeCaseModal() {
+    document.getElementById('case-modal').classList.remove('show');
 }
 
 // ── EVENTS ────────────────────────────────────────────
