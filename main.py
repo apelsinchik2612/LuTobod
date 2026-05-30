@@ -268,7 +268,7 @@ async def db_init():
             for u in users_no_apt:
                 await db.execute(
                     "INSERT INTO inventory (user_id, item_id, price_paid, bought_at) VALUES (?, ?, 0, ?)",
-                    (u['id'], starter['id'], u['registered_at'] or today)
+                    (u['id'], starter['id'], today)
                 )
 
         await db.execute(
