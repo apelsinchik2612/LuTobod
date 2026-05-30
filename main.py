@@ -36,6 +36,8 @@ WEB_URL = "https://lutobot.bothost.tech"
 WEBAPP_DIR = Path(__file__).parent / "webapp"
 # ==================================================
 
+SHOP_TAX = 0.15   # 15% налог при продаже
+
 VALID_SETTINGS = {
     "short_numbers", "notify_transfers", "hide_from_top",
     "confirm_pay", "show_join_date", "quiet_mode",
@@ -162,6 +164,67 @@ async def db_init():
                 created_at TEXT    DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS shop_items (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                category     TEXT    NOT NULL,
+                name         TEXT    NOT NULL,
+                description  TEXT,
+                price        REAL    NOT NULL,
+                icon         TEXT    NOT NULL
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS inventory (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id    INTEGER NOT NULL,
+                item_id    INTEGER NOT NULL,
+                price_paid REAL    NOT NULL,
+                bought_at  TEXT    NOT NULL
+            )
+        """)
+        # Заполняем магазин если пуст
+        async with db.execute("SELECT COUNT(*) FROM shop_items") as cur:
+            if (await cur.fetchone())[0] == 0:
+                shop_seed = [
+                    # (category, name, description, price, icon)
+                    ("cars","ВАЗ 2107","Классика отечественного автопрома",120_000,"🚗"),
+                    ("cars","Lada Vesta","Современный российский седан",850_000,"🚙"),
+                    ("cars","Toyota Camry","Надёжный японский бизнес-класс",2_400_000,"🚘"),
+                    ("cars","BMW 5 Series","Немецкое качество и динамика",6_500_000,"🏎"),
+                    ("cars","Mercedes S-Class","Флагман немецкого комфорта",14_000_000,"🚐"),
+                    ("cars","Porsche 911","Легенда мирового автоспорта",22_000_000,"🏁"),
+                    ("cars","Lamborghini Huracán","Итальянский суперкар",35_000_000,"⚡"),
+                    ("cars","Bugatti Chiron","Быстрейший серийный автомобиль",200_000_000,"👑"),
+                    ("apartments","Комната в общежитии","12 м² — минимум для жизни",800_000,"🏠"),
+                    ("apartments","Студия","24 м² — уютное гнёздышко",3_500_000,"🏡"),
+                    ("apartments","1-комнатная","38 м² — для одного в самый раз",6_000_000,"🏠"),
+                    ("apartments","2-комнатная","58 м² — хватит на семью",10_500_000,"🏘"),
+                    ("apartments","3-комнатная","85 м² — простор и комфорт",18_000_000,"🏰"),
+                    ("apartments","Пентхаус","250 м² — вид на весь город",75_000_000,"🌆"),
+                    ("houses","Дача","50 м² — картошка и шашлык",1_500_000,"🌿"),
+                    ("houses","Загородный дом","100 м² — жизнь за городом",7_000_000,"🏡"),
+                    ("houses","Коттедж","200 м² — всё своё",18_000_000,"🏘"),
+                    ("houses","Особняк","450 м² — охрана и бассейн",65_000_000,"🏰"),
+                    ("houses","Вилла на Рублёвке","800 м² — для настоящих богачей",250_000_000,"👑"),
+                    ("tech","Мышь Logitech G102","Точность и скорость",2_500,"🖱"),
+                    ("tech","Клавиатура HyperX","Механика для профи",5_500,"⌨"),
+                    ("tech","Наушники Sony XM5","Шумоподавление топ-уровня",32_000,"🎧"),
+                    ("tech","Монитор 27\" QHD","Чёткое изображение без компромиссов",28_000,"🖥"),
+                    ("tech","ОЗУ 32GB DDR5","Максимальная скорость",18_000,"💾"),
+                    ("tech","SSD Samsung 2TB","Быстро и много",18_000,"💿"),
+                    ("tech","RTX 4070 Ti","Высокие настройки без проблем",85_000,"🎮"),
+                    ("tech","RTX 4090","Абсолютный топ видеокарт",180_000,"🔥"),
+                    ("tech","Ноутбук Lenovo Legion","Игровой зверь в тонком корпусе",95_000,"💻"),
+                    ("tech","MacBook Pro M3 Max","Мощь Apple на максималках",380_000,"🍎"),
+                    ("tech","Игровой ПК (средний)","Сборка для большинства игр",150_000,"🖥"),
+                    ("tech","Игровой ПК (топ)","Никаких компромиссов",500_000,"💎"),
+                ]
+                await db.executemany(
+                    "INSERT INTO shop_items (category,name,description,price,icon) VALUES (?,?,?,?,?)",
+                    shop_seed
+                )
+
         await db.execute(
             "INSERT OR IGNORE INTO promo_codes (code, reward, max_uses) VALUES (?, ?, ?)",
             ("TEST100", 100.0, 10)
@@ -1124,6 +1187,101 @@ async def web_api_events(request: aio_web.Request) -> aio_web.Response:
         return aio_web.json_response({'error': 'Internal error'}, status=500)
 
 
+async def web_api_shop(request: aio_web.Request) -> aio_web.Response:
+    user_id = validate_init_data(request.query.get('init_data', ''))
+    if not user_id:
+        return aio_web.json_response({'error': 'Unauthorized'}, status=401)
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT id,category,name,description,price,icon FROM shop_items ORDER BY category,price"
+        ) as cur:
+            items = [dict(r) for r in await cur.fetchall()]
+    return aio_web.json_response({'items': items})
+
+
+async def web_api_shop_buy(request: aio_web.Request) -> aio_web.Response:
+    try:
+        data = await request.json()
+    except Exception:
+        return aio_web.json_response({'error': 'Неверный запрос'}, status=400)
+    user_id = validate_init_data(data.get('init_data', ''))
+    if not user_id:
+        return aio_web.json_response({'error': 'Unauthorized'}, status=401)
+    try:
+        item_id = int(data['item_id'])
+    except (KeyError, ValueError):
+        return aio_web.json_response({'error': 'Неверные данные'})
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM shop_items WHERE id = ?", (item_id,)) as cur:
+            item = await cur.fetchone()
+        if not item:
+            return aio_web.json_response({'error': 'Товар не найден'})
+        async with db.execute("SELECT balance FROM users WHERE id = ?", (user_id,)) as cur:
+            row = await cur.fetchone()
+        if not row or row['balance'] < item['price']:
+            return aio_web.json_response({'error': 'Недостаточно средств'})
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        await db.execute("UPDATE users SET balance = balance - ? WHERE id = ?", (item['price'], user_id))
+        await db.execute(
+            "INSERT INTO inventory (user_id,item_id,price_paid,bought_at) VALUES (?,?,?,?)",
+            (user_id, item_id, item['price'], now)
+        )
+        await db.commit()
+        async with db.execute("SELECT balance FROM users WHERE id = ?", (user_id,)) as cur:
+            new_bal = round(float((await cur.fetchone())['balance']), 2)
+    return aio_web.json_response({'ok': True, 'new_balance': new_bal,
+                                   'item': {'name': item['name'], 'icon': item['icon']}})
+
+
+async def web_api_inventory(request: aio_web.Request) -> aio_web.Response:
+    user_id = validate_init_data(request.query.get('init_data', ''))
+    if not user_id:
+        return aio_web.json_response({'error': 'Unauthorized'}, status=401)
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            """SELECT i.id, i.price_paid, i.bought_at,
+                      s.name, s.description, s.icon, s.category
+               FROM inventory i JOIN shop_items s ON i.item_id = s.id
+               WHERE i.user_id = ? ORDER BY i.bought_at DESC""",
+            (user_id,)
+        ) as cur:
+            items = [dict(r) for r in await cur.fetchall()]
+    return aio_web.json_response({'items': items})
+
+
+async def web_api_inventory_sell(request: aio_web.Request) -> aio_web.Response:
+    try:
+        data = await request.json()
+    except Exception:
+        return aio_web.json_response({'error': 'Неверный запрос'}, status=400)
+    user_id = validate_init_data(data.get('init_data', ''))
+    if not user_id:
+        return aio_web.json_response({'error': 'Unauthorized'}, status=401)
+    try:
+        inv_id = int(data['inv_id'])
+    except (KeyError, ValueError):
+        return aio_web.json_response({'error': 'Неверные данные'})
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT i.*,s.name FROM inventory i JOIN shop_items s ON i.item_id=s.id WHERE i.id=? AND i.user_id=?",
+            (inv_id, user_id)
+        ) as cur:
+            inv = await cur.fetchone()
+        if not inv:
+            return aio_web.json_response({'error': 'Предмет не найден'})
+        sell_price = round(inv['price_paid'] * (1 - SHOP_TAX), 2)
+        await db.execute("DELETE FROM inventory WHERE id = ?", (inv_id,))
+        await db.execute("UPDATE users SET balance = balance + ? WHERE id = ?", (sell_price, user_id))
+        await db.commit()
+        async with db.execute("SELECT balance FROM users WHERE id = ?", (user_id,)) as cur:
+            new_bal = round(float((await cur.fetchone())['balance']), 2)
+    return aio_web.json_response({'ok': True, 'sell_price': sell_price, 'new_balance': new_bal})
+
+
 def make_web_app() -> aio_web.Application:
     app = aio_web.Application(middlewares=[cors_middleware])
     app.router.add_get('/', web_index)
@@ -1136,6 +1294,14 @@ def make_web_app() -> aio_web.Application:
     app.router.add_post('/api/upgrade', web_api_upgrade)
     app.router.add_route('OPTIONS', '/api/history', lambda r: aio_web.Response())
     app.router.add_get('/api/history', web_api_history)
+    app.router.add_route('OPTIONS', '/api/shop', lambda r: aio_web.Response())
+    app.router.add_get('/api/shop', web_api_shop)
+    app.router.add_route('OPTIONS', '/api/shop/buy', lambda r: aio_web.Response())
+    app.router.add_post('/api/shop/buy', web_api_shop_buy)
+    app.router.add_route('OPTIONS', '/api/inventory', lambda r: aio_web.Response())
+    app.router.add_get('/api/inventory', web_api_inventory)
+    app.router.add_route('OPTIONS', '/api/inventory/sell', lambda r: aio_web.Response())
+    app.router.add_post('/api/inventory/sell', web_api_inventory_sell)
     for path in ('/api/minesweeper/start', '/api/minesweeper/open', '/api/minesweeper/cashout'):
         app.router.add_route('OPTIONS', path, lambda r: aio_web.Response())
     app.router.add_post('/api/minesweeper/start',   web_api_ms_start)
