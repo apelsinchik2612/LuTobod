@@ -2244,13 +2244,15 @@ document.getElementById('ntf').onclick = () => {
     setTimeout(ntfFlush, 420);
 };
 
+let _polling = false;
 async function pollEvents() {
-    if (!initData) return;
+    if (!initData || _polling) return;
+    _polling = true;
     try {
         const r = await fetch(`${API_BASE}/api/events?init_data=${encodeURIComponent(initData)}`);
-        if (!r.ok) return;
+        if (!r.ok) { _polling = false; return; }
         const d = await r.json();
-        if (d.balance !== undefined && d.balance !== balance) setBalance(d.balance);
+        if (d.balance !== undefined) setBalance(d.balance);   // всегда синхронизируем
         if (d.events && d.events.length) {
             for (const ev of d.events) {
                 const amt = '+' + fmt(ev.amount);
@@ -2264,6 +2266,7 @@ async function pollEvents() {
             }
         }
     } catch {}
+    _polling = false;
 }
 
 // ── INIT ──────────────────────────────────────────────
