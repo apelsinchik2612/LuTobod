@@ -2611,7 +2611,7 @@ function startRentTicker() {
             const el    = document.getElementById('jearned-' + id);
             const btn   = document.getElementById('jbtn-' + id);
             if (el)  el.innerHTML = 'Накоплено: <b>' + fmt(cur) + '</b>';
-            if (btn) btn.disabled = cur < 1;
+            if (btn) btn.disabled = cur < 1500;
         });
     }, 1000);
 }
@@ -2642,7 +2642,7 @@ function jobsRender(rentals, available) {
                     </div>
                     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
                         <div class="job-earned" id="jearned-${r.id}">Накоплено: <b>${fmt(r.accumulated)}</b></div>
-                        <button class="job-collect-btn" id="jbtn-${r.id}" data-rental-id="${r.id}" ${r.accumulated<1?'disabled':''}>Собрать</button>
+                        <button class="job-collect-btn" id="jbtn-${r.id}" data-rental-id="${r.id}" ${r.accumulated<1500?'disabled':''}>Собрать</button>
                     </div>
                 </div>
                 <button class="job-stop-btn" data-rental-id="${r.id}" data-name="${r.name}" data-icon="${r.icon}">Остановить аренду</button>
