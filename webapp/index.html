@@ -2256,7 +2256,6 @@ async function crStartGame() {
     crPoints    = [[0, 1.0]];   // первая точка всегда x1.00
     crCrashedAt = null;
     if (result.history) crHistory = result.history;
-    setBalance(result.new_balance);
     crRenderHistory();
     crUpdateInfoRow();
 
@@ -2550,7 +2549,11 @@ async function pollEvents() {
         clearTimeout(tid);
         if (!r.ok) { _polling = false; return; }
         const d = await r.json();
-        if (d.balance !== undefined) setBalance(d.balance);
+        if (d.balance !== undefined) {
+            // Не обновлять баланс во время игровых анимаций — иначе раньше времени раскрывается результат
+            const gameActive = spinning || rlSpinning || crState === 'flying' || msGame.active;
+            if (!gameActive) setBalance(d.balance);
+        }
         if (d.events && d.events.length) {
             for (const ev of d.events) {
                 const amt = '+' + fmt(ev.amount);
