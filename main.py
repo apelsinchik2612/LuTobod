@@ -1101,7 +1101,7 @@ async def _fetch_and_clear_events(user_id: int) -> tuple[float, list]:
         if events:
             ids = [e['id'] for e in events]
             await db.execute(
-                f"DELETE FROM pending_events WHERE id IN ({','.join('?'*len(ids))})", ids
+                f"DELETE FROM pending_events WHERE id IN ({','.join('?'*len(ids))})", tuple(ids)
             )
             await db.commit()
     return bal, events
