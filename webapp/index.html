@@ -960,10 +960,15 @@ function syncSlider() {
     slider.style.background = `linear-gradient(to right, var(--green) ${pct}%, var(--border) ${pct}%)`;
 }
 
+function apiUrl(path, params) {
+    const p = new URLSearchParams({ ...params, _t: Date.now() });
+    return `${API_BASE}${path}?${p}`;
+}
+
 async function loadBalance() {
     if (!initData) { setBalance(0); toast('Открой через Telegram'); return; }
     try {
-        const r = await fetch(API_BASE+'/api/user?init_data='+encodeURIComponent(initData));
+        const r = await fetch(apiUrl('/api/user', { init_data: initData }));
         const d = await r.json();
         if (d.balance !== undefined) setBalance(d.balance);
         else toast(d.error || 'Ошибка загрузки');
@@ -2008,7 +2013,7 @@ function crGameLoop() {
 async function crPollStatus() {
     if (crState !== 'flying' || !crSessionId) return;
     try {
-        const r = await fetch(`${API_BASE}/api/crash/status?session_id=${crSessionId}&init_data=${encodeURIComponent(initData)}`);
+        const r = await fetch(apiUrl('/api/crash/status', { session_id: crSessionId, init_data: initData }));
         const d = await r.json();
         if (!d.active && d.crashed) crHandleCrash(d.crash_point, d.history);
     } catch { /* ignore */ }
@@ -2249,10 +2254,13 @@ async function pollEvents() {
     if (!initData || _polling) return;
     _polling = true;
     try {
-        const r = await fetch(`${API_BASE}/api/events?init_data=${encodeURIComponent(initData)}`);
+        const ctrl = new AbortController();
+        const tid  = setTimeout(() => ctrl.abort(), 5000);
+        const r = await fetch(apiUrl('/api/events', { init_data: initData }), { signal: ctrl.signal });
+        clearTimeout(tid);
         if (!r.ok) { _polling = false; return; }
         const d = await r.json();
-        if (d.balance !== undefined) setBalance(d.balance);   // всегда синхронизируем
+        if (d.balance !== undefined) setBalance(d.balance);
         if (d.events && d.events.length) {
             for (const ev of d.events) {
                 const amt = '+' + fmt(ev.amount);
