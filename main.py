@@ -199,13 +199,6 @@ async def db_init():
             await db.execute("ALTER TABLE shop_items ADD COLUMN rent_rate REAL DEFAULT 0")
         except Exception:
             pass
-        # Ставки аренды для квартир
-        for name, rate in [
-            ('Комната в общежитии', 20_000), ('Студия', 35_000),
-            ('1-комнатная', 50_000), ('2-комнатная', 65_000),
-            ('3-комнатная', 80_000), ('Пентхаус', 100_000),
-        ]:
-            await db.execute("UPDATE shop_items SET rent_rate=? WHERE name=?", (rate, name))
         # Заполняем магазин если пуст
         async with db.execute("SELECT COUNT(*) FROM shop_items") as cur:
             if (await cur.fetchone())[0] == 0:
@@ -247,6 +240,13 @@ async def db_init():
                     "INSERT INTO shop_items (category,name,description,price,icon) VALUES (?,?,?,?,?)",
                     shop_seed
                 )
+        # Ставки аренды для квартир (всегда после вставки товаров)
+        for name, rate in [
+            ('Комната в общежитии', 20_000), ('Студия', 35_000),
+            ('1-комнатная', 50_000), ('2-комнатная', 65_000),
+            ('3-комнатная', 80_000), ('Пентхаус', 100_000),
+        ]:
+            await db.execute("UPDATE shop_items SET rent_rate=? WHERE name=?", (rate, name))
 
         await db.execute(
             "INSERT OR IGNORE INTO promo_codes (code, reward, max_uses) VALUES (?, ?, ?)",
@@ -269,6 +269,16 @@ async def get_or_create_user(user_id: int, username: str) -> tuple[dict, bool]:
                 " VALUES (?, ?, 0, 0, ?, ?)",
                 (user_id, username, uid, now)
             )
+            # Стартовая квартира — Комната в общежитии (бесплатно)
+            async with db.execute(
+                "SELECT id FROM shop_items WHERE name='Комната в общежитии' LIMIT 1"
+            ) as cur:
+                starter = await cur.fetchone()
+            if starter:
+                await db.execute(
+                    "INSERT INTO inventory (user_id, item_id, price_paid, bought_at) VALUES (?, ?, 0, ?)",
+                    (user_id, starter['id'], now)
+                )
             await db.commit()
             async with db.execute("SELECT * FROM users WHERE id = ?", (user_id,)) as cur:
                 row = await cur.fetchone()
