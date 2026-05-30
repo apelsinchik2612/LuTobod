@@ -2247,8 +2247,9 @@ document.getElementById('ntf').onclick = () => {
 async function pollEvents() {
     if (!initData) return;
     try {
-        const r = await fetch(`${API_BASE}/api/events?init_data=${encodeURIComponent(initData)}`);
-        if (!r.ok) return;
+        const r = await fetch(`${API_BASE}/api/events?init_data=${encodeURIComponent(initData)}`,
+            { signal: AbortSignal.timeout(25000) });
+        if (!r.ok) throw new Error('not ok');
         const d = await r.json();
         if (d.balance !== undefined && d.balance !== balance) setBalance(d.balance);
         if (d.events && d.events.length) {
@@ -2263,14 +2264,19 @@ async function pollEvents() {
                 }
             }
         }
-    } catch {}
+    } catch {
+        // При ошибке подождать 3 сек перед переподключением
+        await new Promise(res => setTimeout(res, 3000));
+    }
+    // Сразу запускаем следующий long-poll
+    pollEvents();
 }
 
 // ── INIT ──────────────────────────────────────────────
 loadBalance().then(() => {
     drawWheel(arrowAngle, 0.5);
     stInit();
-    setInterval(pollEvents, 6000);
+    pollEvents();
 });
 </script>
 </body>
