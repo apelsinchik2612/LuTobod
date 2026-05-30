@@ -66,6 +66,7 @@ class ReportState(StatesGroup):
 
 async def db_init():
     async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
         await db.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 id               INTEGER PRIMARY KEY,
