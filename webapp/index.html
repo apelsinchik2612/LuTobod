@@ -1141,6 +1141,12 @@ const stSettings = {
 (function(){ const v=ST_THEMES[stSettings.theme]||ST_THEMES.dark; for(const[k,val] of Object.entries(v)) document.documentElement.style.setProperty(k,val); })();
 
 let balance = 0;
+let _balanceSetAt = 0; // метка времени последнего явного обновления баланса с сервера
+
+function applyNewBalance(v) {
+    _balanceSetAt = Date.now();
+    setBalance(v);
+}
 let mult = 2;
 let spinning = false;
 let currentGame = 'upgrader';
@@ -1436,7 +1442,7 @@ async function doSpin() {
         else {
             arrowAngle = startAngle + totalDelta;
             drawWheel(arrowAngle, wc);
-            setBalance(result.new_balance);
+            applyNewBalance(result.new_balance);
             showResult(won, bet, result.profit, mult);
             spinning = false;
             document.getElementById('spin-btn').disabled = false;
@@ -1728,7 +1734,7 @@ async function msStartGame() {
     msGame.mult = 1.0;
     msGame.cells = Array(25).fill(null);
 
-    setBalance(result.new_balance);
+    applyNewBalance(result.new_balance);
 
     // Скрываем контролы, показываем игровое поле
     document.getElementById('ms-start-btn').style.display = 'none';
@@ -1777,7 +1783,7 @@ async function msOpenCell(idx) {
         }
         msGame.active = false;
         msRenderGrid();
-        setBalance(result.new_balance);
+        applyNewBalance(result.new_balance);
         haptic('error');
         setTimeout(() => {
             currentGame = 'minesweeper';
@@ -1798,7 +1804,7 @@ async function msOpenCell(idx) {
             msGame.active = false;
             msRenderGrid();
             msUpdateCashoutBtn();
-            setBalance(result.new_balance || balance);
+            applyNewBalance(result.new_balance || balance);
             setTimeout(() => msCashoutResult(result.profit || Math.round(msGame.bet * msGame.mult) - msGame.bet), 300);
         } else {
             msRenderGrid();
@@ -1836,7 +1842,7 @@ async function msCashout() {
     }
 
     msGame.active = false;
-    setBalance(result.new_balance);
+    applyNewBalance(result.new_balance);
     msCashoutResult(result.profit);
 }
 
@@ -2021,7 +2027,7 @@ async function rlDoSpin() {
         } else {
             rlWheelAngle = startAngle + totalDelta;
             drawRouletteWheel(rlWheelAngle);
-            setBalance(result.new_balance);
+            applyNewBalance(result.new_balance);
             currentGame = 'roulette';
             const won = result.won;
             const rc  = result.result_color;
@@ -2318,7 +2324,7 @@ async function crDoCashout() {
 
     if (result.crashed) { crHandleCrash(result.crash_point, null); return; }
 
-    setBalance(result.new_balance);
+    applyNewBalance(result.new_balance);
     const btn = document.getElementById('cr-action-btn');
     btn.textContent = 'ПОСТАВИТЬ'; btn.disabled = false; btn.style.background = '';
     crSetControlsLocked(false);
@@ -2467,7 +2473,7 @@ async function shopBuy(btn) {
         });
         const d = await r.json();
         if (d.error) { toast(d.error); btn.disabled=false; btn.textContent='Купить'; return; }
-        setBalance(d.new_balance);
+        applyNewBalance(d.new_balance);
         haptic('success');
         notify('🛒', 'Куплено!', d.item.icon+' '+d.item.name);
         invItems = []; sellItems = []; // сбросить кэш инвентаря
@@ -2587,7 +2593,7 @@ async function doSell(btn) {
         });
         const d = await r.json();
         if (d.error) { toast(d.error); btn.disabled=false; btn.textContent='Продать'; return; }
-        setBalance(d.new_balance);
+        applyNewBalance(d.new_balance);
         haptic('success');
         notify('💸', 'Продано!', btn.dataset.icon+' '+btn.dataset.name+' · +'+fmt(d.sell_price));
         invItems = []; // сбросить кэш инвентаря
@@ -2693,7 +2699,7 @@ async function rentCollect(btn) {
         });
         const d = await r.json();
         if (d.error) { toast(d.error); btn.disabled=false; return; }
-        setBalance(d.new_balance);
+        applyNewBalance(d.new_balance);
         haptic('success');
         notify('💰', 'Аренда получена!', `+${fmt(d.income)} − ${fmt(d.utility)} ЖКХ = ${fmt(d.net)}`);
         jobsLoad();
@@ -2709,7 +2715,7 @@ async function rentStop(btn) {
         });
         const d = await r.json();
         if (d.error) { toast(d.error); btn.disabled=false; return; }
-        setBalance(d.new_balance);
+        applyNewBalance(d.new_balance);
         haptic('success');
         notify(d.income>0 ? '💰' : '🏠',
                d.income>0 ? 'Аренда остановлена' : btn.dataset.icon+' '+btn.dataset.name,
@@ -2801,6 +2807,7 @@ let _polling = false;
 async function pollEvents() {
     if (!initData || _polling) return;
     _polling = true;
+    const reqTs = Date.now(); // когда запрос был отправлен
     try {
         const ctrl = new AbortController();
         const tid  = setTimeout(() => ctrl.abort(), 5000);
@@ -2809,9 +2816,9 @@ async function pollEvents() {
         if (!r.ok) { _polling = false; return; }
         const d = await r.json();
         if (d.balance !== undefined) {
-            // Не обновлять баланс во время игровых анимаций — иначе раньше времени раскрывается результат
             const gameActive = spinning || rlSpinning || crState === 'flying' || msGame.active;
-            if (!gameActive) setBalance(d.balance);
+            // Не перезаписывать если после старта этого запроса пришёл свежий баланс от операции
+            if (!gameActive && _balanceSetAt < reqTs) setBalance(d.balance);
         }
         if (d.events && d.events.length) {
             for (const ev of d.events) {
