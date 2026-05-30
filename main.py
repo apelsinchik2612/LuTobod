@@ -16,6 +16,7 @@ from aiogram.types import (
     Message, CallbackQuery,
     InlineKeyboardMarkup, InlineKeyboardButton,
     ReplyKeyboardMarkup, KeyboardButton, WebAppInfo,
+    MenuButtonWebApp,
 )
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
@@ -1182,15 +1183,9 @@ def _section_btn(title: str) -> InlineKeyboardButton:
 def kb_settings(user: dict) -> InlineKeyboardMarkup:
     s = user
     return InlineKeyboardMarkup(inline_keyboard=[
-        [_section_btn("── 📐 Интерфейс ──")],
-        [_toggle_btn("Сокращение чисел",          s.get("short_numbers",    0), "toggle_short_numbers")],
-        [_toggle_btn("Дата регистрации в профиле", s.get("show_join_date",   1), "toggle_show_join_date")],
-        [_section_btn("── 🔒 Приватность ──")],
-        [_toggle_btn("Скрыть себя из топа",        s.get("hide_from_top",    0), "toggle_hide_from_top")],
-        [_section_btn("── 💸 Переводы ──")],
-        [_toggle_btn("Уведомления о переводах",    s.get("notify_transfers", 1), "toggle_notify_transfers")],
-        [_toggle_btn("Подтверждение перевода",     s.get("confirm_pay",      0), "toggle_confirm_pay")],
-        [_toggle_btn("Тихий режим (все уведомления выкл.)", s.get("quiet_mode", 0), "toggle_quiet_mode")],
+        [_toggle_btn("Подтверждение перевода", s.get("confirm_pay",   0), "toggle_confirm_pay")],
+        [_toggle_btn("Сокращение чисел",       s.get("short_numbers", 0), "toggle_short_numbers")],
+        [_toggle_btn("Тихий режим",            s.get("quiet_mode",    0), "toggle_quiet_mode")],
     ])
 
 
@@ -2218,6 +2213,12 @@ async def main():
     await runner.setup()
     await aio_web.TCPSite(runner, '0.0.0.0', WEB_PORT).start()
     logging.info("Web app: http://0.0.0.0:%d", WEB_PORT)
+
+    await bot.set_chat_menu_button(menu_button=MenuButtonWebApp(
+        text="🎮 Играть",
+        web_app=WebAppInfo(url=WEB_URL),
+    ))
+    logging.info("Menu button set to %s", WEB_URL)
 
     await dp.start_polling(bot, skip_updates=True)
 
