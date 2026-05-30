@@ -1428,13 +1428,15 @@ async def web_api_rental_collect(request: aio_web.Request) -> aio_web.Response:
         income = math.floor(calc_rental_income(rental['last_collected'], rental['rate']))
         if income < 1:
             return aio_web.json_response({'error': 'Ещё не накопилось достаточно'})
+        utility = random.randint(8_000, 15_000)
+        net = income - utility
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        await db.execute("UPDATE users SET balance=balance+? WHERE id=?", (income, user_id))
+        await db.execute("UPDATE users SET balance=balance+? WHERE id=?", (net, user_id))
         await db.execute("UPDATE rentals SET last_collected=? WHERE id=?", (now, rental_id))
         await db.commit()
         async with db.execute("SELECT balance FROM users WHERE id=?", (user_id,)) as cur:
             new_bal = round(float((await cur.fetchone())['balance']), 2)
-    return aio_web.json_response({'ok': True, 'income': income, 'new_balance': new_bal})
+    return aio_web.json_response({'ok': True, 'income': income, 'utility': utility, 'net': net, 'new_balance': new_bal})
 
 
 async def web_api_rental_stop(request: aio_web.Request) -> aio_web.Response:
@@ -1457,12 +1459,17 @@ async def web_api_rental_stop(request: aio_web.Request) -> aio_web.Response:
             return aio_web.json_response({'error': 'Аренда не найдена'})
         income = math.floor(calc_rental_income(rental['last_collected'], rental['rate']))
         if income > 0:
-            await db.execute("UPDATE users SET balance=balance+? WHERE id=?", (income, user_id))
+            utility = random.randint(8_000, 15_000)
+            net = income - utility
+            await db.execute("UPDATE users SET balance=balance+? WHERE id=?", (net, user_id))
+        else:
+            utility = 0
+            net = 0
         await db.execute("DELETE FROM rentals WHERE id=?", (rental_id,))
         await db.commit()
         async with db.execute("SELECT balance FROM users WHERE id=?", (user_id,)) as cur:
             new_bal = round(float((await cur.fetchone())['balance']), 2)
-    return aio_web.json_response({'ok': True, 'income': income, 'new_balance': new_bal})
+    return aio_web.json_response({'ok': True, 'income': income, 'utility': utility, 'net': net, 'new_balance': new_bal})
 
 
 def make_web_app() -> aio_web.Application:
