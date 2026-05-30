@@ -152,6 +152,16 @@ async def db_init():
                 created_at TEXT    NOT NULL
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS pending_events (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id    INTEGER NOT NULL,
+                type       TEXT    NOT NULL,
+                amount     REAL    NOT NULL,
+                from_name  TEXT,
+                created_at TEXT    DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
         await db.execute(
             "INSERT OR IGNORE INTO promo_codes (code, reward, max_uses) VALUES (?, ?, ?)",
             ("TEST100", 100.0, 10)
@@ -224,6 +234,15 @@ async def toggle_setting(user_id: int, setting: str):
             row = await cur.fetchone()
         new_val = 0 if row[0] else 1
         await db.execute(f"UPDATE users SET {setting} = ? WHERE id = ?", (new_val, user_id))
+        await db.commit()
+
+
+async def create_event(user_id: int, etype: str, amount: float, from_name: str = None):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT INTO pending_events (user_id, type, amount, from_name) VALUES (?, ?, ?, ?)",
+            (user_id, etype, amount, from_name)
+        )
         await db.commit()
 
 
@@ -1057,6 +1076,38 @@ async def cors_middleware(request: aio_web.Request, handler):
     return resp
 
 
+async def web_api_events(request: aio_web.Request) -> aio_web.Response:
+    try:
+        user_id = validate_init_data(request.query.get('init_data', ''))
+        if not user_id:
+            return aio_web.json_response({'error': 'Unauthorized'}, status=401)
+        async with aiosqlite.connect(DB_PATH) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute("SELECT balance FROM users WHERE id = ?", (user_id,)) as cur:
+                row = await cur.fetchone()
+            if not row:
+                return aio_web.json_response({'error': 'Not found'}, status=404)
+            bal = round(float(row['balance']), 2)
+            async with db.execute(
+                "SELECT id, type, amount, from_name FROM pending_events WHERE user_id = ? ORDER BY id ASC",
+                (user_id,)
+            ) as cur:
+                events = [dict(r) for r in await cur.fetchall()]
+            if events:
+                ids = [e['id'] for e in events]
+                await db.execute(
+                    f"DELETE FROM pending_events WHERE id IN ({','.join('?'*len(ids))})", ids
+                )
+                await db.commit()
+        return aio_web.json_response({
+            'balance': bal,
+            'events': [{'type': e['type'], 'amount': e['amount'], 'from_name': e['from_name']} for e in events],
+        })
+    except Exception:
+        logging.exception("web_api_events crashed")
+        return aio_web.json_response({'error': 'Internal error'}, status=500)
+
+
 def make_web_app() -> aio_web.Application:
     app = aio_web.Application(middlewares=[cors_middleware])
     app.router.add_get('/', web_index)
@@ -1064,6 +1115,8 @@ def make_web_app() -> aio_web.Application:
     app.router.add_route('OPTIONS', '/api/user', lambda r: aio_web.Response())
     app.router.add_route('OPTIONS', '/api/upgrade', lambda r: aio_web.Response())
     app.router.add_get('/api/user', web_api_user)
+    app.router.add_route('OPTIONS', '/api/events', lambda r: aio_web.Response())
+    app.router.add_get('/api/events', web_api_events)
     app.router.add_post('/api/upgrade', web_api_upgrade)
     app.router.add_route('OPTIONS', '/api/history', lambda r: aio_web.Response())
     app.router.add_get('/api/history', web_api_history)
@@ -1393,7 +1446,9 @@ async def h_pay(msg: Message):
                 f"✅ Переведено <b>{fmt_num(amount, short)}</b> → @{target['username']}",
                 parse_mode="HTML",
             )
-            await notify_transfer(target, amount, msg.from_user.username or msg.from_user.first_name)
+            sender_name = msg.from_user.username or msg.from_user.first_name
+            await notify_transfer(target, amount, sender_name)
+            await create_event(target["id"], "transfer", amount, sender_name)
 
 
 # --- Кнопки главного меню ---
@@ -1498,7 +1553,9 @@ async def cb_pay_confirm(cb: CallbackQuery):
             f"✅ Переведено <b>{fmt_num(amount, short)}</b> → @{target['username']}",
             parse_mode="HTML",
         )
-        await notify_transfer(target, amount, cb.from_user.username or cb.from_user.first_name)
+        sender_name = cb.from_user.username or cb.from_user.first_name
+        await notify_transfer(target, amount, sender_name)
+        await create_event(target["id"], "transfer", amount, sender_name)
     await cb.answer()
 
 
@@ -1565,6 +1622,7 @@ async def h_promo_input(msg: Message, state: FSMContext):
     result, reward = await use_promo(code, msg.from_user.id)
 
     if result == "ok":
+        await create_event(msg.from_user.id, "promo", reward)
         await state.clear()
         user = await get_user(msg.from_user.id)
         short = bool(user.get("short_numbers", 0)) if user else False
@@ -1635,6 +1693,7 @@ async def h_addbalance(msg: Message):
         parse_mode="HTML",
     )
     await notify_give(target, amount)
+    await create_event(target["id"], "give", amount)
 
 
 @router.message(Command("removebalance"))
