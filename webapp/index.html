@@ -448,6 +448,88 @@ input[type=number] { -moz-appearance: textfield; }
 .st-row.on .st-toggle { background: var(--green); border-color: var(--green); }
 .st-row.on .st-toggle::after { left: 20px; }
 
+/* === SHOP / INVENTORY / SELL === */
+.sh-body { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.sh-tabs {
+    display:flex; gap:6px; padding:10px 16px; overflow-x:auto;
+    scrollbar-width:none; flex-shrink:0; border-bottom:1px solid var(--border);
+}
+.sh-tabs::-webkit-scrollbar { display:none; }
+.sh-tab {
+    flex-shrink:0; padding:6px 14px; border-radius:20px;
+    border:1px solid var(--border); background:var(--surface);
+    color:var(--text2); font-size:13px; font-weight:600; cursor:pointer;
+    transition:all .15s; white-space:nowrap;
+}
+.sh-tab.active { background:var(--green); border-color:var(--green); color:#fff; }
+.sh-list { flex:1; overflow-y:auto; padding:10px 16px 30px; display:flex; flex-direction:column; gap:8px; }
+.sh-item {
+    display:flex; align-items:center; gap:12px;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:14px; padding:12px 14px; transition:border-color .15s;
+}
+.sh-item:active { border-color:var(--green); }
+.sh-item-ico { font-size:28px; flex-shrink:0; width:44px; text-align:center; }
+.sh-item-info { flex:1; min-width:0; }
+.sh-item-name { font-size:14px; font-weight:700; }
+.sh-item-desc { font-size:11px; color:var(--text2); margin-top:2px; }
+.sh-item-right { display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0; }
+.sh-item-price { font-size:13px; font-weight:800; color:var(--green); white-space:nowrap; }
+.sh-buy-btn {
+    padding:5px 12px; border-radius:8px; border:none;
+    background:var(--green); color:#fff; font-size:12px; font-weight:700; cursor:pointer;
+    transition:opacity .15s;
+}
+.sh-buy-btn:active { opacity:.75; }
+.sh-buy-btn:disabled { opacity:.4; cursor:not-allowed; }
+.sh-empty { text-align:center; color:var(--text2); font-size:14px; padding:40px 20px; }
+
+/* Inventory */
+.inv-item {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:14px; overflow:hidden; transition:border-color .15s;
+}
+.inv-item-hdr {
+    display:flex; align-items:center; gap:10px; padding:13px 14px; cursor:pointer;
+}
+.inv-item-hdr:active { background:var(--surface2); }
+.inv-item-ico { font-size:24px; flex-shrink:0; }
+.inv-item-name { flex:1; font-size:14px; font-weight:700; }
+.inv-item-cat { font-size:11px; color:var(--text2); margin-top:1px; }
+.inv-chev { transition:transform .2s; flex-shrink:0; color:var(--text2); }
+.inv-item.open .inv-chev { transform:rotate(90deg); }
+.inv-item-body {
+    display:none; padding:0 14px 14px; border-top:1px solid var(--border);
+}
+.inv-item.open .inv-item-body { display:block; }
+.inv-detail { display:flex; justify-content:space-between; padding:7px 0;
+              border-bottom:1px solid var(--border); font-size:13px; }
+.inv-detail:last-child { border-bottom:none; }
+.inv-detail-lbl { color:var(--text2); }
+.inv-detail-val { font-weight:700; }
+.inv-sell-price { color:var(--red); }
+
+/* Sell screen */
+.sell-item {
+    display:flex; align-items:center; gap:12px;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:14px; padding:12px 14px;
+}
+.sell-item-ico { font-size:26px; flex-shrink:0; width:40px; text-align:center; }
+.sell-item-info { flex:1; min-width:0; }
+.sell-item-name { font-size:14px; font-weight:700; }
+.sell-item-meta { font-size:11px; color:var(--text2); margin-top:2px; }
+.sell-item-right { display:flex; flex-direction:column; align-items:flex-end; gap:5px; flex-shrink:0; }
+.sell-price { font-size:13px; font-weight:800; color:var(--red); white-space:nowrap; }
+.sell-tax { font-size:10px; color:var(--text2); }
+.sell-btn {
+    padding:5px 12px; border-radius:8px; border:none;
+    background:var(--red); color:#fff; font-size:12px; font-weight:700; cursor:pointer;
+    transition:opacity .15s;
+}
+.sell-btn:active { opacity:.75; }
+.sell-btn:disabled { opacity:.4; cursor:not-allowed; }
+
 /* === NOTIFICATION (Minecraft toast) === */
 .ntf {
     position: fixed; top: 0; left: 50%;
@@ -481,8 +563,10 @@ input[type=number] { -moz-appearance: textfield; }
         <div class="logo">ЛУТОБОТ</div>
         <div class="logo-sub">Игровая платформа</div>
         <button class="menu-btn primary" id="btn-play"><span class="ico">🎮</span>Играть</button>
+        <button class="menu-btn" id="btn-shop"><span class="ico">🏪</span>Магазин</button>
+        <button class="menu-btn" id="btn-inv"><span class="ico">📦</span>Инвентарь</button>
+        <button class="menu-btn" id="btn-sell-screen"><span class="ico">💸</span>Продажа</button>
         <button class="menu-btn" id="btn-settings"><span class="ico">⚙️</span>Настройки</button>
-        <button class="menu-btn disabled"><span class="ico">🏪</span>Магазин</button>
     </div>
 </div>
 
@@ -738,6 +822,50 @@ input[type=number] { -moz-appearance: textfield; }
     </div>
 </div>
 
+<!-- SHOP -->
+<div id="s-shop" class="screen">
+    <div class="hdr">
+        <button class="back-btn" id="btn-back-shop">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>Назад
+        </button>
+        <span class="hdr-title">Магазин</span>
+        <div class="bal-chip">💰 <span id="bal-shop">...</span></div>
+    </div>
+    <div class="sh-body">
+        <div class="sh-tabs" id="shop-tabs">
+            <button class="sh-tab active" data-cat="cars">🚗 Машины</button>
+            <button class="sh-tab" data-cat="apartments">🏠 Квартиры</button>
+            <button class="sh-tab" data-cat="houses">🏡 Дома</button>
+            <button class="sh-tab" data-cat="tech">💻 Техника</button>
+        </div>
+        <div class="sh-list" id="shop-list"><div class="sh-empty">Загрузка…</div></div>
+    </div>
+</div>
+
+<!-- INVENTORY -->
+<div id="s-inv" class="screen">
+    <div class="hdr">
+        <button class="back-btn" id="btn-back-inv">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>Назад
+        </button>
+        <span class="hdr-title">Инвентарь</span>
+        <div style="width:60px"></div>
+    </div>
+    <div class="sh-list" id="inv-list"><div class="sh-empty">Загрузка…</div></div>
+</div>
+
+<!-- SELL -->
+<div id="s-sell" class="screen">
+    <div class="hdr">
+        <button class="back-btn" id="btn-back-sell">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>Назад
+        </button>
+        <span class="hdr-title">Продажа</span>
+        <div class="bal-chip">💰 <span id="bal-sell">...</span></div>
+    </div>
+    <div class="sh-list" id="sell-list"><div class="sh-empty">Загрузка…</div></div>
+</div>
+
 <!-- SETTINGS -->
 <div id="s-settings" class="screen">
     <div class="hdr">
@@ -941,6 +1069,8 @@ function setBalance(v) {
     document.getElementById('bal-ms').textContent = t;
     document.getElementById('bal-rl').textContent = t;
     document.getElementById('bal-cr').textContent = t;
+    document.getElementById('bal-shop').textContent = t;
+    document.getElementById('bal-sell').textContent = t;
     syncSlider();
     msSyncSlider();
     rlSyncSlider?.();
@@ -2169,6 +2299,167 @@ document.getElementById('cr-auto-switch').onclick = () => {
 document.getElementById('cr-auto-inp').addEventListener('input', e => {
     crAutoMult = Math.max(1.1, parseFloat(e.target.value) || 2.0);
 });
+
+// ── SHOP ──────────────────────────────────────────────
+const CAT_LABELS = { cars:'🚗 Машины', apartments:'🏠 Квартиры', houses:'🏡 Дома', tech:'💻 Техника' };
+let shopItems = [], shopCat = 'cars';
+
+async function shopLoad() {
+    if (shopItems.length) { shopRender(); return; }
+    try {
+        const r = await fetch(bustUrl(API_BASE+'/api/shop?init_data='+encodeURIComponent(initData)));
+        const d = await r.json();
+        if (d.items) { shopItems = d.items; shopRender(); }
+        else document.getElementById('shop-list').innerHTML = '<div class="sh-empty">Ошибка загрузки</div>';
+    } catch { document.getElementById('shop-list').innerHTML = '<div class="sh-empty">Нет соединения</div>'; }
+}
+
+function shopRender() {
+    const items = shopItems.filter(i => i.category === shopCat);
+    const el = document.getElementById('shop-list');
+    if (!items.length) { el.innerHTML = '<div class="sh-empty">Нет товаров</div>'; return; }
+    el.innerHTML = items.map(i => `
+        <div class="sh-item">
+            <div class="sh-item-ico">${i.icon}</div>
+            <div class="sh-item-info">
+                <div class="sh-item-name">${i.name}</div>
+                <div class="sh-item-desc">${i.description||''}</div>
+            </div>
+            <div class="sh-item-right">
+                <div class="sh-item-price">${fmt(i.price)}</div>
+                <button class="sh-buy-btn" data-id="${i.id}" data-price="${i.price}" data-name="${i.name}" data-icon="${i.icon}">Купить</button>
+            </div>
+        </div>`).join('');
+    el.querySelectorAll('.sh-buy-btn').forEach(btn => btn.onclick = () => shopBuy(btn));
+}
+
+async function shopBuy(btn) {
+    const price = parseFloat(btn.dataset.price);
+    if (price > balance) { toast('Недостаточно средств'); return; }
+    btn.disabled = true; btn.textContent = '…';
+    try {
+        const r = await fetch(API_BASE+'/api/shop/buy', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({init_data:initData, item_id:parseInt(btn.dataset.id)})
+        });
+        const d = await r.json();
+        if (d.error) { toast(d.error); btn.disabled=false; btn.textContent='Купить'; return; }
+        setBalance(d.new_balance);
+        haptic('success');
+        notify('🛒', 'Куплено!', d.item.icon+' '+d.item.name);
+        invItems = []; sellItems = []; // сбросить кэш инвентаря
+    } catch { toast('Ошибка сервера'); }
+    btn.disabled=false; btn.textContent='Купить';
+}
+
+document.getElementById('shop-tabs').onclick = e => {
+    const tab = e.target.closest('.sh-tab');
+    if (!tab) return;
+    shopCat = tab.dataset.cat;
+    document.querySelectorAll('.sh-tab').forEach(t => t.classList.toggle('active', t===tab));
+    shopRender();
+};
+document.getElementById('btn-back-shop').onclick = () => go('s-main');
+document.getElementById('btn-shop').onclick = () => { go('s-shop'); setBalance(balance); shopLoad(); };
+
+// ── INVENTORY ─────────────────────────────────────────
+let invItems = [];
+
+async function invLoad() {
+    document.getElementById('inv-list').innerHTML = '<div class="sh-empty">Загрузка…</div>';
+    try {
+        const r = await fetch(bustUrl(API_BASE+'/api/inventory?init_data='+encodeURIComponent(initData)));
+        const d = await r.json();
+        invItems = d.items || [];
+        invRender();
+    } catch { document.getElementById('inv-list').innerHTML = '<div class="sh-empty">Нет соединения</div>'; }
+}
+
+function invRender() {
+    const el = document.getElementById('inv-list');
+    if (!invItems.length) { el.innerHTML = '<div class="sh-empty">Инвентарь пуст</div>'; return; }
+    el.innerHTML = invItems.map(i => {
+        const sellP = Math.floor(i.price_paid * 0.85);
+        const date  = i.bought_at ? i.bought_at.slice(0,10) : '—';
+        return `<div class="inv-item" data-inv-id="${i.id}">
+            <div class="inv-item-hdr">
+                <span class="inv-item-ico">${i.icon}</span>
+                <div style="flex:1;min-width:0">
+                    <div class="inv-item-name">${i.name}</div>
+                    <div class="inv-item-cat">${CAT_LABELS[i.category]||i.category}</div>
+                </div>
+                <svg class="inv-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+            </div>
+            <div class="inv-item-body">
+                <div class="inv-detail"><span class="inv-detail-lbl">Куплено</span><span class="inv-detail-val">${date}</span></div>
+                <div class="inv-detail"><span class="inv-detail-lbl">Цена покупки</span><span class="inv-detail-val">${fmt(i.price_paid)}</span></div>
+                <div class="inv-detail"><span class="inv-detail-lbl">Цена продажи</span><span class="inv-detail-val inv-sell-price">${fmt(sellP)} <span style="font-size:10px;opacity:.7">−15%</span></span></div>
+                <div class="inv-detail"><span class="inv-detail-lbl">Описание</span><span class="inv-detail-val" style="font-size:12px;text-align:right;max-width:180px">${i.description||'—'}</span></div>
+            </div>
+        </div>`;
+    }).join('');
+    el.querySelectorAll('.inv-item-hdr').forEach(hdr => hdr.onclick = () => {
+        hdr.closest('.inv-item').classList.toggle('open');
+    });
+}
+
+document.getElementById('btn-back-inv').onclick = () => go('s-main');
+document.getElementById('btn-inv').onclick = () => { go('s-inv'); invLoad(); };
+
+// ── SELL ──────────────────────────────────────────────
+let sellItems = [];
+
+async function sellLoad() {
+    document.getElementById('sell-list').innerHTML = '<div class="sh-empty">Загрузка…</div>';
+    try {
+        const r = await fetch(bustUrl(API_BASE+'/api/inventory?init_data='+encodeURIComponent(initData)));
+        const d = await r.json();
+        sellItems = d.items || [];
+        sellRender();
+    } catch { document.getElementById('sell-list').innerHTML = '<div class="sh-empty">Нет соединения</div>'; }
+}
+
+function sellRender() {
+    const el = document.getElementById('sell-list');
+    if (!sellItems.length) { el.innerHTML = '<div class="sh-empty">Нечего продавать</div>'; return; }
+    el.innerHTML = sellItems.map(i => {
+        const sellP = Math.floor(i.price_paid * 0.85);
+        return `<div class="sell-item">
+            <div class="sell-item-ico">${i.icon}</div>
+            <div class="sell-item-info">
+                <div class="sell-item-name">${i.name}</div>
+                <div class="sell-item-meta">${CAT_LABELS[i.category]||i.category} · куплено за ${fmt(i.price_paid)}</div>
+            </div>
+            <div class="sell-item-right">
+                <div class="sell-price">${fmt(sellP)}</div>
+                <div class="sell-tax">−15% налог</div>
+                <button class="sell-btn" data-inv-id="${i.id}" data-name="${i.name}" data-icon="${i.icon}">Продать</button>
+            </div>
+        </div>`;
+    }).join('');
+    el.querySelectorAll('.sell-btn').forEach(btn => btn.onclick = () => doSell(btn));
+}
+
+async function doSell(btn) {
+    btn.disabled = true; btn.textContent = '…';
+    try {
+        const r = await fetch(API_BASE+'/api/inventory/sell', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({init_data:initData, inv_id:parseInt(btn.dataset.invId)})
+        });
+        const d = await r.json();
+        if (d.error) { toast(d.error); btn.disabled=false; btn.textContent='Продать'; return; }
+        setBalance(d.new_balance);
+        haptic('success');
+        notify('💸', 'Продано!', btn.dataset.icon+' '+btn.dataset.name+' · +'+fmt(d.sell_price));
+        invItems = []; // сбросить кэш инвентаря
+        sellItems = sellItems.filter(i => i.id !== parseInt(btn.dataset.invId));
+        sellRender();
+    } catch { toast('Ошибка сервера'); btn.disabled=false; btn.textContent='Продать'; }
+}
+
+document.getElementById('btn-back-sell').onclick = () => go('s-main');
+document.getElementById('btn-sell-screen').onclick = () => { go('s-sell'); setBalance(balance); sellLoad(); };
 
 // ── SETTINGS ──────────────────────────────────────────
 function stApplyTheme(name) {
