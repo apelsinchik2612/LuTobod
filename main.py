@@ -264,10 +264,11 @@ async def db_init():
                 )
             """) as cur:
                 users_no_apt = await cur.fetchall()
+            today = datetime.now().strftime("%Y-%m-%d")
             for u in users_no_apt:
                 await db.execute(
                     "INSERT INTO inventory (user_id, item_id, price_paid, bought_at) VALUES (?, ?, 0, ?)",
-                    (u['id'], starter['id'], u['registered_at'])
+                    (u['id'], starter['id'], u['registered_at'] or today)
                 )
 
         await db.execute(
@@ -1429,7 +1430,7 @@ async def web_api_rental_collect(request: aio_web.Request) -> aio_web.Response:
         income = math.floor(calc_rental_income(rental['last_collected'], rental['rate']))
         if income < 1500:
             return aio_web.json_response({'error': 'Минимум для сбора — 1 500₽'})
-        utility = random.randint(8_000, 15_000)
+        utility = min(random.randint(8_000, 15_000), income)
         net = income - utility
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         await db.execute("UPDATE users SET balance=balance+? WHERE id=?", (net, user_id))
@@ -1460,7 +1461,7 @@ async def web_api_rental_stop(request: aio_web.Request) -> aio_web.Response:
             return aio_web.json_response({'error': 'Аренда не найдена'})
         income = math.floor(calc_rental_income(rental['last_collected'], rental['rate']))
         if income > 0:
-            utility = random.randint(8_000, 15_000)
+            utility = min(random.randint(8_000, 15_000), income)
             net = income - utility
             await db.execute("UPDATE users SET balance=balance+? WHERE id=?", (net, user_id))
         else:
