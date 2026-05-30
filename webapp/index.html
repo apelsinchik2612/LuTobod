@@ -1031,7 +1031,7 @@ function animateReturnArrow(done) {
     const toNorm   = ((INITIAL_ANGLE % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
     let delta = toNorm - fromNorm;
     if (Math.abs(delta) > Math.PI) delta -= Math.sign(delta) * Math.PI * 2;
-    const dur = 380;
+    const dur = 160;
     const t0 = performance.now();
     function frame(now) {
         const t = Math.min((now - t0) / dur, 1);
@@ -1117,13 +1117,11 @@ async function doSpin() {
         else {
             arrowAngle = startAngle + totalDelta;
             drawWheel(arrowAngle, wc);
-            animateReturnArrow(() => {
-                setBalance(result.new_balance);
-                showResult(won, bet, result.profit, mult);
-                spinning = false;
-                document.getElementById('spin-btn').disabled = false;
-                setUILocked(false);
-            });
+            setBalance(result.new_balance);
+            showResult(won, bet, result.profit, mult);
+            spinning = false;
+            document.getElementById('spin-btn').disabled = false;
+            setUILocked(false);
         }
     }
     raf = requestAnimationFrame(frame);
@@ -1209,9 +1207,7 @@ document.getElementById('spin-btn').onclick = doSpin;
 document.getElementById('res-close').onclick = () => {
     document.getElementById('overlay').classList.remove('show');
     if (currentGame === 'upgrader') {
-        arrowAngle = INITIAL_ANGLE;
-        drawWheel(INITIAL_ANGLE, displayWc);
-        updateUI();
+        animateReturnArrow(() => updateUI());
     } else if (currentGame === 'minesweeper') {
         msResetUI();
     } else if (currentGame === 'roulette') {
