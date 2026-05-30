@@ -378,6 +378,75 @@ input[type=number] { -moz-appearance: textfield; }
 .cr-switch.on::after { left: 18px; }
 .cr-auto-inp-wrap { flex: 1; }
 .cr-auto-inp-wrap .inp { font-size: 15px; }
+
+/* === SETTINGS === */
+.st-body {
+    flex: 1; overflow-y: auto;
+    padding: 4px 16px 40px; display: flex; flex-direction: column; gap: 4px;
+}
+.st-section-lbl {
+    font-size: 11px; color: var(--text2);
+    text-transform: uppercase; letter-spacing: .6px;
+    padding: 14px 4px 6px;
+}
+.st-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; overflow: hidden;
+}
+.st-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 13px 16px; gap: 12px; cursor: pointer; transition: background .12s;
+}
+.st-row:active { background: var(--surface2); }
+.st-row-name { font-size: 15px; font-weight: 600; }
+.st-row-desc { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.st-divider { height: 1px; background: var(--border); margin: 0 16px; }
+.theme-pick {
+    display: flex; gap: 10px; padding: 10px 16px 16px;
+}
+.theme-opt {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; gap: 7px; cursor: pointer;
+}
+.theme-opt-lbl { font-size: 12px; color: var(--text2); transition: color .15s; }
+.theme-preview {
+    width: 100%; aspect-ratio: 3/2; border-radius: 10px;
+    border: 2px solid var(--border); transition: border-color .15s;
+    position: relative; overflow: hidden;
+    display: flex; flex-direction: column; justify-content: flex-end;
+    padding: 6px 8px; gap: 4px;
+}
+.theme-opt.sel .theme-preview { border-color: var(--accent); }
+.theme-opt.sel .theme-opt-lbl { color: var(--accent); font-weight: 700; }
+.tp-light { background: linear-gradient(160deg,#e4e7ed,#f5f7fa); }
+.tp-dark  { background: linear-gradient(160deg,#0d1117,#161b22); }
+.tp-black { background: linear-gradient(160deg,#000,#0f0f0f); }
+.tp-bar { height: 4px; border-radius: 2px; }
+.tp-bar.b1 { width: 40%; }
+.tp-bar.b2 { width: 65%; }
+.tp-light .tp-bar { background: #cbd5e1; }
+.tp-dark  .tp-bar { background: #30363d; }
+.tp-black .tp-bar { background: #2a2a2a; }
+.tp-dot {
+    position: absolute; top: 7px; right: 8px;
+    width: 8px; height: 8px; border-radius: 50%;
+}
+.tp-light .tp-dot { background: #16a34a; }
+.tp-dark  .tp-dot { background: #3fb950; }
+.tp-black .tp-dot { background: #3fb950; }
+.st-toggle {
+    width: 44px; height: 26px; border-radius: 13px;
+    background: var(--surface2); border: 1px solid var(--border);
+    position: relative; flex-shrink: 0; transition: background .2s, border-color .2s;
+}
+.st-toggle::after {
+    content: ''; position: absolute;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: #fff; top: 2px; left: 2px;
+    transition: left .2s; box-shadow: 0 1px 4px rgba(0,0,0,.4);
+}
+.st-row.on .st-toggle { background: var(--green); border-color: var(--green); }
+.st-row.on .st-toggle::after { left: 20px; }
 </style>
 </head>
 <body>
@@ -392,7 +461,7 @@ input[type=number] { -moz-appearance: textfield; }
         <div class="logo">ЛУТОБОТ</div>
         <div class="logo-sub">Игровая платформа</div>
         <button class="menu-btn primary" id="btn-play"><span class="ico">🎮</span>Играть</button>
-        <button class="menu-btn disabled"><span class="ico">⚙️</span>Настройки</button>
+        <button class="menu-btn" id="btn-settings"><span class="ico">⚙️</span>Настройки</button>
         <button class="menu-btn disabled"><span class="ico">🏪</span>Магазин</button>
     </div>
 </div>
@@ -649,6 +718,88 @@ input[type=number] { -moz-appearance: textfield; }
     </div>
 </div>
 
+<!-- SETTINGS -->
+<div id="s-settings" class="screen">
+    <div class="hdr">
+        <button class="back-btn" id="btn-back-st">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>Назад
+        </button>
+        <span class="hdr-title">Настройки</span>
+        <div style="width:60px"></div>
+    </div>
+    <div class="st-body">
+
+        <div class="st-section-lbl">Внешний вид</div>
+        <div class="st-card">
+            <div class="theme-pick">
+                <div class="theme-opt" data-theme="light">
+                    <div class="theme-preview tp-light">
+                        <div class="tp-dot"></div>
+                        <div class="tp-bar b1"></div>
+                        <div class="tp-bar b2"></div>
+                    </div>
+                    <span class="theme-opt-lbl">Светлая</span>
+                </div>
+                <div class="theme-opt" data-theme="dark">
+                    <div class="theme-preview tp-dark">
+                        <div class="tp-dot"></div>
+                        <div class="tp-bar b1"></div>
+                        <div class="tp-bar b2"></div>
+                    </div>
+                    <span class="theme-opt-lbl">Тёмная</span>
+                </div>
+                <div class="theme-opt" data-theme="black">
+                    <div class="theme-preview tp-black">
+                        <div class="tp-dot"></div>
+                        <div class="tp-bar b1"></div>
+                        <div class="tp-bar b2"></div>
+                    </div>
+                    <span class="theme-opt-lbl">Чёрная</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="st-section-lbl">Отображение</div>
+        <div class="st-card">
+            <div class="st-row" id="sw-short-nums">
+                <div>
+                    <div class="st-row-name">Сокращение чисел</div>
+                    <div class="st-row-desc">1 500 → 1.5к</div>
+                </div>
+                <div class="st-toggle"></div>
+            </div>
+            <div class="st-divider"></div>
+            <div class="st-row" id="sw-hide-balance">
+                <div>
+                    <div class="st-row-name">Скрывать баланс</div>
+                    <div class="st-row-desc">Заменяет сумму на ●●●●●</div>
+                </div>
+                <div class="st-toggle"></div>
+            </div>
+        </div>
+
+        <div class="st-section-lbl">Игровой процесс</div>
+        <div class="st-card">
+            <div class="st-row" id="sw-haptic">
+                <div>
+                    <div class="st-row-name">Вибрация</div>
+                    <div class="st-row-desc">Haptic feedback при результате</div>
+                </div>
+                <div class="st-toggle"></div>
+            </div>
+            <div class="st-divider"></div>
+            <div class="st-row" id="sw-auto-close">
+                <div>
+                    <div class="st-row-name">Авто-закрытие итогов</div>
+                    <div class="st-row-desc">Результат закрывается через 2 сек</div>
+                </div>
+                <div class="st-toggle"></div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
 <!-- RESULT OVERLAY -->
 <div class="overlay" id="overlay">
     <div class="res-card">
@@ -667,6 +818,22 @@ if (tg) { tg.ready(); tg.expand(); tg.disableVerticalSwipes?.(); }
 
 const initData = tg?.initData || '';
 const API_BASE = new URLSearchParams(location.search).get('api') || '';
+
+// ── SETTINGS (early init) ─────────────────────────────
+const ST_THEMES = {
+    light: {'--bg':'#eef0f4','--surface':'#ffffff','--surface2':'#e4e7ed','--text':'#1a1d23','--text2':'#6b7280','--border':'#d1d5db','--green':'#16a34a','--red':'#dc2626','--accent':'#2563eb'},
+    dark:  {'--bg':'#0d1117','--surface':'#161b22','--surface2':'#21262d','--text':'#e6edf3','--text2':'#8b949e','--border':'#30363d','--green':'#3fb950','--red':'#f85149','--accent':'#58a6ff'},
+    black: {'--bg':'#000000','--surface':'#111111','--surface2':'#1a1a1a','--text':'#ffffff','--text2':'#777777','--border':'#2a2a2a','--green':'#3fb950','--red':'#f85149','--accent':'#58a6ff'},
+};
+const stSettings = {
+    theme:       localStorage.getItem('st_theme')       || 'dark',
+    shortNums:   localStorage.getItem('st_shortNums')   !== '0',
+    hideBalance: localStorage.getItem('st_hideBalance') === '1',
+    haptic:      localStorage.getItem('st_haptic')      !== '0',
+    autoClose:   localStorage.getItem('st_autoClose')   === '1',
+};
+(function(){ const v=ST_THEMES[stSettings.theme]||ST_THEMES.dark; for(const[k,val] of Object.entries(v)) document.documentElement.style.setProperty(k,val); })();
+
 let balance = 0;
 let mult = 2;
 let spinning = false;
@@ -688,13 +855,14 @@ function go(id) {
 
 // ── BALANCE ───────────────────────────────────────────
 function fmt(n) {
+    if (!stSettings.shortNums) return n % 1 === 0 ? n+'₽' : n.toFixed(2)+'₽';
     if (n >= 1e6) return (n/1e6).toFixed(1).replace(/\.0$/,'')+'м₽';
     if (n >= 1e3) return (n/1e3).toFixed(1).replace(/\.0$/,'')+'к₽';
     return n % 1 === 0 ? n+'₽' : n.toFixed(2)+'₽';
 }
 function setBalance(v) {
     balance = v;
-    const t = fmt(v);
+    const t = stSettings.hideBalance ? '●●●●●' : fmt(v);
     document.getElementById('bal-main').textContent = t;
     document.getElementById('bal-games').textContent = t;
     document.getElementById('bal-upg').textContent = t;
@@ -969,8 +1137,8 @@ function showResult(won, bet, profit, m) {
     } else {
         document.getElementById('res-amt').innerHTML = `Ты потерял <b style="color:var(--red)">-${fmt(bet)}</b>`;
     }
-    document.getElementById('overlay').classList.add('show');
-    tg?.HapticFeedback?.notificationOccurred(won ? 'success' : 'error');
+    showOverlay();
+    haptic(won ? 'success' : 'error');
 }
 
 // ── TOAST ─────────────────────────────────────────────
@@ -980,6 +1148,21 @@ function toast(msg) {
     el.textContent = msg; el.classList.add('show');
     clearTimeout(toastTm);
     toastTm = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+function haptic(type) {
+    if (!stSettings.haptic) return;
+    if (type === 'impact') tg?.HapticFeedback?.impactOccurred('light');
+    else tg?.HapticFeedback?.notificationOccurred(type);
+}
+
+let autoCloseTm = null;
+function showOverlay() {
+    document.getElementById('overlay').classList.add('show');
+    if (stSettings.autoClose) {
+        clearTimeout(autoCloseTm);
+        autoCloseTm = setTimeout(() => document.getElementById('res-close').click(), 2000);
+    }
 }
 
 // ── EVENTS ────────────────────────────────────────────
@@ -1232,19 +1415,19 @@ async function msOpenCell(idx) {
         msGame.active = false;
         msRenderGrid();
         setBalance(result.new_balance);
-        tg?.HapticFeedback?.notificationOccurred('error');
+        haptic('error');
         setTimeout(() => {
             currentGame = 'minesweeper';
             document.getElementById('res-emo').textContent = '💣';
             document.getElementById('res-title').textContent = 'Подрыв!';
             document.getElementById('res-amt').innerHTML = `Ты потерял <b style="color:var(--red)">-${fmt(msGame.bet)}</b>`;
-            document.getElementById('overlay').classList.add('show');
+            showOverlay();
         }, 350);
     } else {
         msGame.cells[idx] = 'safe';
         msGame.opened++;
         msGame.mult = result.multiplier !== undefined ? result.multiplier : msCalcStepMult(msGame.opened, msGame.mines);
-        tg?.HapticFeedback?.impactOccurred('light');
+        haptic('impact');
 
         const safeCells = 25 - msGame.mines;
         if (msGame.opened >= safeCells) {
@@ -1295,12 +1478,12 @@ async function msCashout() {
 }
 
 function msCashoutResult(profit) {
-    tg?.HapticFeedback?.notificationOccurred('success');
+    haptic('success');
     currentGame = 'minesweeper';
     document.getElementById('res-emo').textContent = '💎';
     document.getElementById('res-title').textContent = 'Забрано!';
     document.getElementById('res-amt').innerHTML = `Ты выиграл <b style="color:var(--green)">+${fmt(profit)}</b>`;
-    document.getElementById('overlay').classList.add('show');
+    showOverlay();
 }
 
 function msResetUI() {
@@ -1477,7 +1660,7 @@ async function rlDoSpin() {
             currentGame = 'roulette';
             const won = result.won;
             const rc  = result.result_color;
-            tg?.HapticFeedback?.notificationOccurred(won ? 'success' : 'error');
+            haptic(won ? 'success' : 'error');
             document.getElementById('res-emo').textContent   = won ? '🏆' : '💸';
             document.getElementById('res-title').textContent = won ? 'Победа!' : 'Проигрыш';
             if (won) {
@@ -1487,7 +1670,7 @@ async function rlDoSpin() {
                 document.getElementById('res-amt').innerHTML =
                     `Выпало <b>${RL_EMOJI[rc]}</b> — ты потерял <b style="color:var(--red)">-${fmt(bet)}</b>`;
             }
-            document.getElementById('overlay').classList.add('show');
+            showOverlay();
             rlSpinning = false;
             rlSetUILocked(false);
         }
@@ -1723,7 +1906,7 @@ function crHandleCrash(cp, history) {
     crRenderHistory();
     crDrawGraph();
     crUpdateInfoRow();
-    tg?.HapticFeedback?.notificationOccurred('error');
+    haptic('error');
     const btn = document.getElementById('cr-action-btn');
     btn.textContent = 'ПОСТАВИТЬ'; btn.disabled = false; btn.style.background = '';
     crSetControlsLocked(false);
@@ -1733,7 +1916,7 @@ function crHandleCrash(cp, history) {
         document.getElementById('res-title').textContent = 'Краш!';
         document.getElementById('res-amt').innerHTML     =
             `Краш на <b style="color:var(--red)">x${parseFloat(cp).toFixed(2)}</b> — ты потерял <b style="color:var(--red)">-${fmt(crBet)}</b>`;
-        document.getElementById('overlay').classList.add('show');
+        showOverlay();
     }, 500);
 }
 
@@ -1772,13 +1955,13 @@ async function crDoCashout() {
     const btn = document.getElementById('cr-action-btn');
     btn.textContent = 'ПОСТАВИТЬ'; btn.disabled = false; btn.style.background = '';
     crSetControlsLocked(false);
-    tg?.HapticFeedback?.notificationOccurred('success');
+    haptic('success');
     currentGame = 'crash';
     document.getElementById('res-emo').textContent   = '🏆';
     document.getElementById('res-title').textContent = 'Забрано!';
     document.getElementById('res-amt').innerHTML     =
         `Вывод на <b>x${result.mult.toFixed(2)}</b> — ты выиграл <b style="color:var(--green)">+${fmt(result.profit)}</b>`;
-    document.getElementById('overlay').classList.add('show');
+    showOverlay();
 }
 
 async function crStartGame() {
@@ -1859,8 +2042,55 @@ document.getElementById('cr-auto-inp').addEventListener('input', e => {
     crAutoMult = Math.max(1.1, parseFloat(e.target.value) || 2.0);
 });
 
+// ── SETTINGS ──────────────────────────────────────────
+function stApplyTheme(name) {
+    const vars = ST_THEMES[name] || ST_THEMES.dark;
+    for (const [k, v] of Object.entries(vars)) document.documentElement.style.setProperty(k, v);
+}
+
+function stSave(key, val) {
+    stSettings[key] = val;
+    localStorage.setItem('st_' + key, typeof val === 'boolean' ? (val ? '1' : '0') : val);
+}
+
+function stUpdateUI() {
+    document.querySelectorAll('.theme-opt').forEach(el =>
+        el.classList.toggle('sel', el.dataset.theme === stSettings.theme)
+    );
+    [['sw-short-nums','shortNums'],['sw-hide-balance','hideBalance'],
+     ['sw-haptic','haptic'],['sw-auto-close','autoClose']].forEach(([id, key]) => {
+        const row = document.getElementById(id);
+        if (row) row.classList.toggle('on', !!stSettings[key]);
+    });
+}
+
+function stInit() {
+    stUpdateUI();
+
+    document.querySelectorAll('.theme-opt').forEach(el => {
+        el.onclick = () => {
+            stSave('theme', el.dataset.theme);
+            stApplyTheme(el.dataset.theme);
+            stUpdateUI();
+        };
+    });
+
+    [['sw-short-nums','shortNums'],['sw-hide-balance','hideBalance'],
+     ['sw-haptic','haptic'],['sw-auto-close','autoClose']].forEach(([id, key]) => {
+        const row = document.getElementById(id);
+        if (row) row.onclick = () => {
+            stSave(key, !stSettings[key]);
+            stUpdateUI();
+            if (key === 'shortNums' || key === 'hideBalance') setBalance(balance);
+        };
+    });
+
+    document.getElementById('btn-back-st').onclick = () => go('s-main');
+    document.getElementById('btn-settings').onclick = () => { go('s-settings'); stUpdateUI(); };
+}
+
 // ── INIT ──────────────────────────────────────────────
-loadBalance().then(() => drawWheel(arrowAngle, 0.5));
+loadBalance().then(() => { drawWheel(arrowAngle, 0.5); stInit(); });
 </script>
 </body>
 </html>
