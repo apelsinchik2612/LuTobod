@@ -1633,12 +1633,12 @@ async def web_api_case_open(request: aio_web.Request) -> aio_web.Response:
                 break
         result: dict = {'ok': True, 'reward': reward_type}
         if reward_type == 'item':
-            async with db.execute("SELECT id, icon FROM shop_items WHERE name=?", (reward_value,)) as cur:
+            async with db.execute("SELECT id, icon, price FROM shop_items WHERE name=?", (reward_value,)) as cur:
                 item_row = await cur.fetchone()
             if item_row:
                 await db.execute(
                     "INSERT INTO inventory (user_id, item_id, price_paid, bought_at) VALUES (?,?,?,?)",
-                    (user_id, item_row['id'], 0, now_str)
+                    (user_id, item_row['id'], item_row['price'], now_str)
                 )
                 result['item'] = {'name': reward_value, 'icon': item_row['icon']}
             else:
