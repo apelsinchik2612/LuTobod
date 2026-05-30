@@ -921,11 +921,16 @@ function go(id) {
 }
 
 // ── BALANCE ───────────────────────────────────────────
+function fmtSep(x) {
+    return Math.floor(x).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
 function fmt(n) {
-    if (!stSettings.shortNums) return n % 1 === 0 ? n+'₽' : n.toFixed(2)+'₽';
+    const cents = Math.round((n % 1) * 100);
+    const dec   = cents ? '.' + String(cents).padStart(2, '0') : '';
+    if (!stSettings.shortNums) return fmtSep(n) + dec + '₽';
     if (n >= 1e6) return (n/1e6).toFixed(1).replace(/\.0$/,'')+'м₽';
     if (n >= 1e3) return (n/1e3).toFixed(1).replace(/\.0$/,'')+'к₽';
-    return n % 1 === 0 ? n+'₽' : n.toFixed(2)+'₽';
+    return fmtSep(n) + dec + '₽';
 }
 function setBalance(v) {
     balance = v;
