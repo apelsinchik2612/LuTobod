@@ -248,6 +248,27 @@ async def db_init():
         ]:
             await db.execute("UPDATE shop_items SET rent_rate=? WHERE name=?", (rate, name))
 
+        # Стартовая квартира для всех пользователей без квартир в инвентаре
+        async with db.execute(
+            "SELECT id FROM shop_items WHERE name='Комната в общежитии' LIMIT 1"
+        ) as cur:
+            starter = await cur.fetchone()
+        if starter:
+            async with db.execute("""
+                SELECT u.id, u.registered_at FROM users u
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM inventory inv
+                    JOIN shop_items s ON inv.item_id = s.id
+                    WHERE inv.user_id = u.id AND s.category = 'apartments'
+                )
+            """) as cur:
+                users_no_apt = await cur.fetchall()
+            for u in users_no_apt:
+                await db.execute(
+                    "INSERT INTO inventory (user_id, item_id, price_paid, bought_at) VALUES (?, ?, 0, ?)",
+                    (u['id'], starter['id'], u['registered_at'])
+                )
+
         await db.execute(
             "INSERT OR IGNORE INTO promo_codes (code, reward, max_uses) VALUES (?, ?, ?)",
             ("TEST100", 100.0, 10)
