@@ -1080,6 +1080,8 @@ async def cors_middleware(request: aio_web.Request, handler):
         })
     resp = await handler(request)
     resp.headers['Access-Control-Allow-Origin'] = '*'
+    resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
+    resp.headers['Pragma'] = 'no-cache'
     return resp
 
 
