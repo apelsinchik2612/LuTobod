@@ -36,7 +36,9 @@ WEB_URL = "https://lutobot.bothost.tech"
 WEBAPP_DIR = Path(__file__).parent / "webapp"
 # ==================================================
 
-SHOP_TAX = 0.15   # 15% налог при продаже
+SHOP_TAX = 0.15            # 15% налог при продаже
+CHARITY_RATE = 1_000       # руб. за 1 час налоговых льгот
+CHARITY_MAX_HOURS = 720    # макс. накопление — 30 дней
 
 # ─── КЕЙСЫ ────────────────────────────────────────────────────────────────────
 CASE_PRICES: dict[str, int] = {
@@ -204,6 +206,7 @@ async def db_init():
             ("banned",           "INTEGER", "0"),
             ("is_admin",         "INTEGER", "0"),
             ("registered_at",    "TEXT",    "NULL"),
+            ("tax_free_until",   "TEXT",    "NULL"),
         ]:
             try:
                 await db.execute(
@@ -1438,6 +1441,18 @@ async def web_api_events(request: aio_web.Request) -> aio_web.Response:
         return aio_web.json_response({'error': 'Internal error'}, status=500)
 
 
+async def _is_tax_free(user_id: int, db) -> bool:
+    async with db.execute("SELECT tax_free_until FROM users WHERE id=?", (user_id,)) as cur:
+        row = await cur.fetchone()
+    if not row or not row['tax_free_until']:
+        return False
+    try:
+        until = datetime.strptime(row['tax_free_until'], "%Y-%m-%d %H:%M:%S")
+        return datetime.utcnow() < until
+    except Exception:
+        return False
+
+
 async def _award_daily_key(user_id: int, db: aiosqlite.Connection) -> None:
     await db.execute(
         "INSERT INTO case_keys (user_id, case_type, amount) VALUES (?,?,1) "
@@ -1544,13 +1559,14 @@ async def web_api_inventory_sell(request: aio_web.Request) -> aio_web.Response:
                 return aio_web.json_response({'error': 'Сначала остановите аренду'})
         if inv['name'] == 'Комната в общежитии' and inv['price_paid'] == 0:
             return aio_web.json_response({'error': 'Стартовую квартиру нельзя продать'})
-        sell_price = round(inv['price_paid'] * (1 - SHOP_TAX), 2)
+        tax_free = await _is_tax_free(user_id, db)
+        sell_price = round(inv['price_paid'] * (1 - (0 if tax_free else SHOP_TAX)), 2)
         await db.execute("DELETE FROM inventory WHERE id = ?", (inv_id,))
         await db.execute("UPDATE users SET balance = balance + ? WHERE id = ?", (sell_price, user_id))
         await db.commit()
         async with db.execute("SELECT balance FROM users WHERE id = ?", (user_id,)) as cur:
             new_bal = round(float((await cur.fetchone())['balance']), 2)
-    return aio_web.json_response({'ok': True, 'sell_price': sell_price, 'new_balance': new_bal})
+    return aio_web.json_response({'ok': True, 'sell_price': sell_price, 'new_balance': new_bal, 'tax_free': tax_free})
 
 
 async def web_api_rentals(request: aio_web.Request) -> aio_web.Response:
@@ -1657,15 +1673,16 @@ async def web_api_rental_collect(request: aio_web.Request) -> aio_web.Response:
         income = math.floor(calc_rental_income(rental['last_collected'], rental['rate']))
         if income < math.floor(rental['rate']):
             return aio_web.json_response({'error': 'Нельзя собирать раньше чем за 1 час аренды'})
-        utility = math.floor(income * 0.10)
-        net = income if rental['category'] == 'businesses' else income - utility
+        tax_free = await _is_tax_free(user_id, db)
+        utility = 0 if (rental['category'] == 'businesses' or tax_free) else math.floor(income * 0.10)
+        net = income - utility
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         await db.execute("UPDATE users SET balance=balance+? WHERE id=?", (net, user_id))
         await db.execute("UPDATE rentals SET last_collected=? WHERE id=?", (now, rental_id))
         await db.commit()
         async with db.execute("SELECT balance FROM users WHERE id=?", (user_id,)) as cur:
             new_bal = round(float((await cur.fetchone())['balance']), 2)
-    return aio_web.json_response({'ok': True, 'income': income, 'utility': utility, 'net': net, 'new_balance': new_bal})
+    return aio_web.json_response({'ok': True, 'income': income, 'utility': utility, 'net': net, 'new_balance': new_bal, 'tax_free': tax_free})
 
 
 async def web_api_rental_stop(request: aio_web.Request) -> aio_web.Response:
@@ -1690,9 +1707,10 @@ async def web_api_rental_stop(request: aio_web.Request) -> aio_web.Response:
         if not rental:
             return aio_web.json_response({'error': 'Аренда не найдена'})
         income = math.floor(calc_rental_income(rental['last_collected'], rental['rate']))
+        tax_free = await _is_tax_free(user_id, db)
         if income > 0:
-            utility = math.floor(income * 0.10)
-            net = income if rental['category'] == 'businesses' else income - utility
+            utility = 0 if (rental['category'] == 'businesses' or tax_free) else math.floor(income * 0.10)
+            net = income - utility
             await db.execute("UPDATE users SET balance=balance+? WHERE id=?", (net, user_id))
         else:
             utility = 0
@@ -1701,7 +1719,7 @@ async def web_api_rental_stop(request: aio_web.Request) -> aio_web.Response:
         await db.commit()
         async with db.execute("SELECT balance FROM users WHERE id=?", (user_id,)) as cur:
             new_bal = round(float((await cur.fetchone())['balance']), 2)
-    return aio_web.json_response({'ok': True, 'income': income, 'utility': utility, 'net': net, 'new_balance': new_bal})
+    return aio_web.json_response({'ok': True, 'income': income, 'utility': utility, 'net': net, 'new_balance': new_bal, 'tax_free': tax_free})
 
 
 async def web_api_case_status(request: aio_web.Request) -> aio_web.Response:
@@ -1826,6 +1844,114 @@ async def web_api_case_open(request: aio_web.Request) -> aio_web.Response:
     return aio_web.json_response(result)
 
 
+async def web_api_charity_status(request: aio_web.Request) -> aio_web.Response:
+    user_id = validate_init_data(request.query.get('init_data', ''))
+    if not user_id:
+        return aio_web.json_response({'error': 'Unauthorized'}, status=401)
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT tax_free_until FROM users WHERE id=?", (user_id,)) as cur:
+            row = await cur.fetchone()
+    tfu = row['tax_free_until'] if row else None
+    remaining = 0
+    if tfu:
+        try:
+            remaining = max(0, (datetime.strptime(tfu, "%Y-%m-%d %H:%M:%S") - datetime.utcnow()).total_seconds())
+        except Exception:
+            pass
+    return aio_web.json_response({'ok': True, 'tax_free': remaining > 0, 'tax_free_until': tfu, 'remaining_seconds': int(remaining)})
+
+
+async def web_api_charity_donate(request: aio_web.Request) -> aio_web.Response:
+    try:
+        data = await request.json()
+    except Exception:
+        return aio_web.json_response({'error': 'Неверный запрос'}, status=400)
+    user_id = validate_init_data(data.get('init_data', ''))
+    if not user_id:
+        return aio_web.json_response({'error': 'Unauthorized'}, status=401)
+
+    amount  = data.get('amount')
+    inv_id  = data.get('inv_id')
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT balance, tax_free_until FROM users WHERE id=?", (user_id,)) as cur:
+            urow = await cur.fetchone()
+        if not urow:
+            return aio_web.json_response({'error': 'Пользователь не найден'}, status=404)
+
+        donation_value = 0.0
+        item_name = item_icon = None
+
+        if inv_id is not None:
+            try:
+                inv_id = int(inv_id)
+            except (TypeError, ValueError):
+                return aio_web.json_response({'error': 'Неверный предмет'})
+            async with db.execute(
+                "SELECT i.*, s.name, s.icon FROM inventory i JOIN shop_items s ON i.item_id=s.id WHERE i.id=? AND i.user_id=?",
+                (inv_id, user_id)
+            ) as cur:
+                item = await cur.fetchone()
+            if not item:
+                return aio_web.json_response({'error': 'Предмет не найден'})
+            async with db.execute("SELECT 1 FROM rentals WHERE inv_id=?", (inv_id,)) as cur:
+                if await cur.fetchone():
+                    return aio_web.json_response({'error': 'Сначала остановите аренду'})
+            if item['name'] == 'Комната в общежитии' and item['price_paid'] == 0:
+                return aio_web.json_response({'error': 'Стартовую квартиру нельзя пожертвовать'})
+            donation_value = float(item['price_paid'])
+            item_name, item_icon = item['name'], item['icon']
+            await db.execute("DELETE FROM inventory WHERE id=?", (inv_id,))
+        elif amount is not None:
+            try:
+                amount = round(float(amount), 2)
+            except (TypeError, ValueError):
+                return aio_web.json_response({'error': 'Неверная сумма'})
+            if amount < 1:
+                return aio_web.json_response({'error': 'Минимальная сумма 1₽'})
+            if urow['balance'] < amount:
+                return aio_web.json_response({'error': 'Недостаточно средств'})
+            donation_value = amount
+            await db.execute("UPDATE users SET balance=balance-? WHERE id=?", (amount, user_id))
+        else:
+            return aio_web.json_response({'error': 'Укажите сумму или предмет'})
+
+        hours_to_add = int(donation_value // CHARITY_RATE)
+        now = datetime.utcnow()
+        if hours_to_add > 0:
+            base = now
+            if urow['tax_free_until']:
+                try:
+                    b = datetime.strptime(urow['tax_free_until'], "%Y-%m-%d %H:%M:%S")
+                    if b > now:
+                        base = b
+                except Exception:
+                    pass
+            new_until = min(base + timedelta(hours=hours_to_add), now + timedelta(hours=CHARITY_MAX_HOURS))
+            await db.execute("UPDATE users SET tax_free_until=? WHERE id=?",
+                             (new_until.strftime("%Y-%m-%d %H:%M:%S"), user_id))
+        else:
+            new_until = now
+
+        await db.commit()
+        async with db.execute("SELECT balance FROM users WHERE id=?", (user_id,)) as cur:
+            new_bal = round(float((await cur.fetchone())['balance']), 2)
+
+    remaining = max(0, (new_until - now).total_seconds()) if hours_to_add > 0 else 0
+    return aio_web.json_response({
+        'ok': True,
+        'hours_added': hours_to_add,
+        'donation_value': donation_value,
+        'new_balance': new_bal,
+        'item_name': item_name,
+        'item_icon': item_icon,
+        'remaining_seconds': int(remaining),
+        'tax_free': remaining > 0,
+    })
+
+
 def make_web_app() -> aio_web.Application:
     app = aio_web.Application(middlewares=[cors_middleware])
     app.router.add_get('/', web_index)
@@ -1869,6 +1995,10 @@ def make_web_app() -> aio_web.Application:
     app.router.add_post('/api/crash/start',   web_api_crash_start)
     app.router.add_post('/api/crash/cashout', web_api_crash_cashout)
     app.router.add_get ('/api/crash/status',  web_api_crash_status)
+    for path in ('/api/charity/status', '/api/charity/donate'):
+        app.router.add_route('OPTIONS', path, lambda r: aio_web.Response())
+    app.router.add_get ('/api/charity/status', web_api_charity_status)
+    app.router.add_post('/api/charity/donate', web_api_charity_donate)
     return app
 
 
