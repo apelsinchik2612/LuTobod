@@ -193,16 +193,22 @@ input[type=number] { -moz-appearance: textfield; }
     font-size:9px; font-weight:700; padding:1px 6px; border-radius:6px;
     margin-top:2px;
 }
-.cci.rarity-common   { border-color:rgba(63,185,80,.35); }
-.cci.rarity-common   .cci-pct { background:rgba(63,185,80,.15); color:var(--green); }
-.cci.rarity-uncommon { border-color:rgba(88,166,255,.35); }
-.cci.rarity-uncommon .cci-pct { background:rgba(88,166,255,.15); color:var(--accent); }
-.cci.rarity-rare     { border-color:rgba(163,113,247,.4); }
-.cci.rarity-rare     .cci-pct { background:rgba(163,113,247,.15); color:#a371f7; }
-.cci.rarity-legendary{ border-color:rgba(245,158,11,.45); }
-.cci.rarity-legendary .cci-pct { background:rgba(245,158,11,.15); color:#f59e0b; }
-.cci.rarity-nothing  { opacity:.5; }
-.cci.rarity-nothing  .cci-pct { background:var(--surface2); color:var(--text2); }
+.cci.rarity-consumer     { border-color:rgba(176,195,217,.4); }
+.cci.rarity-consumer     .cci-pct { background:rgba(176,195,217,.15); color:#b0c3d9; }
+.cci.rarity-industrial   { border-color:rgba(94,152,217,.4); }
+.cci.rarity-industrial   .cci-pct { background:rgba(94,152,217,.15); color:#5e98d9; }
+.cci.rarity-milspec      { border-color:rgba(75,105,255,.45); }
+.cci.rarity-milspec      .cci-pct { background:rgba(75,105,255,.15); color:#4b69ff; }
+.cci.rarity-restricted   { border-color:rgba(136,71,255,.45); }
+.cci.rarity-restricted   .cci-pct { background:rgba(136,71,255,.15); color:#8847ff; }
+.cci.rarity-classified   { border-color:rgba(211,44,230,.45); }
+.cci.rarity-classified   .cci-pct { background:rgba(211,44,230,.15); color:#d32ce6; }
+.cci.rarity-covert       { border-color:rgba(235,75,75,.5); }
+.cci.rarity-covert       .cci-pct { background:rgba(235,75,75,.15); color:#eb4b4b; }
+.cci.rarity-extraordinary{ border-color:rgba(228,174,57,.55); }
+.cci.rarity-extraordinary .cci-pct { background:rgba(228,174,57,.15); color:#e4ae39; }
+.cci.rarity-nothing      { opacity:.5; }
+.cci.rarity-nothing      .cci-pct { background:var(--surface2); color:var(--text2); }
 
 /* === CASE RESULT MODAL === */
 .case-modal-bg {
@@ -839,11 +845,14 @@ input[type=number] { -moz-appearance: textfield; }
     line-height: 1.3; color: var(--text2);
     word-break: break-word; padding: 0 2px;
 }
-.spin-item.rarity-common    { border-color: rgba(63,185,80,.5); }
-.spin-item.rarity-uncommon  { border-color: rgba(88,166,255,.5); }
-.spin-item.rarity-rare      { border-color: rgba(163,113,247,.55); }
-.spin-item.rarity-legendary { border-color: rgba(245,158,11,.65); background: rgba(245,158,11,.05); }
-.spin-item.rarity-nothing   { opacity: .55; }
+.spin-item.rarity-consumer     { border-color: rgba(176,195,217,.5); }
+.spin-item.rarity-industrial   { border-color: rgba(94,152,217,.5); }
+.spin-item.rarity-milspec      { border-color: rgba(75,105,255,.55); }
+.spin-item.rarity-restricted   { border-color: rgba(136,71,255,.55); }
+.spin-item.rarity-classified   { border-color: rgba(211,44,230,.55); }
+.spin-item.rarity-covert       { border-color: rgba(235,75,75,.6); background: rgba(235,75,75,.04); }
+.spin-item.rarity-extraordinary{ border-color: rgba(228,174,57,.7); background: rgba(228,174,57,.06); }
+.spin-item.rarity-nothing      { opacity: .55; }
 .spin-item.spin-win-glow {
     border-color: var(--green) !important;
     background: rgba(63,185,80,.12) !important;
@@ -2009,6 +2018,24 @@ function showOverlay() {
     }
 }
 
+// ── RARITY SYSTEM ────────────────────────────────────
+const RARITY_CLASSES = ['rarity-consumer','rarity-industrial','rarity-milspec','rarity-restricted','rarity-classified','rarity-covert','rarity-extraordinary'];
+const RARITY_NAMES   = ['Ширпотреб','Промышленное качество','Армейское качество','Запрещённое','Засекреченное','Тайное','Чрезвычайно редкое'];
+
+function _buildRarityMap(items) {
+    const allZeroPrice = items.every(i => !(i.price > 0));
+    const sorted = allZeroPrice
+        ? [...items].sort((a, b) => b.w - a.w)
+        : [...items].sort((a, b) => (a.price || 0) - (b.price || 0));
+    const n = sorted.length;
+    const map = new Map();
+    sorted.forEach((item, idx) => {
+        const tier = n <= 1 ? 6 : Math.min(6, Math.floor(idx / n * 7));
+        map.set(item.name, RARITY_CLASSES[tier]);
+    });
+    return map;
+}
+
 // ── CASES ─────────────────────────────────────────────
 let caseStatus = { daily_available: true, daily_next_at: null, keys: {cars:0,apartments:0,houses:0,tech:0,phones:0,jewelry:0,daily:0} };
 let caseOpening = false;
@@ -2227,27 +2254,26 @@ function _renderCaseContents(type) {
     const data  = CASE_LOOT_FE[type];
     if (!data) { grid.innerHTML = ''; return; }
 
-    const all = [
-        ...data.items,
-        { name: 'Ничего', icon: '💨', price: 0, w: data.nothingW, isNothing: true },
-    ];
-    const totalW = all.reduce((s, i) => s + i.w, 0);
+    const nothing = { name: 'Ничего', icon: '💨', price: 0, w: data.nothingW, isNothing: true };
+    const items = data.items;
+    const rarityMap = _buildRarityMap(items);
+    const totalW = items.reduce((s, i) => s + i.w, 0) + data.nothingW;
 
-    grid.innerHTML = all.map(item => {
-        const pct = (item.w / totalW * 100).toFixed(1);
-        let rc = 'rarity-nothing';
-        if (!item.isNothing) {
-            if (pct >= 15) rc = 'rarity-common';
-            else if (pct >= 5) rc = 'rarity-uncommon';
-            else if (pct >= 1) rc = 'rarity-rare';
-            else rc = 'rarity-legendary';
-        }
+    const allZeroPrice = items.every(i => !(i.price > 0));
+    const sorted = allZeroPrice
+        ? [...items].sort((a, b) => a.w - b.w)
+        : [...items].sort((a, b) => (b.price || 0) - (a.price || 0));
+
+    grid.innerHTML = [...sorted, nothing].map(item => {
+        const rc = item.isNothing ? 'rarity-nothing' : (rarityMap.get(item.name) || 'rarity-consumer');
+        const rIdx = RARITY_CLASSES.indexOf(rc);
+        const label = item.isNothing ? 'Ничего' : (RARITY_NAMES[rIdx] || '');
         const priceStr = (!item.isNothing && !item.isKey && item.price > 0) ? `<div class="cci-price">${fmt(item.price)}</div>` : '';
         return `<div class="cci ${rc}">
             <div class="cci-ico">${item.icon}</div>
             <div class="cci-name">${item.name}</div>
             ${priceStr}
-            <div class="cci-pct">${pct}%</div>
+            <div class="cci-pct">${label}</div>
         </div>`;
     }).join('');
 }
@@ -2343,13 +2369,9 @@ const SPIN_W = 110, SPIN_G = 8, SPIN_STEP = 118;
 const SPIN_TOTAL = 60, SPIN_WINNER_IDX = 50;
 let _caseOpenDoneCb = null;
 
-function _spinRarity(item, totalW) {
+function _spinRarity(item, rarityMap) {
     if (item.isNothing) return 'rarity-nothing';
-    const p = item.w / totalW * 100;
-    if (p >= 15) return 'rarity-common';
-    if (p >= 5)  return 'rarity-uncommon';
-    if (p >= 1)  return 'rarity-rare';
-    return 'rarity-legendary';
+    return rarityMap.get(item.name) || 'rarity-consumer';
 }
 
 function _spinPickRandom(all, totalW) {
@@ -2381,6 +2403,7 @@ function startCaseSpin(type, result, onDone) {
 
     const allItems = [...data.items, { name: 'Ничего', icon: '💨', price: 0, w: data.nothingW, isNothing: true }];
     const totalW = allItems.reduce((s, i) => s + i.w, 0);
+    const rarityMap = _buildRarityMap(data.items);
     const winner = _spinWinnerItem(type, result);
 
     const strip = [];
@@ -2391,7 +2414,7 @@ function startCaseSpin(type, result, onDone) {
     const track = document.getElementById('spin-track');
     track.style.transition = 'none';
     track.innerHTML = strip.map((item, i) => {
-        const rc = _spinRarity(item, totalW);
+        const rc = _spinRarity(item, rarityMap);
         return `<div class="spin-item ${rc}" data-si="${i}">
             <div class="spin-item-ico">${item.icon}</div>
             <div class="spin-item-name">${item.name}</div>
