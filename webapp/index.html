@@ -3789,11 +3789,13 @@ function charityRenderPage(statusData) {
     }
 
     html += `<div class="charity-tiers">
-        <div class="sec-label" style="padding:0 0 8px;font-size:11px;">💡 1 000₽ = 1 час льгот · макс. 30 дней</div>
-        <div class="charity-tier-row"><span>10 000₽</span><span>10 часов</span></div>
-        <div class="charity-tier-row"><span>24 000₽</span><span>1 день</span></div>
-        <div class="charity-tier-row"><span>120 000₽</span><span>5 дней</span></div>
-        <div class="charity-tier-row"><span>720 000₽</span><span>30 дней (макс)</span></div>
+        <div class="sec-label" style="padding:0 0 8px;font-size:11px;">💡 300 000₽ = 1 час льгот · макс. 30 дней</div>
+        <div class="charity-tier-row"><span>300 000₽</span><span>1 час</span></div>
+        <div class="charity-tier-row"><span>1 500 000₽</span><span>5 часов</span></div>
+        <div class="charity-tier-row"><span>3 000 000₽</span><span>10 часов</span></div>
+        <div class="charity-tier-row"><span>7 200 000₽</span><span>1 день</span></div>
+        <div class="charity-tier-row"><span>36 000 000₽</span><span>5 дней</span></div>
+        <div class="charity-tier-row"><span>216 000 000₽</span><span>30 дней (макс)</span></div>
         ${active ? '<div class="charity-tier-note">⏱ Время суммируется с текущим</div>' : ''}
     </div>`;
 
@@ -3839,7 +3841,7 @@ async function charityLoadItems() {
         const items = (d.items || []).filter(i => !i.is_rented && !(i.name === 'Комната в общежитии' && i.price_paid === 0));
         if (!items.length) { el.innerHTML = '<div class="sh-empty">Нет предметов для пожертвования</div>'; return; }
         el.innerHTML = items.map(i => {
-            const hrs = Math.floor(i.price_paid / 1000);
+            const hrs = Math.floor(i.price_paid / 300000);
             return `<div class="charity-item">
                 <div class="charity-item-ico">${i.icon}</div>
                 <div class="charity-item-info">
