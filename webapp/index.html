@@ -3838,7 +3838,7 @@ async function charityLoadItems() {
     try {
         const r = await fetch(bustUrl(API_BASE + '/api/inventory?init_data=' + encodeURIComponent(initData)));
         const d = await r.json();
-        const items = (d.items || []).filter(i => !i.is_rented && !(i.name === 'Комната в общежитии' && i.price_paid === 0));
+        const items = (d.items || []).filter(i => !i.is_rented && !(i.name === 'Комната в общежитии' && i.price_paid === 0) && i.price_paid >= 300000);
         if (!items.length) { el.innerHTML = '<div class="sh-empty">Нет предметов для пожертвования</div>'; return; }
         el.innerHTML = items.map(i => {
             const hrs = Math.floor(i.price_paid / 300000);
