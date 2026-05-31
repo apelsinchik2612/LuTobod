@@ -123,7 +123,7 @@ CASE_LOOT: dict[str, list] = {
         ('balance', 5_000_000, 2),
     ],
     'tech': [
-        ('nothing', None, 400),
+        ('nothing', None, 150),
         ('item', 'Мышь Logitech G102', 250),
         ('item', 'Клавиатура HyperX', 150),
         ('item', 'ОЗУ 32GB DDR5', 70),
@@ -427,8 +427,10 @@ async def db_init():
             ('Комната в общежитии', 20_000), ('Студия', 35_000),
             ('1-комнатная', 50_000), ('2-комнатная', 65_000),
             ('3-комнатная', 80_000), ('Пентхаус', 100_000),
-            ('Ларёк с шаурмой', 3_500), ('Автомойка', 4_000),
+            ('Ларёк с шаурмой', 16_667), ('Автомойка', 100_000),
             ('Частное казино', 500_000), ('Нефтяная компания в океане', 3_500_000),
+            ('Дача', 15_000), ('Загородный дом', 30_000),
+            ('Коттедж', 60_000), ('Особняк', 120_000), ('Вилла на Рублёвке', 300_000),
         ]:
             await db.execute("UPDATE shop_items SET rent_rate=? WHERE name=?", (rate, name))
 
@@ -930,6 +932,7 @@ async def web_api_upgrade(request: aio_web.Request) -> aio_web.Response:
                 "INSERT INTO transactions (type, to_id, amount, created_at) VALUES (?,?,?,?)",
                 ("upgrade_lose", user_id, bet, now_str),
             )
+            await _award_daily_key(user_id, db)
         await db.execute(
             "INSERT INTO game_history (user_id, won, bet, profit, mult, created_at) VALUES (?,?,?,?,?,?)",
             (user_id, 1 if won else 0, bet, profit, multiplier, now_str)
@@ -941,6 +944,7 @@ async def web_api_upgrade(request: aio_web.Request) -> aio_web.Response:
         'won': won,
         'profit': profit,
         'new_balance': round(float(updated['balance']), 2),
+        'daily_key_awarded': not won,
     })
 
 
@@ -1060,6 +1064,7 @@ async def web_api_ms_open(request: aio_web.Request) -> aio_web.Response:
                 "INSERT INTO game_history (user_id, won, bet, profit, mult, created_at) VALUES (?,?,?,?,?,?)",
                 (user_id, 0, session['bet'], 0.0, 0.0, now_str)
             )
+            await _award_daily_key(user_id, db)
             await db.commit()
         mine_list = list(session['mine_positions'])
         del ms_sessions[session_id]
@@ -1068,6 +1073,7 @@ async def web_api_ms_open(request: aio_web.Request) -> aio_web.Response:
             'is_mine': True,
             'mine_positions': mine_list,
             'new_balance': round(float(user['balance']), 2) if user else 0,
+            'daily_key_awarded': True,
         })
     else:
         session['opened'].append(cell)
@@ -1361,6 +1367,8 @@ async def web_api_roulette(request: aio_web.Request) -> aio_web.Response:
             "INSERT INTO game_history (user_id, won, bet, profit, mult, created_at) VALUES (?,?,?,?,?,?)",
             (user_id, 1 if won else 0, bet, profit, multiplier, now_str)
         )
+        if not won:
+            await _award_daily_key(user_id, db)
         await db.commit()
 
     return aio_web.json_response({
@@ -1369,6 +1377,7 @@ async def web_api_roulette(request: aio_web.Request) -> aio_web.Response:
         'result_color': result_color,
         'segment_idx': segment_idx,
         'new_balance': new_balance,
+        'daily_key_awarded': not won,
     })
 
 
@@ -1424,6 +1433,14 @@ async def web_api_events(request: aio_web.Request) -> aio_web.Response:
     except Exception:
         logging.exception("web_api_events crashed")
         return aio_web.json_response({'error': 'Internal error'}, status=500)
+
+
+async def _award_daily_key(user_id: int, db: aiosqlite.Connection) -> None:
+    await db.execute(
+        "INSERT INTO case_keys (user_id, case_type, amount) VALUES (?,?,1) "
+        "ON CONFLICT(user_id, case_type) DO UPDATE SET amount=amount+1",
+        (user_id, 'daily')
+    )
 
 
 def calc_rental_income(last_collected: str, rate: float) -> float:
@@ -1540,21 +1557,39 @@ async def web_api_rentals(request: aio_web.Request) -> aio_web.Response:
     cat = request.query.get('cat', 'apartments')
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        async with db.execute(
-            """SELECT r.id, r.inv_id, r.rate, r.last_collected,
-                      s.name, s.icon, s.category
-               FROM rentals r JOIN shop_items s ON r.item_id = s.id
-               WHERE r.user_id = ? AND s.category=?""", (user_id, cat)
-        ) as cur:
-            rentals = [dict(r) for r in await cur.fetchall()]
-        async with db.execute(
-            """SELECT i.id, s.name, s.icon, s.rent_rate, s.category
-               FROM inventory i JOIN shop_items s ON i.item_id = s.id
-               WHERE i.user_id = ? AND s.category=? AND s.rent_rate > 0
-                 AND i.id NOT IN (SELECT inv_id FROM rentals WHERE user_id = ?)""",
-            (user_id, cat, user_id)
-        ) as cur:
-            available = [dict(r) for r in await cur.fetchall()]
+        if cat == 'realty':
+            async with db.execute(
+                """SELECT r.id, r.inv_id, r.rate, r.last_collected,
+                          s.name, s.icon, s.category
+                   FROM rentals r JOIN shop_items s ON r.item_id = s.id
+                   WHERE r.user_id = ? AND s.category IN ('apartments','houses')""",
+                (user_id,)
+            ) as cur:
+                rentals = [dict(r) for r in await cur.fetchall()]
+            async with db.execute(
+                """SELECT i.id, s.name, s.icon, s.rent_rate, s.category
+                   FROM inventory i JOIN shop_items s ON i.item_id = s.id
+                   WHERE i.user_id = ? AND s.category IN ('apartments','houses') AND s.rent_rate > 0
+                     AND i.id NOT IN (SELECT inv_id FROM rentals WHERE user_id = ?)""",
+                (user_id, user_id)
+            ) as cur:
+                available = [dict(r) for r in await cur.fetchall()]
+        else:
+            async with db.execute(
+                """SELECT r.id, r.inv_id, r.rate, r.last_collected,
+                          s.name, s.icon, s.category
+                   FROM rentals r JOIN shop_items s ON r.item_id = s.id
+                   WHERE r.user_id = ? AND s.category=?""", (user_id, cat)
+            ) as cur:
+                rentals = [dict(r) for r in await cur.fetchall()]
+            async with db.execute(
+                """SELECT i.id, s.name, s.icon, s.rent_rate, s.category
+                   FROM inventory i JOIN shop_items s ON i.item_id = s.id
+                   WHERE i.user_id = ? AND s.category=? AND s.rent_rate > 0
+                     AND i.id NOT IN (SELECT inv_id FROM rentals WHERE user_id = ?)""",
+                (user_id, cat, user_id)
+            ) as cur:
+                available = [dict(r) for r in await cur.fetchall()]
     for r in rentals:
         r['accumulated'] = math.floor(calc_rental_income(r['last_collected'], r['rate']))
     return aio_web.json_response({'rentals': rentals, 'available': available})
@@ -1685,7 +1720,7 @@ async def web_api_case_status(request: aio_web.Request) -> aio_web.Response:
                     daily_next_at = (last + timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
             except Exception:
                 pass
-        keys = {'cars': 0, 'apartments': 0, 'houses': 0, 'tech': 0, 'phones': 0, 'jewelry': 0}
+        keys = {'cars': 0, 'apartments': 0, 'houses': 0, 'tech': 0, 'phones': 0, 'jewelry': 0, 'daily': 0}
         async with db.execute("SELECT case_type, amount FROM case_keys WHERE user_id=?", (user_id,)) as cur:
             async for r in cur:
                 if r['case_type'] in keys:
@@ -1716,14 +1751,25 @@ async def web_api_case_open(request: aio_web.Request) -> aio_web.Response:
         price = CASE_PRICES[case_type]
         now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         if case_type == 'daily':
+            daily_blocked = False
             if daily_at:
                 try:
                     last = datetime.strptime(daily_at, "%Y-%m-%d %H:%M:%S")
                     if (datetime.utcnow() - last).total_seconds() < 86400:
-                        return aio_web.json_response({'error': 'Подождите 24 часа'}, status=400)
+                        daily_blocked = True
                 except Exception:
                     pass
-            await db.execute("UPDATE users SET daily_case_at=? WHERE id=?", (now_str, user_id))
+            if daily_blocked:
+                if use_key:
+                    async with db.execute("SELECT amount FROM case_keys WHERE user_id=? AND case_type='daily'", (user_id,)) as cur:
+                        dk = await cur.fetchone()
+                    if not dk or dk['amount'] < 1:
+                        return aio_web.json_response({'error': 'Нет ключа на ежедневный кейс'}, status=400)
+                    await db.execute("UPDATE case_keys SET amount=amount-1 WHERE user_id=? AND case_type='daily'", (user_id,))
+                else:
+                    return aio_web.json_response({'error': 'Подождите 24 часа'}, status=400)
+            else:
+                await db.execute("UPDATE users SET daily_case_at=? WHERE id=?", (now_str, user_id))
         elif use_key:
             async with db.execute("SELECT amount FROM case_keys WHERE user_id=? AND case_type=?", (user_id, case_type)) as cur:
                 key_row = await cur.fetchone()
@@ -1746,6 +1792,9 @@ async def web_api_case_open(request: aio_web.Request) -> aio_web.Response:
                 reward_type, reward_value = rtype, rval
                 break
         result: dict = {'ok': True, 'reward': reward_type}
+        if reward_type == 'nothing' and case_type != 'daily':
+            await _award_daily_key(user_id, db)
+            result['daily_key_awarded'] = True
         if reward_type == 'item':
             async with db.execute("SELECT id, icon, price FROM shop_items WHERE name=?", (reward_value,)) as cur:
                 item_row = await cur.fetchone()
