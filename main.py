@@ -932,7 +932,8 @@ async def web_api_upgrade(request: aio_web.Request) -> aio_web.Response:
                 "INSERT INTO transactions (type, to_id, amount, created_at) VALUES (?,?,?,?)",
                 ("upgrade_lose", user_id, bet, now_str),
             )
-            await _award_daily_key(user_id, db)
+            if bet >= 20_000:
+                await _award_daily_key(user_id, db)
         await db.execute(
             "INSERT INTO game_history (user_id, won, bet, profit, mult, created_at) VALUES (?,?,?,?,?,?)",
             (user_id, 1 if won else 0, bet, profit, multiplier, now_str)
@@ -944,7 +945,7 @@ async def web_api_upgrade(request: aio_web.Request) -> aio_web.Response:
         'won': won,
         'profit': profit,
         'new_balance': round(float(updated['balance']), 2),
-        'daily_key_awarded': not won,
+        'daily_key_awarded': not won and bet >= 20_000,
     })
 
 
@@ -1064,16 +1065,18 @@ async def web_api_ms_open(request: aio_web.Request) -> aio_web.Response:
                 "INSERT INTO game_history (user_id, won, bet, profit, mult, created_at) VALUES (?,?,?,?,?,?)",
                 (user_id, 0, session['bet'], 0.0, 0.0, now_str)
             )
-            await _award_daily_key(user_id, db)
+            if session['bet'] >= 20_000:
+                await _award_daily_key(user_id, db)
             await db.commit()
         mine_list = list(session['mine_positions'])
+        key_awarded = session['bet'] >= 20_000
         del ms_sessions[session_id]
         user = await get_user(user_id)
         return aio_web.json_response({
             'is_mine': True,
             'mine_positions': mine_list,
             'new_balance': round(float(user['balance']), 2) if user else 0,
-            'daily_key_awarded': True,
+            'daily_key_awarded': key_awarded,
         })
     else:
         session['opened'].append(cell)
@@ -1367,7 +1370,7 @@ async def web_api_roulette(request: aio_web.Request) -> aio_web.Response:
             "INSERT INTO game_history (user_id, won, bet, profit, mult, created_at) VALUES (?,?,?,?,?,?)",
             (user_id, 1 if won else 0, bet, profit, multiplier, now_str)
         )
-        if not won:
+        if not won and bet >= 20_000:
             await _award_daily_key(user_id, db)
         await db.commit()
 
@@ -1377,7 +1380,7 @@ async def web_api_roulette(request: aio_web.Request) -> aio_web.Response:
         'result_color': result_color,
         'segment_idx': segment_idx,
         'new_balance': new_balance,
-        'daily_key_awarded': not won,
+        'daily_key_awarded': not won and bet >= 20_000,
     })
 
 
@@ -1792,7 +1795,7 @@ async def web_api_case_open(request: aio_web.Request) -> aio_web.Response:
                 reward_type, reward_value = rtype, rval
                 break
         result: dict = {'ok': True, 'reward': reward_type}
-        if reward_type == 'nothing' and case_type != 'daily':
+        if reward_type == 'nothing' and case_type != 'daily' and not use_key:
             await _award_daily_key(user_id, db)
             result['daily_key_awarded'] = True
         if reward_type == 'item':
