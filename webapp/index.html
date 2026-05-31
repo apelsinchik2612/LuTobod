@@ -3121,7 +3121,7 @@ document.getElementById('cr-auto-inp').addEventListener('input', e => {
 // ── MARKET ────────────────────────────────────────────
 document.getElementById('btn-market').onclick  = () => { go('s-market'); setBalance(balance); };
 document.getElementById('btn-back-market').onclick = () => go('s-main');
-document.getElementById('btn-to-shop').onclick = () => { go('s-shop'); setBalance(balance); if (!shopItems.length) shopLoad(); };
+document.getElementById('btn-to-shop').onclick = () => { shopItems = []; go('s-shop'); setBalance(balance); shopLoad(); };
 document.getElementById('btn-to-inv').onclick  = () => { go('s-inv'); invLoad(); };
 document.getElementById('btn-to-sell').onclick = () => { go('s-sell'); setBalance(balance); sellLoad(); };
 document.getElementById('btn-to-jobs').onclick = () => { go('s-jobs'); jobsLoad(); };
@@ -3153,8 +3153,11 @@ function shopRender() {
     if (!items.length) { el.innerHTML = '<div class="sh-empty">Нет товаров</div>'; return; }
     const grad = SHOP_CAT_GRAD[shopCat] || 'sh-item-img-tech';
     el.innerHTML = items.map(i => {
-        const imgContent = i.image_url
-            ? `<img src="${i.image_url}" alt="${i.name}">`
+        const imgSrc = i.image_url
+            ? (i.image_url.startsWith('http') ? i.image_url : API_BASE + i.image_url)
+            : null;
+        const imgContent = imgSrc
+            ? `<img src="${imgSrc}" alt="${i.name}" onerror="this.parentNode.innerHTML='<span>${i.icon}</span>'">`
             : `<span>${i.icon}</span>`;
         return `
         <div class="sh-item" data-item-id="${i.id}">
