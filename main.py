@@ -271,6 +271,24 @@ async def db_init():
             await db.execute("ALTER TABLE shop_items ADD COLUMN rent_rate REAL DEFAULT 0")
         except Exception:
             pass
+        # Добавляем image_url в shop_items если ещё нет
+        try:
+            await db.execute("ALTER TABLE shop_items ADD COLUMN image_url TEXT DEFAULT NULL")
+        except Exception:
+            pass
+        # Проставляем пути к картинкам для машин
+        _car_images = {
+            "ВАЗ 2107":             "/images/ВАЗ_2107.jpg",
+            "Lada Vesta":           "/images/Lada Vesta.jpg",
+            "Toyota Camry":         "/images/Toyota_Camry.jpg",
+            "BMW 5 Series":         "/images/BMW_5_Series.jpg",
+            "Mercedes S-Class":     "/images/Mersedes_S-Class.jpg",
+            "Porsche 911":          "/images/Porsche_911.jpg",
+            "Lamborghini Huracán":  "/images/Lamborghini_Huracan.jpg",
+            "Bugatti Chiron":       "/images/Bugatti_Chiron.jpg",
+        }
+        for name, url in _car_images.items():
+            await db.execute("UPDATE shop_items SET image_url=? WHERE name=?", (url, name))
         # Добавляем daily_case_at в users если ещё нет
         try:
             await db.execute("ALTER TABLE users ADD COLUMN daily_case_at TEXT DEFAULT NULL")
@@ -1331,7 +1349,7 @@ async def web_api_shop(request: aio_web.Request) -> aio_web.Response:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
-            "SELECT id,category,name,description,price,icon FROM shop_items ORDER BY category,price"
+            "SELECT id,category,name,description,price,icon,image_url FROM shop_items ORDER BY category,price"
         ) as cur:
             items = [dict(r) for r in await cur.fetchall()]
     return aio_web.json_response({'items': items})
@@ -1661,6 +1679,7 @@ def make_web_app() -> aio_web.Application:
     app = aio_web.Application(middlewares=[cors_middleware])
     app.router.add_get('/', web_index)
     app.router.add_get('/api/ping', web_api_ping)
+    app.router.add_static('/images', 'images')
     app.router.add_route('OPTIONS', '/api/user', lambda r: aio_web.Response())
     app.router.add_route('OPTIONS', '/api/upgrade', lambda r: aio_web.Response())
     app.router.add_get('/api/user', web_api_user)
