@@ -427,7 +427,7 @@ async def db_init():
             ('Комната в общежитии', 20_000), ('Студия', 35_000),
             ('1-комнатная', 50_000), ('2-комнатная', 65_000),
             ('3-комнатная', 80_000), ('Пентхаус', 100_000),
-            ('Ларёк с шаурмой', 350), ('Автомойка', 4_000),
+            ('Ларёк с шаурмой', 3_500), ('Автомойка', 4_000),
             ('Частное казино', 500_000), ('Нефтяная компания в океане', 3_500_000),
         ]:
             await db.execute("UPDATE shop_items SET rent_rate=? WHERE name=?", (rate, name))
@@ -1609,7 +1609,10 @@ async def web_api_rental_collect(request: aio_web.Request) -> aio_web.Response:
         return aio_web.json_response({'error': 'Неверные данные'})
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT * FROM rentals WHERE id=? AND user_id=?", (rental_id, user_id)) as cur:
+        async with db.execute(
+            "SELECT r.*, s.category FROM rentals r JOIN shop_items s ON r.item_id=s.id WHERE r.id=? AND r.user_id=?",
+            (rental_id, user_id)
+        ) as cur:
             rental = await cur.fetchone()
         if not rental:
             return aio_web.json_response({'error': 'Аренда не найдена'})
@@ -1617,7 +1620,7 @@ async def web_api_rental_collect(request: aio_web.Request) -> aio_web.Response:
         if income < math.floor(rental['rate']):
             return aio_web.json_response({'error': 'Нельзя собирать раньше чем за 1 час аренды'})
         utility = math.floor(income * 0.10)
-        net = income - utility
+        net = income if rental['category'] == 'businesses' else income - utility
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         await db.execute("UPDATE users SET balance=balance+? WHERE id=?", (net, user_id))
         await db.execute("UPDATE rentals SET last_collected=? WHERE id=?", (now, rental_id))
@@ -1641,14 +1644,17 @@ async def web_api_rental_stop(request: aio_web.Request) -> aio_web.Response:
         return aio_web.json_response({'error': 'Неверные данные'})
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT * FROM rentals WHERE id=? AND user_id=?", (rental_id, user_id)) as cur:
+        async with db.execute(
+            "SELECT r.*, s.category FROM rentals r JOIN shop_items s ON r.item_id=s.id WHERE r.id=? AND r.user_id=?",
+            (rental_id, user_id)
+        ) as cur:
             rental = await cur.fetchone()
         if not rental:
             return aio_web.json_response({'error': 'Аренда не найдена'})
         income = math.floor(calc_rental_income(rental['last_collected'], rental['rate']))
         if income > 0:
             utility = math.floor(income * 0.10)
-            net = income - utility
+            net = income if rental['category'] == 'businesses' else income - utility
             await db.execute("UPDATE users SET balance=balance+? WHERE id=?", (net, user_id))
         else:
             utility = 0
