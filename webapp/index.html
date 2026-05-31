@@ -3877,7 +3877,7 @@ async function charityDonateBalance() {
         inp.value = '';
         haptic('success');
         if (d.hours_added > 0) notify('🛡', 'Пожертвование принято!', '+' + d.hours_added + ' ч льгот');
-        else notify('💝', 'Спасибо!', 'Нужно от 1 000₽ для льгот');
+        else notify('💝', 'Спасибо!', 'Нужно от 300 000₽ для льгот');
         charityRemaining = d.remaining_seconds || 0;
         charityRenderPage({tax_free: d.tax_free});
     } catch { toast('Ошибка сервера'); }
