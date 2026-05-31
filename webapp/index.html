@@ -1356,7 +1356,7 @@ input[type=number] { -moz-appearance: textfield; }
         <div class="bal-chip">💰 <span id="bal-jobs-hub">...</span></div>
     </div>
     <div class="main-body">
-        <button class="menu-btn primary" id="btn-to-rental"><span class="ico">🏠</span>Аренда квартир</button>
+        <button class="menu-btn primary" id="btn-to-rental"><span class="ico">🏠</span>Аренда недвижимости</button>
         <button class="menu-btn" id="btn-to-businesses"><span class="ico">🏢</span>Бизнесы</button>
     </div>
 </div>
@@ -1379,7 +1379,7 @@ input[type=number] { -moz-appearance: textfield; }
         <button class="back-btn" id="btn-back-jobs">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>Назад
         </button>
-        <span class="hdr-title">Аренда квартир</span>
+        <span class="hdr-title">Аренда недвижимости</span>
         <div style="width:60px"></div>
     </div>
     <div class="sh-list" id="jobs-list"><div class="sh-empty">Загрузка…</div></div>
@@ -1854,7 +1854,7 @@ async function doSpin() {
             arrowAngle = startAngle + totalDelta;
             drawWheel(arrowAngle, wc);
             applyNewBalance(result.new_balance);
-            showResult(won, bet, result.profit, mult);
+            showResult(won, bet, result.profit, mult, result.daily_key_awarded);
             spinning = false;
             document.getElementById('spin-btn').disabled = false;
             setUILocked(false);
@@ -1863,7 +1863,7 @@ async function doSpin() {
     raf = requestAnimationFrame(frame);
 }
 
-function showResult(won, bet, profit, m) {
+function showResult(won, bet, profit, m, dailyKeyAwarded) {
     document.getElementById('res-emo').textContent = won ? '🏆' : '💸';
     document.getElementById('res-title').textContent = won ? 'Победа!' : 'Проигрыш';
     if (won) {
@@ -1874,6 +1874,11 @@ function showResult(won, bet, profit, m) {
     showOverlay();
     haptic(won ? 'success' : 'error');
     if (won && stSettings.notifyWin) notify('💰', 'Победа!', '+' + fmt(profit));
+    if (dailyKeyAwarded) {
+        caseStatus.keys = caseStatus.keys || {};
+        caseStatus.keys.daily = (caseStatus.keys.daily || 0) + 1;
+        setTimeout(() => notify('🔑', 'Бесплатный ключ!', 'Ключ на ежедневный кейс'), 600);
+    }
 }
 
 // ── TOAST ─────────────────────────────────────────────
@@ -1946,7 +1951,7 @@ function showOverlay() {
 }
 
 // ── CASES ─────────────────────────────────────────────
-let caseStatus = { daily_available: true, daily_next_at: null, keys: {cars:0,apartments:0,houses:0,tech:0,phones:0,jewelry:0} };
+let caseStatus = { daily_available: true, daily_next_at: null, keys: {cars:0,apartments:0,houses:0,tech:0,phones:0,jewelry:0,daily:0} };
 let caseOpening = false;
 let currentCaseType = null;
 
@@ -1987,7 +1992,7 @@ const CASE_LOOT_FE = {
         { name: 'Особняк',          icon: '🏰', price: 65000000,  w: 25  },
         { name: 'Вилла на Рублёвке', icon: '👑', price: 250000000, w: 5   },
     ]},
-    tech: { nothingW: 400, items: [
+    tech: { nothingW: 150, items: [
         { name: 'Мышь Logitech G102',    icon: '🖱',  price: 2500,   w: 250 },
         { name: 'Клавиатура HyperX',     icon: '⌨',  price: 5500,   w: 150 },
         { name: 'ОЗУ 32GB DDR5',         icon: '💾', price: 18000,  w: 70  },
@@ -2070,10 +2075,16 @@ function renderCases() {
     const dailyCard  = document.getElementById('case-card-daily');
     const dailyBadge = document.getElementById('case-price-daily');
     const dailyCd    = document.getElementById('case-cd-daily');
+    const dailyKeys  = (caseStatus.keys || {}).daily || 0;
     if (caseStatus.daily_available) {
         dailyBadge.textContent = 'Бесплатно';
         dailyBadge.className = 'case-price-badge free';
-        dailyCd.textContent = '';
+        dailyCd.textContent = dailyKeys > 0 ? '🔑 ×' + dailyKeys + ' в запасе' : '';
+        dailyCard.classList.remove('case-disabled');
+    } else if (dailyKeys > 0) {
+        dailyBadge.textContent = '🔑 Открыть ключом ×' + dailyKeys;
+        dailyBadge.className = 'case-price-badge free';
+        dailyCd.textContent = formatCaseCd(caseStatus.daily_next_at) || '';
         dailyCard.classList.remove('case-disabled');
     } else {
         dailyBadge.textContent = 'Использован';
@@ -2120,10 +2131,16 @@ function _renderCaseDetail(type) {
     const openBtn = document.getElementById('case-open-btn');
 
     if (type === 'daily') {
+        const dailyKeys = (caseStatus.keys || {}).daily || 0;
         if (caseStatus.daily_available) {
             priceEl.textContent = 'Бесплатно';
             priceEl.className = 'case-hero-price';
             openIco.textContent = '🎁'; openTxt.textContent = 'Открыть бесплатно';
+            openBtn.disabled = false;
+        } else if (dailyKeys > 0) {
+            priceEl.textContent = '🔑 Есть ключ ×' + dailyKeys;
+            priceEl.className = 'case-hero-price has-key';
+            openIco.textContent = '🔑'; openTxt.textContent = 'Открыть ключом (×' + dailyKeys + ')';
             openBtn.disabled = false;
         } else {
             priceEl.textContent = formatCaseCd(caseStatus.daily_next_at) || 'Уже открыт сегодня';
@@ -2184,9 +2201,12 @@ async function doOpenCase() {
     await loadCaseStatus();
 
     const info    = CASE_INFO[type];
-    const hasKey  = type !== 'daily' && ((caseStatus.keys || {})[type] || 0) > 0;
+    const dailyKeys = (caseStatus.keys || {}).daily || 0;
+    const hasKey  = type === 'daily'
+        ? (!caseStatus.daily_available && dailyKeys > 0)
+        : ((caseStatus.keys || {})[type] || 0) > 0;
 
-    if (type === 'daily' && !caseStatus.daily_available) {
+    if (type === 'daily' && !caseStatus.daily_available && dailyKeys === 0) {
         notify('⏳', 'Кейс уже открыт', formatCaseCd(caseStatus.daily_next_at));
         _renderCaseDetail(type);
         return;
@@ -2235,6 +2255,11 @@ function showCaseResult(d) {
     let emo, title, sub;
     if (d.reward === 'nothing') {
         emo = '💨'; title = 'Ничего...'; sub = 'В следующий раз повезёт!'; haptic('error');
+        if (d.daily_key_awarded) {
+            caseStatus.keys = caseStatus.keys || {};
+            caseStatus.keys.daily = (caseStatus.keys.daily || 0) + 1;
+            setTimeout(() => notify('🔑', 'Бесплатный ключ!', 'Ключ на ежедневный кейс'), 700);
+        }
     } else if (d.reward === 'item') {
         emo = d.item.icon; title = d.item.name; sub = '🎉 Добавлено в инвентарь!'; haptic('success');
     } else if (d.reward === 'key') {
@@ -2596,6 +2621,11 @@ async function msOpenCell(idx) {
         msRenderGrid();
         applyNewBalance(result.new_balance);
         haptic('error');
+        if (result.daily_key_awarded) {
+            caseStatus.keys = caseStatus.keys || {};
+            caseStatus.keys.daily = (caseStatus.keys.daily || 0) + 1;
+            setTimeout(() => notify('🔑', 'Бесплатный ключ!', 'Ключ на ежедневный кейс'), 700);
+        }
         setTimeout(() => {
             currentGame = 'minesweeper';
             document.getElementById('res-emo').textContent = '💣';
@@ -2844,6 +2874,11 @@ async function rlDoSpin() {
             const rc  = result.result_color;
             haptic(won ? 'success' : 'error');
             if (won && stSettings.notifyWin) notify('🎡', 'Победа!', '+' + fmt(result.profit));
+            if (result.daily_key_awarded) {
+                caseStatus.keys = caseStatus.keys || {};
+                caseStatus.keys.daily = (caseStatus.keys.daily || 0) + 1;
+                setTimeout(() => notify('🔑', 'Бесплатный ключ!', 'Ключ на ежедневный кейс'), 600);
+            }
             document.getElementById('res-emo').textContent   = won ? '🏆' : '💸';
             document.getElementById('res-title').textContent = won ? 'Победа!' : 'Проигрыш';
             if (won) {
@@ -3259,7 +3294,7 @@ async function shopLoad() {
 }
 
 const SHOP_CAT_GRAD = { cars:'sh-item-img-cars', apartments:'sh-item-img-apartments', houses:'sh-item-img-houses', tech:'sh-item-img-tech', phones:'sh-item-img-phones', jewelry:'sh-item-img-jewelry', businesses:'sh-item-img-businesses' };
-const SHOP_CAT_HINT = { cars:'Добавится в инвентарь. Можно сдать в аренду.', apartments:'Добавится в инвентарь. Приносит доход от аренды.', houses:'Добавится в инвентарь. Приносит доход от аренды.', tech:'Добавится в инвентарь.', phones:'Добавится в инвентарь.', jewelry:'Добавится в инвентарь.', businesses:'Добавится в инвентарь. Запусти в разделе Бизнесы для пассивного дохода.' };
+const SHOP_CAT_HINT = { cars:'Добавится в инвентарь. Можно сдать в аренду.', apartments:'Добавится в инвентарь. Приносит доход от аренды.', houses:'Добавится в инвентарь. Можно сдавать в аренду! Раздел Работы → Аренда недвижимости.', tech:'Добавится в инвентарь.', phones:'Добавится в инвентарь.', jewelry:'Добавится в инвентарь.', businesses:'Добавится в инвентарь. Запусти в разделе Бизнесы для пассивного дохода.' };
 
 function shopRender() {
     const items = shopItems.filter(i => i.category === shopCat);
@@ -3478,7 +3513,7 @@ function startRentTicker() {
 async function jobsLoad() {
     document.getElementById('jobs-list').innerHTML = '<div class="sh-empty">Загрузка…</div>';
     try {
-        const r = await fetch(bustUrl(API_BASE+'/api/rentals?init_data='+encodeURIComponent(initData)));
+        const r = await fetch(bustUrl(API_BASE+'/api/rentals?cat=realty&init_data='+encodeURIComponent(initData)));
         const d = await r.json();
         jobsRender(d.rentals||[], d.available||[]);
         startRentTicker();
@@ -3501,10 +3536,10 @@ function jobsRender(rentals, available) {
                     </div>
                     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
                         <div class="job-earned" id="jearned-${r.id}">Накоплено: <b>${fmt(r.accumulated)}</b></div>
-                        <button class="job-collect-btn" id="jbtn-${r.id}" data-rental-id="${r.id}" data-cat="apartments" ${r.accumulated<r.rate?'disabled':''}>Собрать</button>
+                        <button class="job-collect-btn" id="jbtn-${r.id}" data-rental-id="${r.id}" data-cat="realty" ${r.accumulated<r.rate?'disabled':''}>Собрать</button>
                     </div>
                 </div>
-                <button class="job-stop-btn" data-rental-id="${r.id}" data-cat="apartments" data-name="${r.name}" data-icon="${r.icon}">Остановить аренду</button>
+                <button class="job-stop-btn" data-rental-id="${r.id}" data-cat="realty" data-name="${r.name}" data-icon="${r.icon}">Остановить аренду</button>
             </div>`).join('');
     }
     if (available.length) {
@@ -3516,11 +3551,11 @@ function jobsRender(rentals, available) {
                     <div class="job-name">${a.name}</div>
                     <div class="job-rate">+${fmt(a.rent_rate)}/час</div>
                 </div>
-                <button class="job-rent-btn" data-inv-id="${a.id}" data-cat="apartments" data-name="${a.name}" data-icon="${a.icon}">Сдать</button>
+                <button class="job-rent-btn" data-inv-id="${a.id}" data-cat="realty" data-name="${a.name}" data-icon="${a.icon}">Сдать</button>
             </div>`).join('');
     }
     if (!rentals.length && !available.length)
-        html = '<div class="sh-empty">Нет квартир для аренды.<br>Купите квартиру в Магазине!</div>';
+        html = '<div class="sh-empty">Нет недвижимости для аренды.<br>Купите квартиру или дом в Магазине!</div>';
     el.innerHTML = html;
     el.querySelectorAll('.job-collect-btn').forEach(b => b.onclick = () => rentCollect(b));
     el.querySelectorAll('.job-stop-btn').forEach(b => b.onclick = () => rentStop(b));
