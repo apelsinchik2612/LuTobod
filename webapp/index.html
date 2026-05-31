@@ -874,6 +874,49 @@ input[type=number] { -moz-appearance: textfield; }
 .ntf-sub { font-size: 12px; color: var(--text2); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ntf-prog { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: var(--surface2); }
 .ntf-bar { height: 100%; background: var(--accent); width: 100%; }
+
+/* === CHARITY === */
+.charity-status {
+    border-radius: 14px; padding: 16px;
+    display: flex; align-items: center; gap: 14px; border: 1px solid;
+}
+.charity-status.active  { background: rgba(63,185,80,.1); border-color: rgba(63,185,80,.35); }
+.charity-status.inactive{ background: var(--surface); border-color: var(--border); }
+.charity-status-ico { font-size: 34px; flex-shrink: 0; line-height: 1; }
+.charity-status-info { flex: 1; min-width: 0; }
+.charity-status-title { font-size: 15px; font-weight: 800; }
+.charity-status.active .charity-status-title { color: var(--green); }
+.charity-status-timer { font-size: 22px; font-weight: 900; color: var(--green); margin: 3px 0 2px; }
+.charity-status-desc { font-size: 11px; color: var(--text2); }
+.charity-tiers {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 14px;
+}
+.charity-tier-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px;
+}
+.charity-tier-row:last-of-type { border-bottom: none; }
+.charity-tier-row span:first-child { font-weight: 700; color: var(--green); }
+.charity-tier-note { font-size: 11px; color: var(--text2); text-align: center; margin-top: 8px; }
+.charity-inp-row { display: flex; gap: 10px; align-items: center; }
+.charity-item {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 12px 14px;
+}
+.charity-item-ico { font-size: 26px; flex-shrink: 0; width: 40px; text-align: center; }
+.charity-item-info { flex: 1; min-width: 0; }
+.charity-item-name { font-size: 14px; font-weight: 700; }
+.charity-item-meta { font-size: 11px; color: var(--text2); margin-top: 2px; }
+.charity-item-btn {
+    padding: 5px 12px; border-radius: 8px; flex-shrink: 0;
+    border: 1px solid transparent; background: var(--surface2); color: var(--text);
+    font-size: 12px; font-weight: 700; cursor: pointer; transition: all .15s;
+}
+.charity-item-btn:hover:not(:disabled) { border-color: var(--accent); }
+.charity-item-btn:active { opacity: .75; }
+.charity-item-btn:disabled { opacity: .4; cursor: not-allowed; }
 </style>
 </head>
 <body>
@@ -1288,6 +1331,7 @@ input[type=number] { -moz-appearance: textfield; }
         <button class="menu-btn" id="btn-to-inv"><span class="ico">📦</span>Инвентарь</button>
         <button class="menu-btn" id="btn-to-sell"><span class="ico">💸</span>Продажа</button>
         <button class="menu-btn" id="btn-to-jobs"><span class="ico">💼</span>Работы</button>
+        <button class="menu-btn" id="btn-to-charity"><span class="ico">💝</span>Благотворительность</button>
     </div>
 </div>
 
@@ -1383,6 +1427,20 @@ input[type=number] { -moz-appearance: textfield; }
         <div style="width:60px"></div>
     </div>
     <div class="sh-list" id="jobs-list"><div class="sh-empty">Загрузка…</div></div>
+</div>
+
+<!-- CHARITY -->
+<div id="s-charity" class="screen">
+    <div class="hdr">
+        <button class="back-btn" id="btn-back-charity">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>Назад
+        </button>
+        <span class="hdr-title">Благотворительность</span>
+        <div class="bal-chip">💰 <span id="bal-charity">...</span></div>
+    </div>
+    <div class="sh-list" id="charity-body">
+        <div class="sh-empty">Загрузка…</div>
+    </div>
 </div>
 
 <!-- SETTINGS -->
@@ -1598,6 +1656,7 @@ function setBalance(v) {
     document.getElementById('bal-market').textContent = t;
     document.getElementById('bal-jobs-hub').textContent = t;
     document.getElementById('bal-businesses').textContent = t;
+    document.getElementById('bal-charity').textContent = t;
     document.getElementById('bal-shop').textContent = t;
     document.getElementById('bal-sell').textContent = t;
     syncSlider();
@@ -3270,6 +3329,8 @@ document.getElementById('btn-to-shop').onclick = () => { shopItems = []; go('s-s
 document.getElementById('btn-to-inv').onclick  = () => { go('s-inv'); invLoad(); };
 document.getElementById('btn-to-sell').onclick = () => { go('s-sell'); setBalance(balance); sellLoad(); };
 document.getElementById('btn-to-jobs').onclick        = () => { go('s-jobs-hub'); setBalance(balance); };
+document.getElementById('btn-to-charity').onclick     = () => { go('s-charity'); setBalance(balance); charityLoad(); };
+document.getElementById('btn-back-charity').onclick   = () => { if (charityTimerInterval) { clearInterval(charityTimerInterval); charityTimerInterval = null; } go('s-market'); };
 document.getElementById('btn-back-jobs-hub').onclick  = () => go('s-market');
 document.getElementById('btn-to-rental').onclick      = () => { go('s-jobs'); jobsLoad(); };
 document.getElementById('btn-to-businesses').onclick  = () => { go('s-businesses'); setBalance(balance); bizLoad(); };
@@ -3483,7 +3544,7 @@ async function doSell(btn) {
         if (d.error) { toast(d.error); btn.disabled=false; btn.textContent='Продать'; return; }
         applyNewBalance(d.new_balance);
         haptic('success');
-        notify('💸', 'Продано!', btn.dataset.icon+' '+btn.dataset.name+' · +'+fmt(d.sell_price));
+        notify('💸', 'Продано!', btn.dataset.icon+' '+btn.dataset.name+' · +'+fmt(d.sell_price)+(d.tax_free?' · без налога':''));
         invItems = []; // сбросить кэш инвентаря
         sellItems = sellItems.filter(i => i.id !== parseInt(btn.dataset.invId));
         sellRender();
@@ -3596,7 +3657,8 @@ async function rentCollect(btn) {
         haptic('success');
         const label = cat === 'businesses' ? 'Доход получен!' : 'Аренда получена!';
         const tax   = cat === 'businesses' ? 'налоги' : 'ЖКХ';
-        notify('💰', label, `+${fmt(d.income)} − ${fmt(d.utility)} ${tax} = ${fmt(d.net)}`);
+        const taxStr = d.tax_free && cat !== 'businesses' ? '(без ЖКХ 🛡)' : `− ${fmt(d.utility)} ${tax}`;
+        notify('💰', label, `+${fmt(d.income)} ${taxStr} = ${fmt(d.net)}`);
         _reloadByCat(cat);
     } catch { toast('Ошибка сервера'); btn.disabled=false; }
 }
@@ -3615,9 +3677,10 @@ async function rentStop(btn) {
         haptic('success');
         const stopLabel = cat === 'businesses' ? 'Бизнес закрыт' : 'Аренда остановлена';
         const tax = cat === 'businesses' ? 'налоги' : 'ЖКХ';
+        const stopTaxStr = d.tax_free && cat !== 'businesses' ? '(без ЖКХ 🛡)' : `− ${fmt(d.utility)} ${tax}`;
         notify(d.income>0 ? '💰' : (cat==='businesses'?'🏢':'🏠'),
                d.income>0 ? stopLabel : btn.dataset.icon+' '+btn.dataset.name,
-               d.income>0 ? `+${fmt(d.income)} − ${fmt(d.utility)} ${tax} = ${fmt(d.net)}` : 'Завершено');
+               d.income>0 ? `+${fmt(d.income)} ${stopTaxStr} = ${fmt(d.net)}` : 'Завершено');
         invItems=[]; sellItems=[];
         _reloadByCat(cat);
     } catch { toast('Ошибка сервера'); btn.disabled=false; }
@@ -3674,6 +3737,168 @@ function bizRender(rentals, available) {
     el.querySelectorAll('.job-collect-btn').forEach(b => b.onclick = () => rentCollect(b));
     el.querySelectorAll('.job-stop-btn').forEach(b => b.onclick = () => rentStop(b));
     el.querySelectorAll('.job-rent-btn').forEach(b => b.onclick = () => rentStart(b));
+}
+
+// ── CHARITY ───────────────────────────────────────────
+let charityTimerInterval = null;
+let charityRemaining = 0;
+
+function charityFmtTime(sec) {
+    if (sec <= 0) return '0м';
+    const d = Math.floor(sec / 86400);
+    const h = Math.floor((sec % 86400) / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const parts = [];
+    if (d > 0) parts.push(d + 'д');
+    if (h > 0 || d > 0) parts.push(h + 'ч');
+    parts.push(m + 'м');
+    return parts.join(' ');
+}
+
+async function charityLoad() {
+    document.getElementById('charity-body').innerHTML = '<div class="sh-empty">Загрузка…</div>';
+    try {
+        const r = await fetch(bustUrl(API_BASE + '/api/charity/status?init_data=' + encodeURIComponent(initData)));
+        const d = await r.json();
+        if (d.ok) { charityRemaining = d.remaining_seconds || 0; charityRenderPage(d); }
+    } catch { document.getElementById('charity-body').innerHTML = '<div class="sh-empty">Нет соединения</div>'; }
+}
+
+function charityRenderPage(statusData) {
+    const body = document.getElementById('charity-body');
+    const active = statusData.tax_free && charityRemaining > 0;
+    let html = '';
+
+    if (active) {
+        html += `<div class="charity-status active">
+            <div class="charity-status-ico">🛡</div>
+            <div class="charity-status-info">
+                <div class="charity-status-title">Льготы активны!</div>
+                <div class="charity-status-timer" id="charity-timer">${charityFmtTime(charityRemaining)}</div>
+                <div class="charity-status-desc">Продажа без налога −15% · Аренда без ЖКХ −10%</div>
+            </div>
+        </div>`;
+    } else {
+        html += `<div class="charity-status inactive">
+            <div class="charity-status-ico">💔</div>
+            <div class="charity-status-info">
+                <div class="charity-status-title">Льготы не активны</div>
+                <div class="charity-status-desc">Пожертвуйте — и налоги исчезнут на время</div>
+            </div>
+        </div>`;
+    }
+
+    html += `<div class="charity-tiers">
+        <div class="sec-label" style="padding:0 0 8px;font-size:11px;">💡 1 000₽ = 1 час льгот · макс. 30 дней</div>
+        <div class="charity-tier-row"><span>10 000₽</span><span>10 часов</span></div>
+        <div class="charity-tier-row"><span>24 000₽</span><span>1 день</span></div>
+        <div class="charity-tier-row"><span>120 000₽</span><span>5 дней</span></div>
+        <div class="charity-tier-row"><span>720 000₽</span><span>30 дней (макс)</span></div>
+        ${active ? '<div class="charity-tier-note">⏱ Время суммируется с текущим</div>' : ''}
+    </div>`;
+
+    html += `<div class="sec-label" style="padding:14px 0 8px;">💸 Пожертвовать деньги</div>
+    <div class="charity-inp-row">
+        <div class="inp-wrap" style="flex:1;">
+            <input type="number" id="charity-inp" class="inp" placeholder="Сумма" min="1" step="1">
+            <span class="inp-sfx">₽</span>
+        </div>
+        <button id="charity-money-btn" class="spin-btn" style="width:auto;padding:11px 18px;font-size:14px;flex-shrink:0;">Пожертвовать</button>
+    </div>`;
+
+    html += `<div class="sec-label" style="padding:14px 0 8px;">🎁 Пожертвовать предмет</div>
+    <div id="charity-items"><div class="sh-empty">Загрузка…</div></div>`;
+
+    body.innerHTML = html;
+    document.getElementById('charity-money-btn').onclick = charityDonateBalance;
+
+    if (charityTimerInterval) { clearInterval(charityTimerInterval); charityTimerInterval = null; }
+    if (active) {
+        charityTimerInterval = setInterval(() => {
+            charityRemaining = Math.max(0, charityRemaining - 1);
+            const el = document.getElementById('charity-timer');
+            if (!el) { clearInterval(charityTimerInterval); charityTimerInterval = null; return; }
+            if (charityRemaining <= 0) {
+                clearInterval(charityTimerInterval); charityTimerInterval = null;
+                charityLoad();
+            } else {
+                el.textContent = charityFmtTime(charityRemaining);
+            }
+        }, 1000);
+    }
+
+    charityLoadItems();
+}
+
+async function charityLoadItems() {
+    const el = document.getElementById('charity-items');
+    if (!el) return;
+    try {
+        const r = await fetch(bustUrl(API_BASE + '/api/inventory?init_data=' + encodeURIComponent(initData)));
+        const d = await r.json();
+        const items = (d.items || []).filter(i => !i.is_rented && !(i.name === 'Комната в общежитии' && i.price_paid === 0));
+        if (!items.length) { el.innerHTML = '<div class="sh-empty">Нет предметов для пожертвования</div>'; return; }
+        el.innerHTML = items.map(i => {
+            const hrs = Math.floor(i.price_paid / 1000);
+            return `<div class="charity-item">
+                <div class="charity-item-ico">${i.icon}</div>
+                <div class="charity-item-info">
+                    <div class="charity-item-name">${i.name}</div>
+                    <div class="charity-item-meta">Ценность ${fmt(i.price_paid)}${hrs > 0 ? ' · +' + hrs + ' ч льгот' : ' · слишком дешёво'}</div>
+                </div>
+                <button class="charity-item-btn"
+                    data-inv-id="${i.id}" data-name="${i.name}" data-icon="${i.icon}">
+                    Пожертвовать
+                </button>
+            </div>`;
+        }).join('');
+        el.querySelectorAll('.charity-item-btn').forEach(btn => btn.onclick = () => charityDonateItem(btn));
+    } catch { el.innerHTML = '<div class="sh-empty">Ошибка загрузки</div>'; }
+}
+
+async function charityDonateBalance() {
+    const inp = document.getElementById('charity-inp');
+    const amount = parseFloat(inp.value);
+    if (!amount || amount < 1) { toast('Введите сумму пожертвования'); return; }
+    if (amount > balance) { toast('Недостаточно средств'); return; }
+    const btn = document.getElementById('charity-money-btn');
+    btn.disabled = true; btn.textContent = '…';
+    try {
+        const r = await fetch(API_BASE + '/api/charity/donate', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({init_data: initData, amount})
+        });
+        const d = await r.json();
+        if (!d.ok) { toast(d.error || 'Ошибка'); btn.disabled = false; btn.textContent = 'Пожертвовать'; return; }
+        applyNewBalance(d.new_balance);
+        invItems = []; sellItems = [];
+        inp.value = '';
+        haptic('success');
+        if (d.hours_added > 0) notify('🛡', 'Пожертвование принято!', '+' + d.hours_added + ' ч льгот');
+        else notify('💝', 'Спасибо!', 'Нужно от 1 000₽ для льгот');
+        charityRemaining = d.remaining_seconds || 0;
+        charityRenderPage({tax_free: d.tax_free});
+    } catch { toast('Ошибка сервера'); }
+    btn.disabled = false; btn.textContent = 'Пожертвовать';
+}
+
+async function charityDonateItem(btn) {
+    btn.disabled = true; btn.textContent = '…';
+    try {
+        const r = await fetch(API_BASE + '/api/charity/donate', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({init_data: initData, inv_id: parseInt(btn.dataset.invId)})
+        });
+        const d = await r.json();
+        if (!d.ok) { toast(d.error || 'Ошибка'); btn.disabled = false; btn.textContent = 'Пожертвовать'; return; }
+        applyNewBalance(d.new_balance);
+        invItems = []; sellItems = [];
+        haptic('success');
+        if (d.hours_added > 0) notify('🛡', btn.dataset.icon + ' ' + btn.dataset.name, '+' + d.hours_added + ' ч льгот');
+        else notify('💝', 'Пожертвование принято', 'Ценность предмета < 1 000₽');
+        charityRemaining = d.remaining_seconds || 0;
+        charityRenderPage({tax_free: d.tax_free});
+    } catch { toast('Ошибка сервера'); btn.disabled = false; btn.textContent = 'Пожертвовать'; }
 }
 
 // ── SETTINGS ──────────────────────────────────────────
