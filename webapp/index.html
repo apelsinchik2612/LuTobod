@@ -727,6 +727,7 @@ input[type=number] { -moz-appearance: textfield; }
 .sh-item-img-tech        { background:linear-gradient(135deg,#0d1e2e,#0a1a26); }
 .sh-item-img-phones      { background:linear-gradient(135deg,#1a0d2e,#2a1050); }
 .sh-item-img-jewelry     { background:linear-gradient(135deg,#2e1a00,#4a2c00); }
+.sh-item-img-businesses  { background:linear-gradient(135deg,#0d2e1a,#103818); }
 .sh-item-expand-details {
     display:grid; grid-template-columns:1fr 1fr; gap:6px;
 }
@@ -1311,6 +1312,7 @@ input[type=number] { -moz-appearance: textfield; }
                 <button class="sh-tab" data-cat="tech">💻 Техника</button>
                 <button class="sh-tab" data-cat="phones">📱 Телефоны</button>
                 <button class="sh-tab" data-cat="jewelry">💎 Ювелирка</button>
+                <button class="sh-tab" data-cat="businesses">🏢 Бизнесы</button>
             </div>
             <button class="sh-scroll-btn sh-scroll-right sh-btn-visible" id="sh-scroll-right" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
@@ -1344,13 +1346,40 @@ input[type=number] { -moz-appearance: textfield; }
     <div class="sh-list" id="sell-list"><div class="sh-empty">Загрузка…</div></div>
 </div>
 
+<!-- JOBS HUB -->
+<div id="s-jobs-hub" class="screen">
+    <div class="hdr">
+        <button class="back-btn" id="btn-back-jobs-hub">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>Назад
+        </button>
+        <span class="hdr-title">Работы</span>
+        <div class="bal-chip">💰 <span id="bal-jobs-hub">...</span></div>
+    </div>
+    <div class="main-body">
+        <button class="menu-btn primary" id="btn-to-rental"><span class="ico">🏠</span>Аренда квартир</button>
+        <button class="menu-btn" id="btn-to-businesses"><span class="ico">🏢</span>Бизнесы</button>
+    </div>
+</div>
+
+<!-- BUSINESSES -->
+<div id="s-businesses" class="screen">
+    <div class="hdr">
+        <button class="back-btn" id="btn-back-businesses">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>Назад
+        </button>
+        <span class="hdr-title">Бизнесы</span>
+        <div class="bal-chip">💰 <span id="bal-businesses">...</span></div>
+    </div>
+    <div class="sh-list" id="biz-list"><div class="sh-empty">Загрузка…</div></div>
+</div>
+
 <!-- JOBS -->
 <div id="s-jobs" class="screen">
     <div class="hdr">
         <button class="back-btn" id="btn-back-jobs">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>Назад
         </button>
-        <span class="hdr-title">Работы</span>
+        <span class="hdr-title">Аренда квартир</span>
         <div style="width:60px"></div>
     </div>
     <div class="sh-list" id="jobs-list"><div class="sh-empty">Загрузка…</div></div>
@@ -1567,6 +1596,8 @@ function setBalance(v) {
     document.getElementById('bal-rl').textContent = t;
     document.getElementById('bal-cr').textContent = t;
     document.getElementById('bal-market').textContent = t;
+    document.getElementById('bal-jobs-hub').textContent = t;
+    document.getElementById('bal-businesses').textContent = t;
     document.getElementById('bal-shop').textContent = t;
     document.getElementById('bal-sell').textContent = t;
     syncSlider();
@@ -1931,7 +1962,7 @@ const CASE_INFO = {
 };
 
 const CASE_LOOT_FE = {
-    cars: { nothingW: 450, items: [
+    cars: { nothingW: 70, items: [
         { name: 'ВАЗ 2107',              icon: '🚗', price: 120000,    w: 200 },
         { name: 'Lada Vesta',            icon: '🚙', price: 850000,    w: 100 },
         { name: 'Toyota Camry',          icon: '🚘', price: 2400000,   w: 50  },
@@ -1941,7 +1972,7 @@ const CASE_LOOT_FE = {
         { name: 'Lamborghini Huracán',   icon: '⚡', price: 35000000,  w: 1   },
         { name: 'Bugatti Chiron',        icon: '👑', price: 200000000, w: 1   },
     ]},
-    apartments: { nothingW: 400, items: [
+    apartments: { nothingW: 100, items: [
         { name: 'Комната в общежитии', icon: '🏠', price: 800000,   w: 350 },
         { name: 'Студия',              icon: '🏡', price: 3500000,  w: 150 },
         { name: '1-комнатная',         icon: '🏠', price: 6000000,  w: 60  },
@@ -1949,7 +1980,7 @@ const CASE_LOOT_FE = {
         { name: '3-комнатная',         icon: '🏰', price: 18000000, w: 10  },
         { name: 'Пентхаус',            icon: '🌆', price: 75000000, w: 5   },
     ]},
-    houses: { nothingW: 400, items: [
+    houses: { nothingW: 100, items: [
         { name: 'Дача',              icon: '🌿', price: 1500000,   w: 350 },
         { name: 'Загородный дом',    icon: '🏡', price: 7000000,   w: 150 },
         { name: 'Коттедж',          icon: '🏘', price: 18000000,  w: 70  },
@@ -1970,17 +2001,27 @@ const CASE_LOOT_FE = {
         { name: 'Игровой ПК (топ)',      icon: '💎', price: 500000, w: 1   },
         { name: 'RTX 4090',             icon: '🔥', price: 180000, w: 1   },
     ]},
-    phones: { nothingW: 400, items: [
-        { name: 'Xiaomi Redmi 13C',          icon: '📱', price: 12000,  w: 250 },
-        { name: 'Samsung Galaxy A15',        icon: '📲', price: 20000,  w: 180 },
-        { name: 'Vivo Y28',                  icon: '📱', price: 25000,  w: 120 },
-        { name: 'Samsung Galaxy S24',        icon: '📲', price: 80000,  w: 50  },
-        { name: 'iPhone 15',                 icon: '📱', price: 90000,  w: 30  },
-        { name: 'iPhone 15 Pro',             icon: '🍎', price: 130000, w: 15  },
-        { name: 'Samsung Galaxy S24 Ultra',  icon: '💫', price: 150000, w: 8   },
+    phones: { nothingW: 150, items: [
+        { name: 'Xiaomi Redmi 13C',          icon: '📱', price: 12000,  w: 200 },
+        { name: 'Samsung Galaxy A15',        icon: '📲', price: 20000,  w: 150 },
+        { name: 'Xiaomi Redmi Note 14',      icon: '📱', price: 22000,  w: 130 },
+        { name: 'Vivo Y28',                  icon: '📱', price: 25000,  w: 100 },
+        { name: 'Samsung Galaxy A55',        icon: '📲', price: 40000,  w: 70  },
+        { name: 'Vivo V40',                  icon: '📱', price: 45000,  w: 60  },
+        { name: 'Samsung Galaxy S24',        icon: '📲', price: 80000,  w: 40  },
+        { name: 'Vivo X200',                 icon: '📱', price: 90000,  w: 25  },
+        { name: 'iPhone 15',                 icon: '📱', price: 90000,  w: 20  },
+        { name: 'iPhone 16',                 icon: '📱', price: 100000, w: 15  },
+        { name: 'Xiaomi 15',                 icon: '📱', price: 110000, w: 12  },
+        { name: 'iPhone 15 Pro',             icon: '🍎', price: 130000, w: 10  },
+        { name: 'Samsung Galaxy S25',        icon: '📲', price: 100000, w: 8   },
+        { name: 'Samsung Galaxy S24 Ultra',  icon: '💫', price: 150000, w: 6   },
+        { name: 'iPhone 16 Pro',             icon: '🍎', price: 150000, w: 5   },
+        { name: 'Samsung Galaxy S25 Ultra',  icon: '💫', price: 180000, w: 4   },
         { name: 'iPhone 15 Pro Max',         icon: '👑', price: 165000, w: 3   },
+        { name: 'iPhone 16 Pro Max',         icon: '👑', price: 190000, w: 2   },
     ]},
-    jewelry: { nothingW: 400, items: [
+    jewelry: { nothingW: 100, items: [
         { name: 'Серебряная цепочка',        icon: '⛓', price: 4500,    w: 300 },
         { name: 'Золотое кольцо',            icon: '💍', price: 28000,   w: 150 },
         { name: 'Часы Seiko Presage',        icon: '⌚', price: 45000,   w: 50  },
@@ -1990,7 +2031,7 @@ const CASE_LOOT_FE = {
         { name: 'Бриллиантовое колье',       icon: '👑', price: 500000,  w: 8   },
         { name: 'Часы Patek Philippe',       icon: '💎', price: 8000000, w: 2   },
     ]},
-    balance: { nothingW: 400, items: [
+    balance: { nothingW: 100, items: [
         { name: '15 000₽',      icon: '💵', price: 15000,    w: 300, isBalance: true },
         { name: '50 000₽',      icon: '💵', price: 50000,    w: 150, isBalance: true },
         { name: '100 000₽',     icon: '💰', price: 100000,   w: 80,  isBalance: true },
@@ -1999,7 +2040,7 @@ const CASE_LOOT_FE = {
         { name: '1 000 000₽',   icon: '🤑', price: 1000000,  w: 8,   isBalance: true },
         { name: '5 000 000₽',   icon: '👑', price: 5000000,  w: 2,   isBalance: true },
     ]},
-    daily: { nothingW: 330, items: [
+    daily: { nothingW: 120, items: [
         { name: 'Ключ: Кейс с техникой',     icon: '🔑', price: 0, w: 250, isKey: true },
         { name: 'Ключ: Кейс с машинами',     icon: '🔑', price: 0, w: 170, isKey: true },
         { name: 'Ключ: Кейс с телефонами',   icon: '🔑', price: 0, w: 100, isKey: true },
@@ -3193,14 +3234,18 @@ document.getElementById('btn-back-market').onclick = () => go('s-main');
 document.getElementById('btn-to-shop').onclick = () => { shopItems = []; go('s-shop'); setBalance(balance); shopLoad(); };
 document.getElementById('btn-to-inv').onclick  = () => { go('s-inv'); invLoad(); };
 document.getElementById('btn-to-sell').onclick = () => { go('s-sell'); setBalance(balance); sellLoad(); };
-document.getElementById('btn-to-jobs').onclick = () => { go('s-jobs'); jobsLoad(); };
-document.getElementById('btn-back-shop').onclick = () => go('s-market');
-document.getElementById('btn-back-inv').onclick  = () => go('s-market');
-document.getElementById('btn-back-sell').onclick = () => go('s-market');
-document.getElementById('btn-back-jobs').onclick = () => { clearInterval(rentTickerId); rentTickerId = null; go('s-market'); };
+document.getElementById('btn-to-jobs').onclick        = () => { go('s-jobs-hub'); setBalance(balance); };
+document.getElementById('btn-back-jobs-hub').onclick  = () => go('s-market');
+document.getElementById('btn-to-rental').onclick      = () => { go('s-jobs'); jobsLoad(); };
+document.getElementById('btn-to-businesses').onclick  = () => { go('s-businesses'); setBalance(balance); bizLoad(); };
+document.getElementById('btn-back-businesses').onclick = () => { clearInterval(rentTickerId); rentTickerId = null; go('s-jobs-hub'); };
+document.getElementById('btn-back-shop').onclick      = () => go('s-market');
+document.getElementById('btn-back-inv').onclick       = () => go('s-market');
+document.getElementById('btn-back-sell').onclick      = () => go('s-market');
+document.getElementById('btn-back-jobs').onclick      = () => { clearInterval(rentTickerId); rentTickerId = null; go('s-jobs-hub'); };
 
 // ── SHOP ──────────────────────────────────────────────
-const CAT_LABELS = { cars:'🚗 Машины', apartments:'🏠 Квартиры', houses:'🏡 Дома', tech:'💻 Техника', phones:'📱 Телефоны', jewelry:'💎 Ювелирка' };
+const CAT_LABELS = { cars:'🚗 Машины', apartments:'🏠 Квартиры', houses:'🏡 Дома', tech:'💻 Техника', phones:'📱 Телефоны', jewelry:'💎 Ювелирка', businesses:'🏢 Бизнесы' };
 let shopItems = [], shopCat = 'cars';
 
 async function shopLoad() {
@@ -3213,8 +3258,8 @@ async function shopLoad() {
     } catch { document.getElementById('shop-list').innerHTML = '<div class="sh-empty">Нет соединения</div>'; }
 }
 
-const SHOP_CAT_GRAD = { cars:'sh-item-img-cars', apartments:'sh-item-img-apartments', houses:'sh-item-img-houses', tech:'sh-item-img-tech', phones:'sh-item-img-phones', jewelry:'sh-item-img-jewelry' };
-const SHOP_CAT_HINT = { cars:'Добавится в инвентарь. Можно сдать в аренду.', apartments:'Добавится в инвентарь. Приносит доход от аренды.', houses:'Добавится в инвентарь. Приносит доход от аренды.', tech:'Добавится в инвентарь.', phones:'Добавится в инвентарь.', jewelry:'Добавится в инвентарь.' };
+const SHOP_CAT_GRAD = { cars:'sh-item-img-cars', apartments:'sh-item-img-apartments', houses:'sh-item-img-houses', tech:'sh-item-img-tech', phones:'sh-item-img-phones', jewelry:'sh-item-img-jewelry', businesses:'sh-item-img-businesses' };
+const SHOP_CAT_HINT = { cars:'Добавится в инвентарь. Можно сдать в аренду.', apartments:'Добавится в инвентарь. Приносит доход от аренды.', houses:'Добавится в инвентарь. Приносит доход от аренды.', tech:'Добавится в инвентарь.', phones:'Добавится в инвентарь.', jewelry:'Добавится в инвентарь.', businesses:'Добавится в инвентарь. Запусти в разделе Бизнесы для пассивного дохода.' };
 
 function shopRender() {
     const items = shopItems.filter(i => i.category === shopCat);
@@ -3456,10 +3501,10 @@ function jobsRender(rentals, available) {
                     </div>
                     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
                         <div class="job-earned" id="jearned-${r.id}">Накоплено: <b>${fmt(r.accumulated)}</b></div>
-                        <button class="job-collect-btn" id="jbtn-${r.id}" data-rental-id="${r.id}" ${r.accumulated<r.rate?'disabled':''}>Собрать</button>
+                        <button class="job-collect-btn" id="jbtn-${r.id}" data-rental-id="${r.id}" data-cat="apartments" ${r.accumulated<r.rate?'disabled':''}>Собрать</button>
                     </div>
                 </div>
-                <button class="job-stop-btn" data-rental-id="${r.id}" data-name="${r.name}" data-icon="${r.icon}">Остановить аренду</button>
+                <button class="job-stop-btn" data-rental-id="${r.id}" data-cat="apartments" data-name="${r.name}" data-icon="${r.icon}">Остановить аренду</button>
             </div>`).join('');
     }
     if (available.length) {
@@ -3471,7 +3516,7 @@ function jobsRender(rentals, available) {
                     <div class="job-name">${a.name}</div>
                     <div class="job-rate">+${fmt(a.rent_rate)}/час</div>
                 </div>
-                <button class="job-rent-btn" data-inv-id="${a.id}" data-name="${a.name}" data-icon="${a.icon}">Сдать</button>
+                <button class="job-rent-btn" data-inv-id="${a.id}" data-cat="apartments" data-name="${a.name}" data-icon="${a.icon}">Сдать</button>
             </div>`).join('');
     }
     if (!rentals.length && !available.length)
@@ -3484,22 +3529,27 @@ function jobsRender(rentals, available) {
 
 async function rentStart(btn) {
     btn.disabled = true; btn.textContent = '…';
+    const cat = btn.dataset.cat || 'apartments';
     try {
         const r = await fetch(API_BASE+'/api/rental/start', {
             method:'POST', headers:{'Content-Type':'application/json'},
             body: JSON.stringify({init_data:initData, inv_id:parseInt(btn.dataset.invId)})
         });
         const d = await r.json();
-        if (d.error) { toast(d.error); btn.disabled=false; btn.textContent='Сдать'; return; }
+        if (d.error) { toast(d.error); btn.disabled=false; btn.textContent= cat==='businesses'?'Запустить':'Сдать'; return; }
         haptic('success');
-        notify('🏠', 'Аренда начата!', btn.dataset.icon+' '+btn.dataset.name);
+        const label = cat === 'businesses' ? 'Бизнес запущен!' : 'Аренда начата!';
+        notify(cat==='businesses'?'🏢':'🏠', label, btn.dataset.icon+' '+btn.dataset.name);
         invItems=[]; sellItems=[];
-        jobsLoad();
-    } catch { toast('Ошибка сервера'); btn.disabled=false; btn.textContent='Сдать'; }
+        _reloadByCat(cat);
+    } catch { toast('Ошибка сервера'); btn.disabled=false; btn.textContent=cat==='businesses'?'Запустить':'Сдать'; }
 }
+
+function _reloadByCat(cat) { cat === 'businesses' ? bizLoad() : jobsLoad(); }
 
 async function rentCollect(btn) {
     btn.disabled = true;
+    const cat = btn.dataset.cat || 'apartments';
     try {
         const r = await fetch(API_BASE+'/api/rental/collect', {
             method:'POST', headers:{'Content-Type':'application/json'},
@@ -3509,13 +3559,16 @@ async function rentCollect(btn) {
         if (d.error) { toast(d.error); btn.disabled=false; return; }
         applyNewBalance(d.new_balance);
         haptic('success');
-        notify('💰', 'Аренда получена!', `+${fmt(d.income)} − ${fmt(d.utility)} ЖКХ = ${fmt(d.net)}`);
-        jobsLoad();
+        const label = cat === 'businesses' ? 'Доход получен!' : 'Аренда получена!';
+        const tax   = cat === 'businesses' ? 'налоги' : 'ЖКХ';
+        notify('💰', label, `+${fmt(d.income)} − ${fmt(d.utility)} ${tax} = ${fmt(d.net)}`);
+        _reloadByCat(cat);
     } catch { toast('Ошибка сервера'); btn.disabled=false; }
 }
 
 async function rentStop(btn) {
     btn.disabled = true;
+    const cat = btn.dataset.cat || 'apartments';
     try {
         const r = await fetch(API_BASE+'/api/rental/stop', {
             method:'POST', headers:{'Content-Type':'application/json'},
@@ -3525,12 +3578,67 @@ async function rentStop(btn) {
         if (d.error) { toast(d.error); btn.disabled=false; return; }
         applyNewBalance(d.new_balance);
         haptic('success');
-        notify(d.income>0 ? '💰' : '🏠',
-               d.income>0 ? 'Аренда остановлена' : btn.dataset.icon+' '+btn.dataset.name,
-               d.income>0 ? `+${fmt(d.income)} − ${fmt(d.utility)} ЖКХ = ${fmt(d.net)}` : 'Аренда завершена');
+        const stopLabel = cat === 'businesses' ? 'Бизнес закрыт' : 'Аренда остановлена';
+        const tax = cat === 'businesses' ? 'налоги' : 'ЖКХ';
+        notify(d.income>0 ? '💰' : (cat==='businesses'?'🏢':'🏠'),
+               d.income>0 ? stopLabel : btn.dataset.icon+' '+btn.dataset.name,
+               d.income>0 ? `+${fmt(d.income)} − ${fmt(d.utility)} ${tax} = ${fmt(d.net)}` : 'Завершено');
         invItems=[]; sellItems=[];
-        jobsLoad();
+        _reloadByCat(cat);
     } catch { toast('Ошибка сервера'); btn.disabled=false; }
+}
+
+// ── BUSINESSES ────────────────────────────────────────
+async function bizLoad() {
+    document.getElementById('biz-list').innerHTML = '<div class="sh-empty">Загрузка…</div>';
+    try {
+        const r = await fetch(bustUrl(API_BASE+'/api/rentals?cat=businesses&init_data='+encodeURIComponent(initData)));
+        const d = await r.json();
+        bizRender(d.rentals||[], d.available||[]);
+        startRentTicker();
+    } catch { document.getElementById('biz-list').innerHTML = '<div class="sh-empty">Нет соединения</div>'; }
+}
+
+function bizRender(rentals, available) {
+    const el = document.getElementById('biz-list');
+    let html = '';
+    if (rentals.length) {
+        const now = Date.now();
+        html += '<div class="mkt-section-lbl">🏢 Активные бизнесы</div>';
+        html += rentals.map(r => `
+            <div class="job-card" data-rid="${r.id}" data-rate="${r.rate}" data-base="${r.accumulated}" data-since="${now}">
+                <div class="job-card-top">
+                    <span class="job-ico">${r.icon}</span>
+                    <div class="job-info">
+                        <div class="job-name">${r.name}</div>
+                        <div class="job-rate">+${fmt(r.rate)}/час</div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
+                        <div class="job-earned" id="jearned-${r.id}">Накоплено: <b>${fmt(r.accumulated)}</b></div>
+                        <button class="job-collect-btn" id="jbtn-${r.id}" data-rental-id="${r.id}" data-cat="businesses" ${r.accumulated<r.rate?'disabled':''}>Забрать</button>
+                    </div>
+                </div>
+                <button class="job-stop-btn" data-rental-id="${r.id}" data-cat="businesses" data-name="${r.name}" data-icon="${r.icon}">Закрыть бизнес</button>
+            </div>`).join('');
+    }
+    if (available.length) {
+        html += '<div class="mkt-section-lbl">💼 Доступно для запуска</div>';
+        html += available.map(a => `
+            <div class="job-avail-card">
+                <span class="job-ico">${a.icon}</span>
+                <div class="job-info" style="flex:1">
+                    <div class="job-name">${a.name}</div>
+                    <div class="job-rate">+${fmt(a.rent_rate)}/час</div>
+                </div>
+                <button class="job-rent-btn" data-inv-id="${a.id}" data-cat="businesses" data-name="${a.name}" data-icon="${a.icon}">Запустить</button>
+            </div>`).join('');
+    }
+    if (!rentals.length && !available.length)
+        html = '<div class="sh-empty">Нет бизнесов.<br>Купи бизнес в Магазине → Бизнесы!</div>';
+    el.innerHTML = html;
+    el.querySelectorAll('.job-collect-btn').forEach(b => b.onclick = () => rentCollect(b));
+    el.querySelectorAll('.job-stop-btn').forEach(b => b.onclick = () => rentStop(b));
+    el.querySelectorAll('.job-rent-btn').forEach(b => b.onclick = () => rentStart(b));
 }
 
 // ── SETTINGS ──────────────────────────────────────────
