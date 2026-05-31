@@ -43,7 +43,10 @@ CASE_PRICES: dict[str, int] = {
     'cars':       150_000,
     'apartments': 900_000,
     'houses':   1_700_000,
-    'tech':       100_000,
+    'tech':         5_000,
+    'phones':      15_000,
+    'jewelry':     25_000,
+    'balance':    100_000,
     'daily':            0,
 }
 
@@ -77,6 +80,38 @@ CASE_LOOT: dict[str, list] = {
         ('item', 'Особняк', 25),
         ('item', 'Вилла на Рублёвке', 5),
     ],
+    'phones': [
+        ('nothing', None, 400),
+        ('item', 'Xiaomi Redmi 13C', 250),
+        ('item', 'Samsung Galaxy A15', 180),
+        ('item', 'Vivo Y28', 120),
+        ('item', 'Samsung Galaxy S24', 50),
+        ('item', 'iPhone 15', 30),
+        ('item', 'iPhone 15 Pro', 15),
+        ('item', 'Samsung Galaxy S24 Ultra', 8),
+        ('item', 'iPhone 15 Pro Max', 3),
+    ],
+    'jewelry': [
+        ('nothing', None, 400),
+        ('item', 'Серебряная цепочка', 300),
+        ('item', 'Золотое кольцо', 150),
+        ('item', 'Часы Seiko Presage', 50),
+        ('item', 'Золотая цепочка', 60),
+        ('item', 'Серьги с бриллиантом', 20),
+        ('item', 'Часы Rolex Submariner', 10),
+        ('item', 'Бриллиантовое колье', 8),
+        ('item', 'Часы Patek Philippe', 2),
+    ],
+    'balance': [
+        ('nothing', None, 400),
+        ('balance', 15_000, 300),
+        ('balance', 50_000, 150),
+        ('balance', 100_000, 80),
+        ('balance', 200_000, 40),
+        ('balance', 500_000, 20),
+        ('balance', 1_000_000, 8),
+        ('balance', 5_000_000, 2),
+    ],
     'tech': [
         ('nothing', None, 400),
         ('item', 'Мышь Logitech G102', 250),
@@ -93,10 +128,12 @@ CASE_LOOT: dict[str, list] = {
         ('item', 'RTX 4090', 1),
     ],
     'daily': [
-        ('nothing', None, 400),
-        ('key', 'tech', 300),
-        ('key', 'cars', 200),
-        ('key', 'apartments', 70),
+        ('nothing', None, 330),
+        ('key', 'tech', 250),
+        ('key', 'cars', 170),
+        ('key', 'phones', 100),
+        ('key', 'jewelry', 60),
+        ('key', 'apartments', 60),
         ('key', 'houses', 30),
     ],
 }
@@ -335,6 +372,32 @@ async def db_init():
                     "INSERT INTO shop_items (category,name,description,price,icon) VALUES (?,?,?,?,?)",
                     shop_seed
                 )
+        # Добавляем новые товары (phones/jewelry) если ещё не существуют
+        new_items = [
+            ("phones","iPhone SE (3rd gen)","Мощный и компактный смартфон Apple",50_000,"📱"),
+            ("phones","iPhone 15","Новейший флагман Apple с Dynamic Island",90_000,"📱"),
+            ("phones","iPhone 15 Pro","Титановый корпус, ProMotion 120Гц",130_000,"🍎"),
+            ("phones","iPhone 15 Pro Max","Максимум от Apple — большой экран, топ-камера",165_000,"👑"),
+            ("phones","Samsung Galaxy A15","Надёжный Samsung для повседневных задач",20_000,"📲"),
+            ("phones","Samsung Galaxy S24","Флагман Samsung с AI-функциями",80_000,"📲"),
+            ("phones","Samsung Galaxy S24 Ultra","Топ Samsung с S Pen и лучшей камерой",150_000,"💫"),
+            ("phones","Vivo Y28","Стильный смартфон с большим аккумулятором",25_000,"📱"),
+            ("phones","Xiaomi Redmi 13C","Бюджетный Xiaomi для всего нужного",12_000,"📱"),
+            ("jewelry","Серебряная цепочка","Классика на любой случай",4_500,"⛓"),
+            ("jewelry","Золотое кольцо","585 проба, элегантный дизайн",28_000,"💍"),
+            ("jewelry","Часы Seiko Presage","Японская точность и стиль",45_000,"⌚"),
+            ("jewelry","Золотая цепочка","750 проба, солидный подарок",75_000,"📿"),
+            ("jewelry","Серьги с бриллиантом","Натуральные бриллианты, 0.5 карата",180_000,"💎"),
+            ("jewelry","Бриллиантовое колье","Роскошный жемчуг с бриллиантами",500_000,"👑"),
+            ("jewelry","Часы Rolex Submariner","Легенда швейцарского часового дела",1_500_000,"⌚"),
+            ("jewelry","Часы Patek Philippe","Абсолютный люкс — лучшие часы в мире",8_000_000,"💎"),
+        ]
+        for ni in new_items:
+            await db.execute(
+                "INSERT INTO shop_items (category,name,description,price,icon) "
+                "SELECT ?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM shop_items WHERE name=?)",
+                (*ni, ni[1])
+            )
         # Ставки аренды для квартир (всегда после вставки товаров)
         for name, rate in [
             ('Комната в общежитии', 20_000), ('Студия', 35_000),
@@ -1524,8 +1587,8 @@ async def web_api_rental_collect(request: aio_web.Request) -> aio_web.Response:
         if not rental:
             return aio_web.json_response({'error': 'Аренда не найдена'})
         income = math.floor(calc_rental_income(rental['last_collected'], rental['rate']))
-        if income < 1500:
-            return aio_web.json_response({'error': 'Минимум для сбора — 1 500₽'})
+        if income < math.floor(rental['rate']):
+            return aio_web.json_response({'error': 'Нельзя собирать раньше чем за 1 час аренды'})
         utility = min(random.randint(8_000, 15_000), income)
         net = income - utility
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -1589,7 +1652,7 @@ async def web_api_case_status(request: aio_web.Request) -> aio_web.Response:
                     daily_next_at = (last + timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
             except Exception:
                 pass
-        keys = {'cars': 0, 'apartments': 0, 'houses': 0, 'tech': 0}
+        keys = {'cars': 0, 'apartments': 0, 'houses': 0, 'tech': 0, 'phones': 0, 'jewelry': 0}
         async with db.execute("SELECT case_type, amount FROM case_keys WHERE user_id=?", (user_id,)) as cur:
             async for r in cur:
                 if r['case_type'] in keys:
@@ -1668,6 +1731,9 @@ async def web_api_case_open(request: aio_web.Request) -> aio_web.Response:
                 (user_id, reward_value)
             )
             result['key_type'] = reward_value
+        elif reward_type == 'balance':
+            await db.execute("UPDATE users SET balance=balance+? WHERE id=?", (reward_value, user_id))
+            result['amount'] = reward_value
         await db.commit()
         async with db.execute("SELECT balance FROM users WHERE id=?", (user_id,)) as cur:
             new_bal = round(float((await cur.fetchone())['balance']), 2)
