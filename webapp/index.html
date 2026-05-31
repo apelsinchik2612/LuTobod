@@ -33,8 +33,14 @@ input[type=number] { -moz-appearance: textfield; }
 .hdr {
     display: flex; align-items: center; justify-content: space-between;
     padding: 12px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+    position: relative;
 }
-.hdr-title { font-size: 17px; font-weight: 700; }
+.hdr-title {
+    font-size: 17px; font-weight: 700;
+    position: absolute; left: 0; right: 0; text-align: center;
+    pointer-events: none; padding: 0 100px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .bal-chip {
     display: flex; align-items: center; gap: 6px;
     background: var(--surface); border: 1px solid var(--border);
@@ -907,7 +913,7 @@ input[type=number] { -moz-appearance: textfield; }
                 <div class="case-emoji">💻</div>
                 <div class="case-info">
                     <div class="case-name">Кейс с техникой</div>
-                    <span class="case-price-badge" id="case-price-tech">100 000₽</span>
+                    <span class="case-price-badge" id="case-price-tech">5 000₽</span>
                 </div>
             </div>
             <!-- Машины (150к) -->
