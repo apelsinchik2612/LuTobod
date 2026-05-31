@@ -165,7 +165,7 @@ input[type=number] { -moz-appearance: textfield; }
 }
 .case-hero-price.has-key { color:#f59e0b; background:rgba(245,158,11,.12); border-color:rgba(245,158,11,.3); }
 .case-hero-price.used { color:var(--text2); background:none; border-color:var(--border); }
-.case-open-wrap { padding:0 16px 12px; display:flex; flex-direction:column; gap:8px; }
+.case-open-wrap { padding:0 16px 12px; display:flex; flex-direction:column; align-items:center; gap:8px; }
 .case-contents-hdr {
     font-size:13px; font-weight:700; color:var(--text2);
     text-transform:uppercase; letter-spacing:.5px;
@@ -739,6 +739,77 @@ input[type=number] { -moz-appearance: textfield; }
 .sell-btn:active { opacity:.75; }
 .sell-btn:disabled { opacity:.4; cursor:not-allowed; }
 
+/* === CASE SPIN OVERLAY === */
+#case-spin-overlay {
+    background: rgba(0,0,0,.96);
+    animation: fadeIn .15s ease;
+}
+#spin-viewport {
+    width: 100%; overflow: hidden;
+    position: relative; height: 148px;
+}
+.spin-fade-side {
+    position: absolute; top: 0; bottom: 0; width: 26%;
+    z-index: 5; pointer-events: none;
+}
+.spin-fade-l { left: 0; background: linear-gradient(to right, rgba(0,0,0,.92), transparent); }
+.spin-fade-r { right: 0; background: linear-gradient(to left, rgba(0,0,0,.92), transparent); }
+.spin-marker {
+    position: absolute; top: 0; bottom: 0; left: 50%;
+    width: 3px; transform: translateX(-50%);
+    background: var(--green);
+    box-shadow: 0 0 14px rgba(63,185,80,.7), 0 0 28px rgba(63,185,80,.3);
+    z-index: 6; pointer-events: none;
+}
+.spin-arr-t {
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 11px solid transparent; border-right: 11px solid transparent;
+    border-top: 17px solid var(--green);
+    z-index: 7; filter: drop-shadow(0 3px 6px rgba(63,185,80,.7));
+}
+.spin-arr-b {
+    position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 11px solid transparent; border-right: 11px solid transparent;
+    border-bottom: 17px solid var(--green);
+    z-index: 7; filter: drop-shadow(0 -3px 6px rgba(63,185,80,.7));
+}
+#spin-track {
+    display: flex; gap: 8px; padding: 8px 0;
+    will-change: transform;
+}
+.spin-item {
+    flex-shrink: 0; width: 110px; height: 130px;
+    border-radius: 12px; border: 2px solid var(--border);
+    background: var(--surface);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 5px; padding: 8px 4px;
+    transition: transform .35s ease, box-shadow .35s ease, border-color .35s ease, background .35s ease;
+}
+.spin-item-ico { font-size: 38px; line-height: 1; }
+.spin-item-name {
+    font-size: 10px; font-weight: 700; text-align: center;
+    line-height: 1.3; color: var(--text2);
+    word-break: break-word; padding: 0 2px;
+}
+.spin-item.rarity-common    { border-color: rgba(63,185,80,.5); }
+.spin-item.rarity-uncommon  { border-color: rgba(88,166,255,.5); }
+.spin-item.rarity-rare      { border-color: rgba(163,113,247,.55); }
+.spin-item.rarity-legendary { border-color: rgba(245,158,11,.65); background: rgba(245,158,11,.05); }
+.spin-item.rarity-nothing   { opacity: .55; }
+.spin-item.spin-win-glow {
+    border-color: var(--green) !important;
+    background: rgba(63,185,80,.12) !important;
+    box-shadow: 0 0 24px rgba(63,185,80,.55) !important;
+    transform: scale(1.07) !important;
+}
+#spin-case-title {
+    font-size: 13px; font-weight: 700; color: var(--text2);
+    text-transform: uppercase; letter-spacing: .5px;
+}
+
 /* === NOTIFICATION (Minecraft toast) === */
 .ntf {
     position: fixed; top: 0; left: 50%;
@@ -886,6 +957,19 @@ input[type=number] { -moz-appearance: textfield; }
         <div class="case-modal-title" id="case-modal-title"></div>
         <div class="case-modal-sub" id="case-modal-sub"></div>
         <button class="case-modal-btn" onclick="closeCaseModal()">ОК</button>
+    </div>
+</div>
+
+<!-- CASE SPIN OVERLAY -->
+<div id="case-spin-overlay" style="display:none;position:fixed;inset:0;z-index:200;flex-direction:column;align-items:center;justify-content:center;gap:24px;">
+    <div id="spin-case-title"></div>
+    <div id="spin-viewport">
+        <div class="spin-fade-side spin-fade-l"></div>
+        <div class="spin-fade-side spin-fade-r"></div>
+        <div class="spin-marker"></div>
+        <div class="spin-arr-t"></div>
+        <div class="spin-arr-b"></div>
+        <div id="spin-track"></div>
     </div>
 </div>
 
@@ -1985,15 +2069,19 @@ async function doOpenCase() {
             return;
         }
         setBalance(d.new_balance);
-        showCaseResult(d);
-        await loadCaseStatus();
-        _renderCaseDetail(type);
+        startCaseSpin(type, d, async () => {
+            await loadCaseStatus();
+            _renderCaseDetail(type);
+            caseOpening = false;
+            openBtn.disabled = false;
+        });
+        return;
     } catch(e) {
         haptic('error');
         notify('❌', 'Ошибка', 'Нет соединения');
+        caseOpening = false;
         openBtn.disabled = false;
     }
-    caseOpening = false;
 }
 
 function showCaseResult(d) {
@@ -2014,6 +2102,94 @@ function showCaseResult(d) {
 
 function closeCaseModal() {
     document.getElementById('case-modal').classList.remove('show');
+    if (_caseOpenDoneCb) { _caseOpenDoneCb(); _caseOpenDoneCb = null; }
+}
+
+// ── CASE SPIN ANIMATION ───────────────────────────────
+const SPIN_W = 110, SPIN_G = 8, SPIN_STEP = 118;
+const SPIN_TOTAL = 60, SPIN_WINNER_IDX = 50;
+let _caseOpenDoneCb = null;
+
+function _spinRarity(item, totalW) {
+    if (item.isNothing) return 'rarity-nothing';
+    const p = item.w / totalW * 100;
+    if (p >= 15) return 'rarity-common';
+    if (p >= 5)  return 'rarity-uncommon';
+    if (p >= 1)  return 'rarity-rare';
+    return 'rarity-legendary';
+}
+
+function _spinPickRandom(all, totalW) {
+    let r = Math.random() * totalW;
+    for (const item of all) { r -= item.w; if (r <= 0) return item; }
+    return all[all.length - 1];
+}
+
+function _spinWinnerItem(type, result) {
+    const data = CASE_LOOT_FE[type];
+    if (!data) return { name: 'Ничего', icon: '💨', price: 0, w: 1, isNothing: true };
+    const all = [...data.items, { name: 'Ничего', icon: '💨', price: 0, w: data.nothingW, isNothing: true }];
+    if (result.reward === 'nothing') return all.find(i => i.isNothing) || all[all.length - 1];
+    if (result.reward === 'item')    return all.find(i => i.name === result.item.name) || { name: result.item.name, icon: result.item.icon, price: result.item.price, w: 1 };
+    if (result.reward === 'key') {
+        const kn = { cars: 'Ключ: Кейс с машинами', apartments: 'Ключ: Кейс с квартирами', houses: 'Ключ: Кейс с домами', tech: 'Ключ: Кейс с техникой' };
+        const nm = kn[result.key_type] || 'Ключ';
+        return all.find(i => i.name === nm) || { name: nm, icon: '🔑', price: 0, w: 1 };
+    }
+    return all[0];
+}
+
+function startCaseSpin(type, result, onDone) {
+    const data = CASE_LOOT_FE[type];
+    if (!data) { _caseOpenDoneCb = onDone; showCaseResult(result); return; }
+
+    const allItems = [...data.items, { name: 'Ничего', icon: '💨', price: 0, w: data.nothingW, isNothing: true }];
+    const totalW = allItems.reduce((s, i) => s + i.w, 0);
+    const winner = _spinWinnerItem(type, result);
+
+    const strip = [];
+    for (let i = 0; i < SPIN_TOTAL; i++) {
+        strip.push(i === SPIN_WINNER_IDX ? { ...winner, _isWin: true } : _spinPickRandom(allItems, totalW));
+    }
+
+    const track = document.getElementById('spin-track');
+    track.style.transition = 'none';
+    track.innerHTML = strip.map((item, i) => {
+        const rc = _spinRarity(item, totalW);
+        return `<div class="spin-item ${rc}" data-si="${i}">
+            <div class="spin-item-ico">${item.icon}</div>
+            <div class="spin-item-name">${item.name}</div>
+        </div>`;
+    }).join('');
+
+    document.getElementById('spin-case-title').textContent = CASE_INFO[type].name;
+    const overlay = document.getElementById('case-spin-overlay');
+    overlay.style.display = 'flex';
+
+    const vw = document.getElementById('spin-viewport').offsetWidth;
+    const wobble = (Math.random() - 0.5) * 32;
+    const initX = vw / 2 - SPIN_W / 2;
+    const finalX = vw / 2 - (SPIN_WINNER_IDX * SPIN_STEP + SPIN_W / 2 + wobble);
+
+    track.style.transform = `translateX(${initX}px)`;
+
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+        track.style.transition = 'transform 5.2s cubic-bezier(0.05, 0.85, 0.12, 1.0)';
+        track.style.transform = `translateX(${finalX}px)`;
+
+        setTimeout(() => {
+            const winEl = track.querySelector(`[data-si="${SPIN_WINNER_IDX}"]`);
+            if (winEl) winEl.classList.add('spin-win-glow');
+            haptic('success');
+
+            setTimeout(() => {
+                overlay.style.display = 'none';
+                track.style.transition = 'none';
+                _caseOpenDoneCb = onDone;
+                showCaseResult(result);
+            }, 1000);
+        }, 5200);
+    }));
 }
 
 // ── EVENTS ────────────────────────────────────────────
