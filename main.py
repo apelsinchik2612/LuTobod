@@ -53,7 +53,7 @@ CASE_PRICES: dict[str, int] = {
 # (reward_type, value_or_None, weight)
 CASE_LOOT: dict[str, list] = {
     'cars': [
-        ('nothing', None, 450),
+        ('nothing', None, 70),
         ('item', 'ВАЗ 2107', 200),
         ('item', 'Lada Vesta', 100),
         ('item', 'Toyota Camry', 50),
@@ -64,7 +64,7 @@ CASE_LOOT: dict[str, list] = {
         ('item', 'Bugatti Chiron', 1),
     ],
     'apartments': [
-        ('nothing', None, 400),
+        ('nothing', None, 100),
         ('item', 'Комната в общежитии', 350),
         ('item', 'Студия', 150),
         ('item', '1-комнатная', 60),
@@ -73,7 +73,7 @@ CASE_LOOT: dict[str, list] = {
         ('item', 'Пентхаус', 5),
     ],
     'houses': [
-        ('nothing', None, 400),
+        ('nothing', None, 100),
         ('item', 'Дача', 350),
         ('item', 'Загородный дом', 150),
         ('item', 'Коттедж', 70),
@@ -81,18 +81,28 @@ CASE_LOOT: dict[str, list] = {
         ('item', 'Вилла на Рублёвке', 5),
     ],
     'phones': [
-        ('nothing', None, 400),
-        ('item', 'Xiaomi Redmi 13C', 250),
-        ('item', 'Samsung Galaxy A15', 180),
-        ('item', 'Vivo Y28', 120),
-        ('item', 'Samsung Galaxy S24', 50),
-        ('item', 'iPhone 15', 30),
-        ('item', 'iPhone 15 Pro', 15),
-        ('item', 'Samsung Galaxy S24 Ultra', 8),
+        ('nothing', None, 150),
+        ('item', 'Xiaomi Redmi 13C', 200),
+        ('item', 'Samsung Galaxy A15', 150),
+        ('item', 'Xiaomi Redmi Note 14', 130),
+        ('item', 'Vivo Y28', 100),
+        ('item', 'Samsung Galaxy A55', 70),
+        ('item', 'Vivo V40', 60),
+        ('item', 'Samsung Galaxy S24', 40),
+        ('item', 'Vivo X200', 25),
+        ('item', 'iPhone 15', 20),
+        ('item', 'iPhone 16', 15),
+        ('item', 'Xiaomi 15', 12),
+        ('item', 'iPhone 15 Pro', 10),
+        ('item', 'Samsung Galaxy S25', 8),
+        ('item', 'Samsung Galaxy S24 Ultra', 6),
+        ('item', 'iPhone 16 Pro', 5),
+        ('item', 'Samsung Galaxy S25 Ultra', 4),
         ('item', 'iPhone 15 Pro Max', 3),
+        ('item', 'iPhone 16 Pro Max', 2),
     ],
     'jewelry': [
-        ('nothing', None, 400),
+        ('nothing', None, 100),
         ('item', 'Серебряная цепочка', 300),
         ('item', 'Золотое кольцо', 150),
         ('item', 'Часы Seiko Presage', 50),
@@ -103,7 +113,7 @@ CASE_LOOT: dict[str, list] = {
         ('item', 'Часы Patek Philippe', 2),
     ],
     'balance': [
-        ('nothing', None, 400),
+        ('nothing', None, 100),
         ('balance', 15_000, 300),
         ('balance', 50_000, 150),
         ('balance', 100_000, 80),
@@ -128,7 +138,7 @@ CASE_LOOT: dict[str, list] = {
         ('item', 'RTX 4090', 1),
     ],
     'daily': [
-        ('nothing', None, 330),
+        ('nothing', None, 120),
         ('key', 'tech', 250),
         ('key', 'cars', 170),
         ('key', 'phones', 100),
@@ -374,15 +384,25 @@ async def db_init():
                 )
         # Добавляем новые товары (phones/jewelry) если ещё не существуют
         new_items = [
-            ("phones","iPhone SE (3rd gen)","Мощный и компактный смартфон Apple",50_000,"📱"),
-            ("phones","iPhone 15","Новейший флагман Apple с Dynamic Island",90_000,"📱"),
-            ("phones","iPhone 15 Pro","Титановый корпус, ProMotion 120Гц",130_000,"🍎"),
-            ("phones","iPhone 15 Pro Max","Максимум от Apple — большой экран, топ-камера",165_000,"👑"),
-            ("phones","Samsung Galaxy A15","Надёжный Samsung для повседневных задач",20_000,"📲"),
-            ("phones","Samsung Galaxy S24","Флагман Samsung с AI-функциями",80_000,"📲"),
-            ("phones","Samsung Galaxy S24 Ultra","Топ Samsung с S Pen и лучшей камерой",150_000,"💫"),
-            ("phones","Vivo Y28","Стильный смартфон с большим аккумулятором",25_000,"📱"),
             ("phones","Xiaomi Redmi 13C","Бюджетный Xiaomi для всего нужного",12_000,"📱"),
+            ("phones","Samsung Galaxy A15","Надёжный Samsung для повседневных задач",20_000,"📲"),
+            ("phones","Xiaomi Redmi Note 14","Большой экран AMOLED, мощная батарея",22_000,"📱"),
+            ("phones","Vivo Y28","Стильный смартфон с большим аккумулятором",25_000,"📱"),
+            ("phones","Samsung Galaxy A55","Металлический корпус, AMOLED 120Гц",40_000,"📲"),
+            ("phones","Vivo V40","Стильный дизайн, ZEISS портреты",45_000,"📱"),
+            ("phones","iPhone SE (3rd gen)","Мощный и компактный смартфон Apple",50_000,"📱"),
+            ("phones","Samsung Galaxy S24","Snapdragon 8 Gen 3, AI-функции",80_000,"📲"),
+            ("phones","Vivo X200","Zeiss-камера, Dimensity 9400",90_000,"📱"),
+            ("phones","iPhone 15","Dynamic Island, USB-C, 48 Мп",90_000,"📱"),
+            ("phones","iPhone 16","A18, камера 48 Мп, Action Button",100_000,"📱"),
+            ("phones","Samsung Galaxy S25","Snapdragon 8 Elite, Galaxy AI",100_000,"📲"),
+            ("phones","Xiaomi 15","Leica-камера, Snapdragon 8 Elite",110_000,"📱"),
+            ("phones","iPhone 15 Pro","Титановый корпус, ProMotion 120Гц",130_000,"🍎"),
+            ("phones","Samsung Galaxy S24 Ultra","S Pen, 200 Мп камера",150_000,"💫"),
+            ("phones","iPhone 16 Pro","A18 Pro, камера 48 Мп, 5× зум",150_000,"🍎"),
+            ("phones","iPhone 15 Pro Max","6.7\", 5× телефото, ProMotion",165_000,"👑"),
+            ("phones","Samsung Galaxy S25 Ultra","S Pen, Snapdragon 8 Elite, 200 Мп",180_000,"💫"),
+            ("phones","iPhone 16 Pro Max","6.9\", A18 Pro, лучший iPhone 2024",190_000,"👑"),
             ("jewelry","Серебряная цепочка","Классика на любой случай",4_500,"⛓"),
             ("jewelry","Золотое кольцо","585 проба, элегантный дизайн",28_000,"💍"),
             ("jewelry","Часы Seiko Presage","Японская точность и стиль",45_000,"⌚"),
@@ -391,6 +411,10 @@ async def db_init():
             ("jewelry","Бриллиантовое колье","Роскошный жемчуг с бриллиантами",500_000,"👑"),
             ("jewelry","Часы Rolex Submariner","Легенда швейцарского часового дела",1_500_000,"⌚"),
             ("jewelry","Часы Patek Philippe","Абсолютный люкс — лучшие часы в мире",8_000_000,"💎"),
+            ("businesses","Ларёк с шаурмой","Небольшой ларёк на углу — первый шаг в бизнесе",50_000,"🌯"),
+            ("businesses","Автомойка","Автоматическая мойка на 3 поста с химчисткой",300_000,"🚿"),
+            ("businesses","Частное казино","Небольшое закрытое казино для избранных",15_000_000,"🎰"),
+            ("businesses","Нефтяная компания в океане","Добывающая платформа в открытом море",249_999_999,"⛽"),
         ]
         for ni in new_items:
             await db.execute(
@@ -398,11 +422,13 @@ async def db_init():
                 "SELECT ?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM shop_items WHERE name=?)",
                 (*ni, ni[1])
             )
-        # Ставки аренды для квартир (всегда после вставки товаров)
+        # Ставки аренды для квартир и бизнесов (всегда после вставки товаров)
         for name, rate in [
             ('Комната в общежитии', 20_000), ('Студия', 35_000),
             ('1-комнатная', 50_000), ('2-комнатная', 65_000),
             ('3-комнатная', 80_000), ('Пентхаус', 100_000),
+            ('Ларёк с шаурмой', 350), ('Автомойка', 4_000),
+            ('Частное казино', 500_000), ('Нефтяная компания в океане', 3_500_000),
         ]:
             await db.execute("UPDATE shop_items SET rent_rate=? WHERE name=?", (rate, name))
 
@@ -1511,21 +1537,22 @@ async def web_api_rentals(request: aio_web.Request) -> aio_web.Response:
     user_id = validate_init_data(request.query.get('init_data', ''))
     if not user_id:
         return aio_web.json_response({'error': 'Unauthorized'}, status=401)
+    cat = request.query.get('cat', 'apartments')
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             """SELECT r.id, r.inv_id, r.rate, r.last_collected,
-                      s.name, s.icon
+                      s.name, s.icon, s.category
                FROM rentals r JOIN shop_items s ON r.item_id = s.id
-               WHERE r.user_id = ?""", (user_id,)
+               WHERE r.user_id = ? AND s.category=?""", (user_id, cat)
         ) as cur:
             rentals = [dict(r) for r in await cur.fetchall()]
         async with db.execute(
-            """SELECT i.id, s.name, s.icon, s.rent_rate
+            """SELECT i.id, s.name, s.icon, s.rent_rate, s.category
                FROM inventory i JOIN shop_items s ON i.item_id = s.id
-               WHERE i.user_id = ? AND s.category='apartments' AND s.rent_rate > 0
+               WHERE i.user_id = ? AND s.category=? AND s.rent_rate > 0
                  AND i.id NOT IN (SELECT inv_id FROM rentals WHERE user_id = ?)""",
-            (user_id, user_id)
+            (user_id, cat, user_id)
         ) as cur:
             available = [dict(r) for r in await cur.fetchall()]
     for r in rentals:
@@ -1589,7 +1616,7 @@ async def web_api_rental_collect(request: aio_web.Request) -> aio_web.Response:
         income = math.floor(calc_rental_income(rental['last_collected'], rental['rate']))
         if income < math.floor(rental['rate']):
             return aio_web.json_response({'error': 'Нельзя собирать раньше чем за 1 час аренды'})
-        utility = min(random.randint(8_000, 15_000), income)
+        utility = math.floor(income * 0.10)
         net = income - utility
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         await db.execute("UPDATE users SET balance=balance+? WHERE id=?", (net, user_id))
@@ -1620,7 +1647,7 @@ async def web_api_rental_stop(request: aio_web.Request) -> aio_web.Response:
             return aio_web.json_response({'error': 'Аренда не найдена'})
         income = math.floor(calc_rental_income(rental['last_collected'], rental['rate']))
         if income > 0:
-            utility = min(random.randint(8_000, 15_000), income)
+            utility = math.floor(income * 0.10)
             net = income - utility
             await db.execute("UPDATE users SET balance=balance+? WHERE id=?", (net, user_id))
         else:
