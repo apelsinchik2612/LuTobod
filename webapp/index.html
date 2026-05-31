@@ -677,12 +677,24 @@ input[type=number] { -moz-appearance: textfield; }
 .sh-tab.active { background:var(--green); border-color:var(--green); color:#fff; }
 .sh-list { flex:1; overflow-y:auto; padding:10px 16px 30px; display:flex; flex-direction:column; gap:8px; }
 .sh-item {
-    display:flex; align-items:center; gap:12px;
+    display:flex; flex-direction:column;
     background:var(--surface); border:1px solid var(--border);
-    border-radius:14px; padding:12px 14px; transition:border-color .15s;
+    border-radius:14px; overflow:hidden; transition:border-color .15s;
 }
-.sh-item:active { border-color:var(--green); }
-.sh-item-ico { font-size:28px; flex-shrink:0; width:44px; text-align:center; }
+.sh-item.open { border-color:var(--accent); }
+.sh-item-top {
+    display:flex; align-items:center; gap:12px;
+    padding:12px 14px;
+}
+.sh-item-ico {
+    font-size:28px; flex-shrink:0; width:44px; height:44px;
+    display:flex; align-items:center; justify-content:center;
+    border-radius:10px; cursor:pointer;
+    transition:background .15s, transform .12s;
+    user-select:none;
+}
+.sh-item-ico:hover { background:var(--surface2); }
+.sh-item-ico:active { transform:scale(.88); }
 .sh-item-info { flex:1; min-width:0; }
 .sh-item-name { font-size:14px; font-weight:700; }
 .sh-item-desc { font-size:11px; color:var(--text2); margin-top:2px; }
@@ -697,6 +709,28 @@ input[type=number] { -moz-appearance: textfield; }
 .sh-buy-btn:active { opacity:.75; }
 .sh-buy-btn:disabled { opacity:.4; cursor:not-allowed; }
 .sh-empty { text-align:center; color:var(--text2); font-size:14px; padding:40px 20px; }
+/* Shop item expand */
+.sh-item-expand { max-height:0; overflow:hidden; transition:max-height .35s cubic-bezier(.4,0,.2,1); }
+.sh-item.open .sh-item-expand { max-height:320px; }
+.sh-item-expand-inner { border-top:1px solid var(--border); padding:12px 14px 14px; display:flex; flex-direction:column; gap:10px; }
+.sh-item-img {
+    width:100%; height:150px; border-radius:10px; overflow:hidden;
+    display:flex; align-items:center; justify-content:center;
+    font-size:72px; position:relative;
+}
+.sh-item-img img { width:100%; height:100%; object-fit:cover; }
+.sh-item-img-cars        { background:linear-gradient(135deg,#0d1b2e,#162944); }
+.sh-item-img-apartments  { background:linear-gradient(135deg,#150d2e,#1e1044); }
+.sh-item-img-houses      { background:linear-gradient(135deg,#0d1f14,#102817); }
+.sh-item-img-tech        { background:linear-gradient(135deg,#0d1e2e,#0a1a26); }
+.sh-item-expand-details {
+    display:grid; grid-template-columns:1fr 1fr; gap:6px;
+}
+.sh-item-expand-detail {
+    background:var(--surface2); border-radius:8px; padding:8px 10px;
+}
+.sh-item-expand-detail-lbl { font-size:10px; color:var(--text2); text-transform:uppercase; letter-spacing:.4px; }
+.sh-item-expand-detail-val { font-size:13px; font-weight:800; margin-top:2px; }
 
 /* Inventory */
 .inv-item {
@@ -3108,23 +3142,53 @@ async function shopLoad() {
     } catch { document.getElementById('shop-list').innerHTML = '<div class="sh-empty">Нет соединения</div>'; }
 }
 
+const SHOP_CAT_GRAD = { cars:'sh-item-img-cars', apartments:'sh-item-img-apartments', houses:'sh-item-img-houses', tech:'sh-item-img-tech' };
+const SHOP_CAT_HINT = { cars:'Добавится в инвентарь. Можно сдать в аренду.', apartments:'Добавится в инвентарь. Приносит доход от аренды.', houses:'Добавится в инвентарь. Приносит доход от аренды.', tech:'Добавится в инвентарь.' };
+
 function shopRender() {
     const items = shopItems.filter(i => i.category === shopCat);
     const el = document.getElementById('shop-list');
     if (!items.length) { el.innerHTML = '<div class="sh-empty">Нет товаров</div>'; return; }
-    el.innerHTML = items.map(i => `
-        <div class="sh-item">
-            <div class="sh-item-ico">${i.icon}</div>
-            <div class="sh-item-info">
-                <div class="sh-item-name">${i.name}</div>
-                <div class="sh-item-desc">${i.description||''}</div>
+    const grad = SHOP_CAT_GRAD[shopCat] || 'sh-item-img-tech';
+    el.innerHTML = items.map(i => {
+        const imgContent = i.image_url
+            ? `<img src="${i.image_url}" alt="${i.name}">`
+            : `<span>${i.icon}</span>`;
+        return `
+        <div class="sh-item" data-item-id="${i.id}">
+            <div class="sh-item-top">
+                <div class="sh-item-ico" title="Подробнее">${i.icon}</div>
+                <div class="sh-item-info">
+                    <div class="sh-item-name">${i.name}</div>
+                    <div class="sh-item-desc">${i.description||''}</div>
+                </div>
+                <div class="sh-item-right">
+                    <div class="sh-item-price">${fmt(i.price)}</div>
+                    <button class="sh-buy-btn" data-id="${i.id}" data-price="${i.price}" data-name="${i.name}" data-icon="${i.icon}">Купить</button>
+                </div>
             </div>
-            <div class="sh-item-right">
-                <div class="sh-item-price">${fmt(i.price)}</div>
-                <button class="sh-buy-btn" data-id="${i.id}" data-price="${i.price}" data-name="${i.name}" data-icon="${i.icon}">Купить</button>
+            <div class="sh-item-expand">
+                <div class="sh-item-expand-inner">
+                    <div class="sh-item-img ${grad}">${imgContent}</div>
+                    <div class="sh-item-expand-details">
+                        <div class="sh-item-expand-detail">
+                            <div class="sh-item-expand-detail-lbl">Цена</div>
+                            <div class="sh-item-expand-detail-val" style="color:var(--green)">${fmt(i.price)}</div>
+                        </div>
+                        <div class="sh-item-expand-detail">
+                            <div class="sh-item-expand-detail-lbl">Категория</div>
+                            <div class="sh-item-expand-detail-val">${CAT_LABELS[i.category]||''}</div>
+                        </div>
+                    </div>
+                    <div style="font-size:12px;color:var(--text2);">${SHOP_CAT_HINT[i.category]||''}</div>
+                </div>
             </div>
-        </div>`).join('');
-    el.querySelectorAll('.sh-buy-btn').forEach(btn => btn.onclick = () => shopBuy(btn));
+        </div>`;
+    }).join('');
+    el.querySelectorAll('.sh-buy-btn').forEach(btn => btn.onclick = e => { e.stopPropagation(); shopBuy(btn); });
+    el.querySelectorAll('.sh-item-ico').forEach(ico => ico.onclick = () => {
+        ico.closest('.sh-item').classList.toggle('open');
+    });
 }
 
 async function shopBuy(btn) {
