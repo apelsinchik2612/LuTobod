@@ -725,6 +725,8 @@ input[type=number] { -moz-appearance: textfield; }
 .sh-item-img-apartments  { background:linear-gradient(135deg,#150d2e,#1e1044); }
 .sh-item-img-houses      { background:linear-gradient(135deg,#0d1f14,#102817); }
 .sh-item-img-tech        { background:linear-gradient(135deg,#0d1e2e,#0a1a26); }
+.sh-item-img-phones      { background:linear-gradient(135deg,#1a0d2e,#2a1050); }
+.sh-item-img-jewelry     { background:linear-gradient(135deg,#2e1a00,#4a2c00); }
 .sh-item-expand-details {
     display:grid; grid-template-columns:1fr 1fr; gap:6px;
 }
@@ -977,6 +979,32 @@ input[type=number] { -moz-appearance: textfield; }
                 <div class="case-info">
                     <div class="case-name">Кейс с домами</div>
                     <span class="case-price-badge" id="case-price-houses">1 700 000₽</span>
+                </div>
+            </div>
+            <!-- Телефоны (15к) -->
+            <div class="case-card" id="case-card-phones" onclick="showCaseDetail('phones')">
+                <span class="case-key-badge" id="case-key-phones" style="display:none">🔑 ×0</span>
+                <div class="case-emoji">📱</div>
+                <div class="case-info">
+                    <div class="case-name">Кейс с телефонами</div>
+                    <span class="case-price-badge" id="case-price-phones">15 000₽</span>
+                </div>
+            </div>
+            <!-- Ювелирка (25к) -->
+            <div class="case-card" id="case-card-jewelry" onclick="showCaseDetail('jewelry')">
+                <span class="case-key-badge" id="case-key-jewelry" style="display:none">🔑 ×0</span>
+                <div class="case-emoji">💎</div>
+                <div class="case-info">
+                    <div class="case-name">Кейс с ювелиркой</div>
+                    <span class="case-price-badge" id="case-price-jewelry">25 000₽</span>
+                </div>
+            </div>
+            <!-- Баланс (100к) -->
+            <div class="case-card" id="case-card-balance" onclick="showCaseDetail('balance')">
+                <div class="case-emoji">💰</div>
+                <div class="case-info">
+                    <div class="case-name">Кейс с балансом</div>
+                    <span class="case-price-badge" id="case-price-balance">100 000₽</span>
                 </div>
             </div>
             <!-- Ежедневный (бесплатно) -->
@@ -1281,6 +1309,8 @@ input[type=number] { -moz-appearance: textfield; }
                 <button class="sh-tab" data-cat="apartments">🏠 Квартиры</button>
                 <button class="sh-tab" data-cat="houses">🏡 Дома</button>
                 <button class="sh-tab" data-cat="tech">💻 Техника</button>
+                <button class="sh-tab" data-cat="phones">📱 Телефоны</button>
+                <button class="sh-tab" data-cat="jewelry">💎 Ювелирка</button>
             </div>
             <button class="sh-scroll-btn sh-scroll-right sh-btn-visible" id="sh-scroll-right" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
@@ -1885,16 +1915,19 @@ function showOverlay() {
 }
 
 // ── CASES ─────────────────────────────────────────────
-let caseStatus = { daily_available: true, daily_next_at: null, keys: {cars:0,apartments:0,houses:0,tech:0} };
+let caseStatus = { daily_available: true, daily_next_at: null, keys: {cars:0,apartments:0,houses:0,tech:0,phones:0,jewelry:0} };
 let caseOpening = false;
 let currentCaseType = null;
 
 const CASE_INFO = {
-    cars:       { name: 'Кейс с машинами',   emoji: '🚗', price: 150000 },
-    apartments: { name: 'Кейс с квартирами', emoji: '🏠', price: 900000 },
-    houses:     { name: 'Кейс с домами',     emoji: '🏡', price: 1700000 },
-    tech:       { name: 'Кейс с техникой',   emoji: '💻', price: 100000 },
-    daily:      { name: 'Ежедневный кейс',   emoji: '🎁', price: 0 },
+    cars:       { name: 'Кейс с машинами',     emoji: '🚗', price: 150000  },
+    apartments: { name: 'Кейс с квартирами',   emoji: '🏠', price: 900000  },
+    houses:     { name: 'Кейс с домами',       emoji: '🏡', price: 1700000 },
+    tech:       { name: 'Кейс с техникой',     emoji: '💻', price: 5000    },
+    phones:     { name: 'Кейс с телефонами',   emoji: '📱', price: 15000   },
+    jewelry:    { name: 'Кейс с ювелиркой',    emoji: '💎', price: 25000   },
+    balance:    { name: 'Кейс с балансом',     emoji: '💰', price: 100000  },
+    daily:      { name: 'Ежедневный кейс',     emoji: '🎁', price: 0       },
 };
 
 const CASE_LOOT_FE = {
@@ -1937,11 +1970,42 @@ const CASE_LOOT_FE = {
         { name: 'Игровой ПК (топ)',      icon: '💎', price: 500000, w: 1   },
         { name: 'RTX 4090',             icon: '🔥', price: 180000, w: 1   },
     ]},
-    daily: { nothingW: 400, items: [
-        { name: 'Ключ: Кейс с техникой',   icon: '🔑', price: 0, w: 300, isKey: true },
-        { name: 'Ключ: Кейс с машинами',   icon: '🔑', price: 0, w: 200, isKey: true },
-        { name: 'Ключ: Кейс с квартирами', icon: '🔑', price: 0, w: 70,  isKey: true },
-        { name: 'Ключ: Кейс с домами',     icon: '🔑', price: 0, w: 30,  isKey: true },
+    phones: { nothingW: 400, items: [
+        { name: 'Xiaomi Redmi 13C',          icon: '📱', price: 12000,  w: 250 },
+        { name: 'Samsung Galaxy A15',        icon: '📲', price: 20000,  w: 180 },
+        { name: 'Vivo Y28',                  icon: '📱', price: 25000,  w: 120 },
+        { name: 'Samsung Galaxy S24',        icon: '📲', price: 80000,  w: 50  },
+        { name: 'iPhone 15',                 icon: '📱', price: 90000,  w: 30  },
+        { name: 'iPhone 15 Pro',             icon: '🍎', price: 130000, w: 15  },
+        { name: 'Samsung Galaxy S24 Ultra',  icon: '💫', price: 150000, w: 8   },
+        { name: 'iPhone 15 Pro Max',         icon: '👑', price: 165000, w: 3   },
+    ]},
+    jewelry: { nothingW: 400, items: [
+        { name: 'Серебряная цепочка',        icon: '⛓', price: 4500,    w: 300 },
+        { name: 'Золотое кольцо',            icon: '💍', price: 28000,   w: 150 },
+        { name: 'Часы Seiko Presage',        icon: '⌚', price: 45000,   w: 50  },
+        { name: 'Золотая цепочка',           icon: '📿', price: 75000,   w: 60  },
+        { name: 'Серьги с бриллиантом',      icon: '💎', price: 180000,  w: 20  },
+        { name: 'Часы Rolex Submariner',     icon: '⌚', price: 1500000, w: 10  },
+        { name: 'Бриллиантовое колье',       icon: '👑', price: 500000,  w: 8   },
+        { name: 'Часы Patek Philippe',       icon: '💎', price: 8000000, w: 2   },
+    ]},
+    balance: { nothingW: 400, items: [
+        { name: '15 000₽',      icon: '💵', price: 15000,    w: 300, isBalance: true },
+        { name: '50 000₽',      icon: '💵', price: 50000,    w: 150, isBalance: true },
+        { name: '100 000₽',     icon: '💰', price: 100000,   w: 80,  isBalance: true },
+        { name: '200 000₽',     icon: '💰', price: 200000,   w: 40,  isBalance: true },
+        { name: '500 000₽',     icon: '🤑', price: 500000,   w: 20,  isBalance: true },
+        { name: '1 000 000₽',   icon: '🤑', price: 1000000,  w: 8,   isBalance: true },
+        { name: '5 000 000₽',   icon: '👑', price: 5000000,  w: 2,   isBalance: true },
+    ]},
+    daily: { nothingW: 330, items: [
+        { name: 'Ключ: Кейс с техникой',     icon: '🔑', price: 0, w: 250, isKey: true },
+        { name: 'Ключ: Кейс с машинами',     icon: '🔑', price: 0, w: 170, isKey: true },
+        { name: 'Ключ: Кейс с телефонами',   icon: '🔑', price: 0, w: 100, isKey: true },
+        { name: 'Ключ: Кейс с ювелиркой',    icon: '🔑', price: 0, w: 60,  isKey: true },
+        { name: 'Ключ: Кейс с квартирами',   icon: '🔑', price: 0, w: 60,  isKey: true },
+        { name: 'Ключ: Кейс с домами',       icon: '🔑', price: 0, w: 30,  isKey: true },
     ]},
 };
 
@@ -1976,7 +2040,7 @@ function renderCases() {
         dailyCd.textContent = formatCaseCd(caseStatus.daily_next_at);
         dailyCard.classList.add('case-disabled');
     }
-    for (const type of ['cars','apartments','houses','tech']) {
+    for (const type of ['cars','apartments','houses','tech','phones','jewelry']) {
         const badge = document.getElementById('case-key-' + type);
         const cnt = (caseStatus.keys || {})[type] || 0;
         if (cnt > 0) { badge.textContent = '🔑 ×' + cnt; badge.style.display = ''; }
@@ -2133,8 +2197,10 @@ function showCaseResult(d) {
     } else if (d.reward === 'item') {
         emo = d.item.icon; title = d.item.name; sub = '🎉 Добавлено в инвентарь!'; haptic('success');
     } else if (d.reward === 'key') {
-        const names = {cars:'машинам', apartments:'квартирам', houses:'домам', tech:'технике'};
+        const names = {cars:'машинам', apartments:'квартирам', houses:'домам', tech:'технике', phones:'телефонами', jewelry:'ювелиркой'};
         emo = '🔑'; title = 'Ключ!'; sub = 'Ключ к кейсу с ' + (names[d.key_type] || d.key_type); haptic('success');
+    } else if (d.reward === 'balance') {
+        emo = '💰'; title = 'Деньги!'; sub = fmtSep(d.amount) + '₽ зачислено на баланс!'; haptic('success');
     }
     document.getElementById('case-modal-emo').textContent = emo;
     document.getElementById('case-modal-title').textContent = title;
@@ -2174,9 +2240,12 @@ function _spinWinnerItem(type, result) {
     if (result.reward === 'nothing') return all.find(i => i.isNothing) || all[all.length - 1];
     if (result.reward === 'item')    return all.find(i => i.name === result.item.name) || { name: result.item.name, icon: result.item.icon, price: result.item.price, w: 1 };
     if (result.reward === 'key') {
-        const kn = { cars: 'Ключ: Кейс с машинами', apartments: 'Ключ: Кейс с квартирами', houses: 'Ключ: Кейс с домами', tech: 'Ключ: Кейс с техникой' };
+        const kn = { cars: 'Ключ: Кейс с машинами', apartments: 'Ключ: Кейс с квартирами', houses: 'Ключ: Кейс с домами', tech: 'Ключ: Кейс с техникой', phones: 'Ключ: Кейс с телефонами', jewelry: 'Ключ: Кейс с ювелиркой' };
         const nm = kn[result.key_type] || 'Ключ';
         return all.find(i => i.name === nm) || { name: nm, icon: '🔑', price: 0, w: 1 };
+    }
+    if (result.reward === 'balance') {
+        return all.find(i => i.price === result.amount) || { name: fmtSep(result.amount) + '₽', icon: '💰', price: result.amount, w: 1 };
     }
     return all[0];
 }
@@ -3131,7 +3200,7 @@ document.getElementById('btn-back-sell').onclick = () => go('s-market');
 document.getElementById('btn-back-jobs').onclick = () => { clearInterval(rentTickerId); rentTickerId = null; go('s-market'); };
 
 // ── SHOP ──────────────────────────────────────────────
-const CAT_LABELS = { cars:'🚗 Машины', apartments:'🏠 Квартиры', houses:'🏡 Дома', tech:'💻 Техника' };
+const CAT_LABELS = { cars:'🚗 Машины', apartments:'🏠 Квартиры', houses:'🏡 Дома', tech:'💻 Техника', phones:'📱 Телефоны', jewelry:'💎 Ювелирка' };
 let shopItems = [], shopCat = 'cars';
 
 async function shopLoad() {
@@ -3144,8 +3213,8 @@ async function shopLoad() {
     } catch { document.getElementById('shop-list').innerHTML = '<div class="sh-empty">Нет соединения</div>'; }
 }
 
-const SHOP_CAT_GRAD = { cars:'sh-item-img-cars', apartments:'sh-item-img-apartments', houses:'sh-item-img-houses', tech:'sh-item-img-tech' };
-const SHOP_CAT_HINT = { cars:'Добавится в инвентарь. Можно сдать в аренду.', apartments:'Добавится в инвентарь. Приносит доход от аренды.', houses:'Добавится в инвентарь. Приносит доход от аренды.', tech:'Добавится в инвентарь.' };
+const SHOP_CAT_GRAD = { cars:'sh-item-img-cars', apartments:'sh-item-img-apartments', houses:'sh-item-img-houses', tech:'sh-item-img-tech', phones:'sh-item-img-phones', jewelry:'sh-item-img-jewelry' };
+const SHOP_CAT_HINT = { cars:'Добавится в инвентарь. Можно сдать в аренду.', apartments:'Добавится в инвентарь. Приносит доход от аренды.', houses:'Добавится в инвентарь. Приносит доход от аренды.', tech:'Добавится в инвентарь.', phones:'Добавится в инвентарь.', jewelry:'Добавится в инвентарь.' };
 
 function shopRender() {
     const items = shopItems.filter(i => i.category === shopCat);
@@ -3356,7 +3425,7 @@ function startRentTicker() {
             const el    = document.getElementById('jearned-' + id);
             const btn   = document.getElementById('jbtn-' + id);
             if (el)  el.innerHTML = 'Накоплено: <b>' + fmt(cur) + '</b>';
-            if (btn) btn.disabled = cur < 1500;
+            if (btn) btn.disabled = cur < rate;
         });
     }, 1000);
 }
@@ -3387,7 +3456,7 @@ function jobsRender(rentals, available) {
                     </div>
                     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
                         <div class="job-earned" id="jearned-${r.id}">Накоплено: <b>${fmt(r.accumulated)}</b></div>
-                        <button class="job-collect-btn" id="jbtn-${r.id}" data-rental-id="${r.id}" ${r.accumulated<1500?'disabled':''}>Собрать</button>
+                        <button class="job-collect-btn" id="jbtn-${r.id}" data-rental-id="${r.id}" ${r.accumulated<r.rate?'disabled':''}>Собрать</button>
                     </div>
                 </div>
                 <button class="job-stop-btn" data-rental-id="${r.id}" data-name="${r.name}" data-icon="${r.icon}">Остановить аренду</button>
