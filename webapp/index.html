@@ -684,8 +684,10 @@ input[type=number] { -moz-appearance: textfield; }
 .sh-item.open { border-color:var(--accent); }
 .sh-item-top {
     display:flex; align-items:center; gap:12px;
-    padding:12px 14px;
+    padding:12px 14px; cursor:pointer;
+    transition:background .12s;
 }
+.sh-item-top:active { background:var(--surface2); }
 .sh-item-ico {
     font-size:28px; flex-shrink:0; width:44px; height:44px;
     display:flex; align-items:center; justify-content:center;
@@ -3186,8 +3188,8 @@ function shopRender() {
         </div>`;
     }).join('');
     el.querySelectorAll('.sh-buy-btn').forEach(btn => btn.onclick = e => { e.stopPropagation(); shopBuy(btn); });
-    el.querySelectorAll('.sh-item-ico').forEach(ico => ico.onclick = () => {
-        ico.closest('.sh-item').classList.toggle('open');
+    el.querySelectorAll('.sh-item-top').forEach(top => top.onclick = () => {
+        top.closest('.sh-item').classList.toggle('open');
     });
 }
 
