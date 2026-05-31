@@ -1902,6 +1902,8 @@ async def web_api_charity_donate(request: aio_web.Request) -> aio_web.Response:
             if item['name'] == 'Комната в общежитии' and item['price_paid'] == 0:
                 return aio_web.json_response({'error': 'Стартовую квартиру нельзя пожертвовать'})
             donation_value = float(item['price_paid'])
+            if donation_value < CHARITY_RATE:
+                return aio_web.json_response({'error': f'Предмет слишком дешёвый. Минимальная ценность {int(CHARITY_RATE):,}₽'.replace(',', ' ')})
             item_name, item_icon = item['name'], item['icon']
             await db.execute("DELETE FROM inventory WHERE id=?", (inv_id,))
         elif amount is not None:
