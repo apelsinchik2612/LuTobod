@@ -1679,7 +1679,7 @@ def make_web_app() -> aio_web.Application:
     app = aio_web.Application(middlewares=[cors_middleware])
     app.router.add_get('/', web_index)
     app.router.add_get('/api/ping', web_api_ping)
-    app.router.add_static('/images', 'images')
+    app.router.add_static('/images', Path(__file__).parent / 'images')
     app.router.add_route('OPTIONS', '/api/user', lambda r: aio_web.Response())
     app.router.add_route('OPTIONS', '/api/upgrade', lambda r: aio_web.Response())
     app.router.add_get('/api/user', web_api_user)
