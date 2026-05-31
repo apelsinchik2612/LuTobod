@@ -1911,8 +1911,8 @@ async def web_api_charity_donate(request: aio_web.Request) -> aio_web.Response:
                 amount = round(float(amount), 2)
             except (TypeError, ValueError):
                 return aio_web.json_response({'error': 'Неверная сумма'})
-            if amount < 1:
-                return aio_web.json_response({'error': 'Минимальная сумма 1₽'})
+            if amount < CHARITY_RATE:
+                return aio_web.json_response({'error': f'Минимальная сумма {int(CHARITY_RATE):,}₽'.replace(',', ' ')})
             if urow['balance'] < amount:
                 return aio_web.json_response({'error': 'Недостаточно средств'})
             donation_value = amount
