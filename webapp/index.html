@@ -3884,7 +3884,7 @@ async function charityLoadItems() {
 async function charityDonateBalance() {
     const inp = document.getElementById('charity-inp');
     const amount = parseFloat(inp.value);
-    if (!amount || amount < 1) { toast('Введите сумму пожертвования'); return; }
+    if (!amount || amount < 300000) { toast('Минимальная сумма 300 000₽'); return; }
     if (amount > balance) { toast('Недостаточно средств'); return; }
     const btn = document.getElementById('charity-money-btn');
     btn.disabled = true; btn.textContent = '…';
