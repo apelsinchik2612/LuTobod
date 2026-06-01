@@ -890,15 +890,28 @@ async def web_api_upgrade(request: aio_web.Request) -> aio_web.Response:
         return aio_web.json_response({'error': 'Unauthorized'}, status=401)
 
     try:
-        bet = round(float(data['bet']), 2)
-        multiplier = round(float(data['multiplier']), 2)
+        bet        = round(float(data.get('bet', 0)), 2)
+        multiplier = round(float(data['multiplier']), 6)
     except (KeyError, TypeError, ValueError):
         return aio_web.json_response({'error': 'Неверные данные'})
 
-    if bet < 500:
+    target_item     = data.get('target_item')   # {name, icon, price} | None
+    bet_inv_ids     = [int(x) for x in (data.get('bet_inv_ids') or [])]
+    total_bet_value = round(float(data.get('total_bet_value', bet)), 2)
+
+    if total_bet_value < 500:
         return aio_web.json_response({'error': 'Минимальная ставка 500₽'})
-    if multiplier < 1.1 or multiplier > 100:
-        return aio_web.json_response({'error': 'Неверный множитель'})
+    if bet < 0:
+        return aio_web.json_response({'error': 'Неверная ставка'})
+
+    # Режим с предметами/целью — произвольный множитель; без — только 2/3/5/10
+    item_mode = bool(target_item or bet_inv_ids)
+    if item_mode:
+        if multiplier < 1.001:
+            return aio_web.json_response({'error': 'Неверный множитель'})
+    else:
+        if round(multiplier, 1) not in (2.0, 3.0, 5.0, 10.0):
+            return aio_web.json_response({'error': 'Неверный множитель'})
 
     user = await get_user(user_id)
     if not user:
@@ -910,46 +923,94 @@ async def web_api_upgrade(request: aio_web.Request) -> aio_web.Response:
     if balance < bet:
         return aio_web.json_response({'error': 'Недостаточно средств'})
 
+    # Проверяем что предметы-ставки принадлежат пользователю
+    if bet_inv_ids:
+        async with aiosqlite.connect(DB_PATH) as db:
+            db.row_factory = aiosqlite.Row
+            for inv_id in bet_inv_ids:
+                async with db.execute(
+                    "SELECT id FROM inventory WHERE id = ? AND user_id = ?",
+                    (inv_id, user_id)
+                ) as cur:
+                    if not await cur.fetchone():
+                        return aio_web.json_response({'error': 'Предмет не найден в инвентаре'})
+
     won = random.random() < (1.0 / multiplier)
-    profit = round(bet * (multiplier - 1), 2) if won else 0.0
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+    won_item_data = None
     async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+
+        # Удаляем предметы-ставки (расходуются как ставка, не продаются)
+        for inv_id in bet_inv_ids:
+            await db.execute(
+                "DELETE FROM inventory WHERE id = ? AND user_id = ?",
+                (inv_id, user_id)
+            )
+
         if won:
-            new_balance = round(balance + profit, 2)
+            if target_item:
+                target_name  = str(target_item.get('name', ''))
+                target_icon  = str(target_item.get('icon', '❓'))
+                target_price = round(float(target_item.get('price', 0)), 2)
+
+                async with db.execute(
+                    "SELECT id FROM shop_items WHERE name = ?", (target_name,)
+                ) as cur:
+                    si_row = await cur.fetchone()
+
+                if si_row:
+                    await db.execute(
+                        "INSERT INTO inventory (user_id, item_id, price_paid, bought_at) VALUES (?,?,?,?)",
+                        (user_id, si_row['id'], target_price, now_str)
+                    )
+                    won_item_data = {'name': target_name, 'icon': target_icon, 'price': target_price}
+
+                profit      = 0.0
+                new_balance = round(balance - bet, 2)
+            else:
+                profit      = round(bet * (multiplier - 1), 2)
+                new_balance = round(balance - bet + profit, 2)
+
             await db.execute(
                 "UPDATE users SET balance = ?, games_played = games_played + 1 WHERE id = ?",
-                (new_balance, user_id),
+                (new_balance, user_id)
             )
             await db.execute(
                 "INSERT INTO transactions (type, to_id, amount, created_at) VALUES (?,?,?,?)",
-                ("upgrade_win", user_id, profit, now_str),
+                ("upgrade_win", user_id, profit, now_str)
             )
         else:
+            profit      = 0.0
             new_balance = round(balance - bet, 2)
             await db.execute(
                 "UPDATE users SET balance = ?, games_played = games_played + 1 WHERE id = ?",
-                (new_balance, user_id),
+                (new_balance, user_id)
             )
             await db.execute(
                 "INSERT INTO transactions (type, to_id, amount, created_at) VALUES (?,?,?,?)",
-                ("upgrade_lose", user_id, bet, now_str),
+                ("upgrade_lose", user_id, total_bet_value, now_str)
             )
-            if bet >= 20_000:
+            if total_bet_value >= 20_000:
                 await _award_daily_key(user_id, db)
+
         await db.execute(
             "INSERT INTO game_history (user_id, won, bet, profit, mult, created_at) VALUES (?,?,?,?,?,?)",
-            (user_id, 1 if won else 0, bet, profit, multiplier, now_str)
+            (user_id, 1 if won else 0, total_bet_value, profit, multiplier, now_str)
         )
         await db.commit()
 
     updated = await get_user(user_id)
-    return aio_web.json_response({
-        'won': won,
-        'profit': profit,
-        'new_balance': round(float(updated['balance']), 2),
-        'daily_key_awarded': not won and bet >= 20_000,
-    })
+    resp = {
+        'won':               won,
+        'profit':            profit,
+        'new_balance':       round(float(updated['balance']), 2),
+        'daily_key_awarded': not won and total_bet_value >= 20_000,
+    }
+    if won_item_data:
+        resp['won_item'] = won_item_data
+    return aio_web.json_response(resp)
 
 
 async def web_api_history(request: aio_web.Request) -> aio_web.Response:
