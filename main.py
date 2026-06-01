@@ -1290,6 +1290,7 @@ async def web_api_crash_cashout(request: aio_web.Request) -> aio_web.Response:
     if current_mult >= session['crash_point']:
         session['active'] = False
         cp = session['crash_point']
+        key_awarded = False
         if not session['history_recorded']:
             session['history_recorded'] = True
             crash_history.append(cp)
@@ -1301,9 +1302,12 @@ async def web_api_crash_cashout(request: aio_web.Request) -> aio_web.Response:
                     "INSERT INTO game_history (user_id, won, bet, profit, mult, created_at) VALUES (?,?,?,?,?,?)",
                     (user_id, 0, session['bet'], 0.0, cp, now_str)
                 )
+                if session['bet'] >= 20_000:
+                    await _award_daily_key(user_id, db)
+                    key_awarded = True
                 await db.commit()
         crash_sessions.pop(session_id, None)
-        return aio_web.json_response({'crashed': True, 'crash_point': cp})
+        return aio_web.json_response({'crashed': True, 'crash_point': cp, 'daily_key_awarded': key_awarded})
 
     cashout_mult = round(current_mult, 2)
     total        = round(session['bet'] * cashout_mult, 2)
@@ -1353,6 +1357,7 @@ async def web_api_crash_status(request: aio_web.Request) -> aio_web.Response:
     if current_mult >= session['crash_point']:
         session['active'] = False
         cp = session['crash_point']
+        key_awarded = False
         if not session['history_recorded']:
             session['history_recorded'] = True
             crash_history.append(cp)
@@ -1364,12 +1369,16 @@ async def web_api_crash_status(request: aio_web.Request) -> aio_web.Response:
                     "INSERT INTO game_history (user_id, won, bet, profit, mult, created_at) VALUES (?,?,?,?,?,?)",
                     (user_id, 0, session['bet'], 0.0, cp, now_str)
                 )
+                if session['bet'] >= 20_000:
+                    await _award_daily_key(user_id, db)
+                    key_awarded = True
                 await db.commit()
         crash_sessions.pop(session_id, None)
         return aio_web.json_response({
             'active': False, 'crashed': True,
             'crash_point': cp,
             'history': list(crash_history[-10:]),
+            'daily_key_awarded': key_awarded,
         })
 
     return aio_web.json_response({
