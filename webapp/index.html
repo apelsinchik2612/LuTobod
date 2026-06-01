@@ -1300,23 +1300,9 @@ input[type=number] { -moz-appearance: textfield; }
             <button class="cashout-btn" id="ms-cashout-btn" disabled>ЗАБРАТЬ —</button>
         </div>
 
-        <!-- Панели: ставка предметами + хочу выбить -->
-        <div class="bet-panel-row" id="ms-panels">
-            <div class="bet-panel" id="ms-bet-panel" onclick="openItemPicker('ms','bet')">
-                <div class="bet-panel-lbl">Ставка предметами</div>
-                <div class="bet-panel-icons" id="ms-bet-icons"><span class="bet-panel-hint">Нажмите для выбора</span></div>
-                <div class="bet-panel-val" id="ms-bet-val">0₽</div>
-            </div>
-            <div class="bet-panel" id="ms-target-panel" onclick="openItemPicker('ms','target')">
-                <div class="bet-panel-lbl">Хочу выбить</div>
-                <div class="bet-panel-icons" id="ms-target-icons"><span class="bet-panel-hint">Выбрать цель</span></div>
-                <div class="bet-panel-val" id="ms-target-val">—</div>
-            </div>
-        </div>
-
         <!-- Ставка -->
         <div class="w100" id="ms-bet-section">
-            <div class="field-lbl">Ставка деньгами</div>
+            <div class="field-lbl">Ставка</div>
             <div class="inp-wrap">
                 <input type="number" id="ms-bet-inp" class="inp" placeholder="0" min="0" step="1">
                 <span class="inp-sfx">₽</span>
@@ -1383,22 +1369,8 @@ input[type=number] { -moz-appearance: textfield; }
             </div>
         </div>
 
-        <!-- Панели: ставка предметами + хочу выбить -->
-        <div class="bet-panel-row">
-            <div class="bet-panel" id="rl-bet-panel" onclick="openItemPicker('rl','bet')">
-                <div class="bet-panel-lbl">Ставка предметами</div>
-                <div class="bet-panel-icons" id="rl-bet-icons"><span class="bet-panel-hint">Нажмите для выбора</span></div>
-                <div class="bet-panel-val" id="rl-bet-val">0₽</div>
-            </div>
-            <div class="bet-panel" id="rl-target-panel" onclick="openItemPicker('rl','target')">
-                <div class="bet-panel-lbl">Хочу выбить</div>
-                <div class="bet-panel-icons" id="rl-target-icons"><span class="bet-panel-hint">Выбрать цель</span></div>
-                <div class="bet-panel-val" id="rl-target-val">—</div>
-            </div>
-        </div>
-
         <div class="w100">
-            <div class="field-lbl">Ставка деньгами</div>
+            <div class="field-lbl">Ставка</div>
             <div class="inp-wrap">
                 <input type="number" id="rl-bet-inp" class="inp" placeholder="0" min="0" step="1">
                 <span class="inp-sfx">₽</span>
@@ -1439,22 +1411,8 @@ input[type=number] { -moz-appearance: textfield; }
             <div class="info-item"><div class="info-item-lbl">Выигрыш</div><div class="info-item-val g" id="cr-info-win">—</div></div>
         </div>
 
-        <!-- Панели: ставка предметами + хочу выбить -->
-        <div class="bet-panel-row" id="cr-panels">
-            <div class="bet-panel" id="cr-bet-panel" onclick="openItemPicker('cr','bet')">
-                <div class="bet-panel-lbl">Ставка предметами</div>
-                <div class="bet-panel-icons" id="cr-bet-icons"><span class="bet-panel-hint">Нажмите для выбора</span></div>
-                <div class="bet-panel-val" id="cr-bet-val">0₽</div>
-            </div>
-            <div class="bet-panel" id="cr-target-panel" onclick="openItemPicker('cr','target')">
-                <div class="bet-panel-lbl">Хочу выбить</div>
-                <div class="bet-panel-icons" id="cr-target-icons"><span class="bet-panel-hint">Выбрать цель</span></div>
-                <div class="bet-panel-val" id="cr-target-val">—</div>
-            </div>
-        </div>
-
         <div class="w100" id="cr-bet-section">
-            <div class="field-lbl">Ставка деньгами</div>
+            <div class="field-lbl">Ставка</div>
             <div class="inp-wrap">
                 <input type="number" id="cr-bet-inp" class="inp" placeholder="0" min="0" step="1">
                 <span class="inp-sfx">₽</span>
@@ -2709,7 +2667,6 @@ document.getElementById('btn-back-upg').onclick = () => { if (!spinning) go('s-g
 
 document.getElementById('btn-minesweeper').onclick = () => {
     currentGame = 'minesweeper';
-    _invForBet = [];
     go('s-minesweeper');
     loadBet('ms-bet-inp', msSyncSlider);
     msSyncSlider();
@@ -2811,9 +2768,7 @@ function msSyncSlider() {
 
 function msUpdateInfoRow() {
     const cashBet  = parseFloat(document.getElementById('ms-bet-inp').value) || 0;
-    const itemsTot = _getBetItemsTotal('ms');
-    const totalBet = cashBet + itemsTot;
-    document.getElementById('ms-info-bet').textContent = totalBet > 0 ? fmt(totalBet) : '—';
+    document.getElementById('ms-info-bet').textContent = cashBet > 0 ? fmt(cashBet) : '—';
     document.getElementById('ms-info-bombs').textContent = msGame.mines;
     const stepMult = msCalcStepMult(1, msGame.mines);
     document.getElementById('ms-info-mult').textContent = '×' + stepMult.toFixed(2);
@@ -2872,28 +2827,12 @@ function msUpdateCashoutBtn() {
 }
 
 async function msStartGame() {
-    const cashBet  = parseFloat(document.getElementById('ms-bet-inp').value) || 0;
-    const itemsTot = _getBetItemsTotal('ms');
-    const totalBet = cashBet + itemsTot;
-    if (totalBet < 500) { toast('Минимальная ставка 500₽'); return; }
-    if (cashBet > balance) { toast('Недостаточно средств'); return; }
-    if (cashBet >= 500) saveBet(cashBet);
+    const actualBet = parseFloat(document.getElementById('ms-bet-inp').value) || 0;
+    if (actualBet < 500) { toast('Минимальная ставка 500₽'); return; }
+    if (actualBet > balance) { toast('Недостаточно средств'); return; }
+    saveBet(actualBet);
 
     msSetControlsLocked(true);
-    document.getElementById('ms-panels').style.display = 'none';
-
-    // Продаём предметы-ставку если есть
-    let actualBet = cashBet;
-    if (itemsTot > 0) {
-        const proceeds = await _sellBetItems('ms');
-        actualBet = cashBet + proceeds;
-    }
-    if (actualBet < 500) {
-        toast('Итоговая ставка слишком мала');
-        msSetControlsLocked(false);
-        document.getElementById('ms-panels').style.display = '';
-        return;
-    }
 
     let result;
     try {
@@ -2905,13 +2844,11 @@ async function msStartGame() {
     } catch {
         toast('Ошибка сервера');
         msSetControlsLocked(false);
-        document.getElementById('ms-panels').style.display = '';
         return;
     }
     if (result.error) {
         toast(result.error);
         msSetControlsLocked(false);
-        document.getElementById('ms-panels').style.display = '';
         return;
     }
 
@@ -3055,7 +2992,6 @@ function msResetUI() {
     msGame.cells = Array(25).fill(null);
     document.getElementById('ms-game-area').style.display = 'none';
     document.getElementById('ms-start-btn').style.display = '';
-    document.getElementById('ms-panels').style.display = '';
     msSetControlsLocked(false);
     msSyncSlider();
     msUpdateInfoRow();
@@ -3134,13 +3070,11 @@ function drawRouletteWheel(angle) {
 }
 
 function rlUpdateInfoRow() {
-    const cashBet  = parseFloat(document.getElementById('rl-bet-inp').value) || 0;
-    const itemsTot = _getBetItemsTotal('rl');
-    const totalBet = cashBet + itemsTot;
-    document.getElementById('rl-info-bet').textContent   = totalBet > 0 ? fmt(totalBet) : '—';
+    const cashBet = parseFloat(document.getElementById('rl-bet-inp').value) || 0;
+    document.getElementById('rl-info-bet').textContent   = cashBet > 0 ? fmt(cashBet) : '—';
     document.getElementById('rl-info-color').textContent = RL_EMOJI[rlSelectedColor] || '—';
     const m = RL_MULTS[rlSelectedColor];
-    document.getElementById('rl-info-win').textContent   = totalBet > 0 ? '+' + fmt(totalBet * (m - 1)) : '—';
+    document.getElementById('rl-info-win').textContent   = cashBet > 0 ? '+' + fmt(cashBet * (m - 1)) : '—';
 }
 
 function rlSyncSlider() {
@@ -3165,28 +3099,13 @@ function rlSetUILocked(locked) {
 
 async function rlDoSpin() {
     if (rlSpinning) return;
-    const cashBet  = parseFloat(document.getElementById('rl-bet-inp').value) || 0;
-    const itemsTot = _getBetItemsTotal('rl');
-    const totalBet = cashBet + itemsTot;
-    if (totalBet < 500) { toast('Минимальная ставка 500₽'); return; }
-    if (cashBet > balance) { toast('Недостаточно средств'); return; }
-    if (cashBet >= 500) saveBet(cashBet);
+    const actualBet = parseFloat(document.getElementById('rl-bet-inp').value) || 0;
+    if (actualBet < 500) { toast('Минимальная ставка 500₽'); return; }
+    if (actualBet > balance) { toast('Недостаточно средств'); return; }
+    saveBet(actualBet);
 
     rlSpinning = true;
     rlSetUILocked(true);
-
-    // Продаём предметы-ставку если есть
-    let actualBet = cashBet;
-    if (itemsTot > 0) {
-        const proceeds = await _sellBetItems('rl');
-        actualBet = cashBet + proceeds;
-    }
-    if (actualBet < 500) {
-        toast('Итоговая ставка слишком мала');
-        rlSpinning = false;
-        rlSetUILocked(false);
-        return;
-    }
 
     let result;
     try {
@@ -3269,7 +3188,6 @@ async function rlDoSpin() {
 // Roulette events
 document.getElementById('btn-roulette').onclick = () => {
     currentGame = 'roulette';
-    _invForBet = [];
     go('s-roulette');
     loadBet('rl-bet-inp', rlSyncSlider);
     rlSyncSlider();
@@ -3433,9 +3351,7 @@ function crSyncSlider() {
 
 function crUpdateInfoRow() {
     const inp = document.getElementById('cr-bet-inp');
-    const cashBet  = crState !== 'idle' ? crBet : (inp ? parseFloat(inp.value) || 0 : 0);
-    const itemsTot = crState === 'idle' ? _getBetItemsTotal('cr') : 0;
-    const bet      = cashBet + itemsTot;
+    const bet = crState !== 'idle' ? crBet : (inp ? parseFloat(inp.value) || 0 : 0);
     const lastMult = crPoints.length ? crPoints[crPoints.length-1][1] : 1.0;
     const dispMult = crState === 'crashed' ? (crCrashedAt || 1.0) : lastMult;
 
@@ -3481,11 +3397,11 @@ async function crPollStatus() {
     try {
         const r = await fetch(bustUrl(`${API_BASE}/api/crash/status?session_id=${crSessionId}&init_data=${encodeURIComponent(initData)}`));
         const d = await r.json();
-        if (!d.active && d.crashed) crHandleCrash(d.crash_point, d.history);
+        if (!d.active && d.crashed) crHandleCrash(d.crash_point, d.history, d.daily_key_awarded);
     } catch { /* ignore */ }
 }
 
-function crHandleCrash(cp, history) {
+function crHandleCrash(cp, history, keyAwarded) {
     if (crState !== 'flying') return;
     crState     = 'crashed';
     crCrashedAt = cp;
@@ -3509,6 +3425,11 @@ function crHandleCrash(cp, history) {
         document.getElementById('res-amt').innerHTML     =
             `Краш на <b style="color:var(--red)">x${parseFloat(cp).toFixed(2)}</b> — ты потерял <b style="color:var(--red)">-${fmt(crBet)}</b>`;
         showOverlay();
+        if (keyAwarded) {
+            caseStatus.keys = caseStatus.keys || {};
+            caseStatus.keys.daily = (caseStatus.keys.daily || 0) + 1;
+            setTimeout(() => notify('🔑', 'Бесплатный ключ!', 'Ключ на ежедневный кейс'), 600);
+        }
     }, 500);
 }
 
@@ -3541,7 +3462,7 @@ async function crDoCashout() {
         return;
     }
 
-    if (result.crashed) { crHandleCrash(result.crash_point, null); return; }
+    if (result.crashed) { crHandleCrash(result.crash_point, null, result.daily_key_awarded); return; }
 
     applyNewBalance(result.new_balance);
     const btn = document.getElementById('cr-action-btn');
@@ -3558,28 +3479,13 @@ async function crDoCashout() {
 }
 
 async function crStartGame() {
-    const cashBet  = parseFloat(document.getElementById('cr-bet-inp').value) || 0;
-    const itemsTot = _getBetItemsTotal('cr');
-    const totalBet = cashBet + itemsTot;
-    if (totalBet < 500) { toast('Минимальная ставка 500₽'); return; }
-    if (cashBet > balance) { toast('Недостаточно средств'); return; }
-    if (cashBet >= 500) saveBet(cashBet);
+    const actualBet = parseFloat(document.getElementById('cr-bet-inp').value) || 0;
+    if (actualBet < 500) { toast('Минимальная ставка 500₽'); return; }
+    if (actualBet > balance) { toast('Недостаточно средств'); return; }
+    saveBet(actualBet);
 
     crSetControlsLocked(true);
     document.getElementById('cr-action-btn').disabled = true;
-
-    // Продаём предметы-ставку если есть
-    let actualBet = cashBet;
-    if (itemsTot > 0) {
-        const proceeds = await _sellBetItems('cr');
-        actualBet = cashBet + proceeds;
-    }
-    if (actualBet < 500) {
-        toast('Итоговая ставка слишком мала');
-        crSetControlsLocked(false);
-        document.getElementById('cr-action-btn').disabled = false;
-        return;
-    }
 
     let result;
     try {
@@ -3623,7 +3529,6 @@ async function crStartGame() {
 // Crash events
 document.getElementById('btn-crash').onclick = () => {
     currentGame = 'crash';
-    _invForBet = [];
     go('s-crash');
     loadBet('cr-bet-inp', crSyncSlider);
     crSetupCanvas(); crSyncSlider(); crDrawGraph(); crRenderHistory();
@@ -4349,8 +4254,8 @@ async function pollEvents() {
 let _ipmGame   = null;   // 'upg'|'ms'|'rl'|'cr'
 let _ipmType   = null;   // 'bet'|'target'
 let _invForBet = [];     // кэш инвентаря для ставок
-let _selBetItems = { upg:[], ms:[], rl:[], cr:[] };
-let _selTarget   = { upg:null, ms:null, rl:null, cr:null };
+let _selBetItems = { upg:[] };
+let _selTarget   = { upg:null };
 
 function _rarityFromPrice(price) {
     if (price >= 50000000) return 'rarity-extraordinary';
@@ -4553,9 +4458,6 @@ function _refreshBetPanel(game) {
     }
 
     if (game==='upg') updateUI();
-    else if (game==='ms') msUpdateInfoRow();
-    else if (game==='rl') rlUpdateInfoRow();
-    else if (game==='cr') crUpdateInfoRow();
 }
 
 async function _sellBetItems(game) {
