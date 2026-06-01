@@ -884,6 +884,101 @@ input[type=number] { -moz-appearance: textfield; }
 .ntf-prog { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: var(--surface2); }
 .ntf-bar { height: 100%; background: var(--accent); width: 100%; }
 
+/* === ITEM BET PANELS === */
+.bet-panel-row { display:flex; gap:8px; width:100%; }
+.bet-panel {
+    flex:1; min-width:0; background:var(--surface); border:2px solid var(--border);
+    border-radius:12px; padding:9px 10px; display:flex; flex-direction:column; gap:5px;
+    cursor:pointer; transition:all .15s; user-select:none;
+}
+.bet-panel:active { transform:scale(.97); }
+.bet-panel:hover  { border-color:var(--accent); }
+.bet-panel.active-bet    { border-color:var(--green); background:rgba(63,185,80,.05); }
+.bet-panel.active-target { border-color:var(--accent); background:rgba(88,166,255,.05); }
+.bet-panel-lbl  { font-size:9px; color:var(--text2); text-transform:uppercase; letter-spacing:.4px; font-weight:600; }
+.bet-panel-icons { display:flex; gap:3px; flex-wrap:wrap; min-height:26px; align-items:center; }
+.bet-panel-ico {
+    width:26px; height:26px; border-radius:6px; background:var(--surface2);
+    display:flex; align-items:center; justify-content:center; font-size:14px;
+    border:1px solid var(--border);
+}
+.bet-panel-val  { font-size:12px; font-weight:800; color:var(--text2); }
+.bet-panel.active-bet    .bet-panel-val { color:var(--green); }
+.bet-panel.active-target .bet-panel-val { color:var(--accent); }
+.bet-panel-hint { font-size:10px; color:var(--text2); font-style:italic; }
+
+/* === ITEM PICKER MODAL (bottom sheet) === */
+.ipm-bg {
+    position:fixed; inset:0; z-index:500; background:rgba(0,0,0,.82);
+    display:flex; flex-direction:column;
+    opacity:0; pointer-events:none; transition:opacity .22s;
+}
+.ipm-bg.show { opacity:1; pointer-events:all; }
+.ipm-sheet {
+    margin-top:auto; background:var(--surface);
+    border-radius:20px 20px 0 0; max-height:82vh;
+    display:flex; flex-direction:column; overflow:hidden;
+    transform:translateY(100%); transition:transform .28s cubic-bezier(.4,0,.2,1);
+}
+.ipm-bg.show .ipm-sheet { transform:translateY(0); }
+.ipm-hdr {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:13px 16px 12px; border-bottom:1px solid var(--border); flex-shrink:0;
+}
+.ipm-title { font-size:15px; font-weight:800; }
+.ipm-close {
+    width:28px; height:28px; border-radius:50%; background:var(--surface2);
+    border:none; color:var(--text); font-size:20px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+}
+.ipm-list {
+    flex:1; overflow-y:auto; padding:10px 12px 100px;
+    display:grid; grid-template-columns:repeat(3,1fr); gap:8px;
+}
+.ipm-empty { text-align:center; color:var(--text2); font-size:13px; padding:30px 10px; grid-column:span 3; }
+.ipm-footer {
+    padding:10px 16px 16px; background:var(--surface);
+    border-top:1px solid var(--border);
+    display:flex; gap:10px; align-items:center; flex-shrink:0;
+}
+.ipm-footer-info { flex:1; min-width:0; }
+.ipm-footer-lbl { font-size:10px; color:var(--text2); }
+.ipm-footer-val { font-size:15px; font-weight:800; color:var(--green); }
+
+.ipi {
+    background:var(--surface2); border:2px solid var(--border);
+    border-radius:12px; padding:8px 4px 6px;
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+    cursor:pointer; transition:all .12s; position:relative; user-select:none;
+}
+.ipi:active { transform:scale(.93); }
+.ipi.sel { border-color:var(--green) !important; background:rgba(63,185,80,.09); }
+.ipi-ico  { font-size:26px; line-height:1; }
+.ipi-name { font-size:9px; font-weight:700; text-align:center; line-height:1.3; word-break:break-word; padding:0 2px; }
+.ipi-price { font-size:9px; color:var(--green); font-weight:600; }
+.ipi-rare  { font-size:8px; font-weight:700; padding:1px 5px; border-radius:4px; margin-top:1px; }
+.ipi-chk {
+    position:absolute; top:3px; right:3px;
+    width:14px; height:14px; border-radius:50%;
+    background:var(--green); color:#fff; font-size:9px; font-weight:900;
+    display:none; align-items:center; justify-content:center;
+}
+.ipi.sel .ipi-chk { display:flex; }
+.ipi.rarity-consumer     { border-color:rgba(176,195,217,.4); }
+.ipi.rarity-consumer     .ipi-rare { background:rgba(176,195,217,.15); color:#b0c3d9; }
+.ipi.rarity-industrial   { border-color:rgba(94,152,217,.4); }
+.ipi.rarity-industrial   .ipi-rare { background:rgba(94,152,217,.15); color:#5e98d9; }
+.ipi.rarity-milspec      { border-color:rgba(75,105,255,.45); }
+.ipi.rarity-milspec      .ipi-rare { background:rgba(75,105,255,.15); color:#4b69ff; }
+.ipi.rarity-restricted   { border-color:rgba(136,71,255,.45); }
+.ipi.rarity-restricted   .ipi-rare { background:rgba(136,71,255,.15); color:#8847ff; }
+.ipi.rarity-classified   { border-color:rgba(211,44,230,.45); }
+.ipi.rarity-classified   .ipi-rare { background:rgba(211,44,230,.15); color:#d32ce6; }
+.ipi.rarity-covert       { border-color:rgba(235,75,75,.5); background:rgba(235,75,75,.03); }
+.ipi.rarity-covert       .ipi-rare { background:rgba(235,75,75,.15); color:#eb4b4b; }
+.ipi.rarity-extraordinary { border-color:rgba(228,174,57,.6); background:rgba(228,174,57,.04); }
+.ipi.rarity-extraordinary .ipi-rare { background:rgba(228,174,57,.15); color:#e4ae39; }
+
 /* === CHARITY === */
 .charity-status {
     border-radius: 14px; padding: 16px;
@@ -1136,10 +1231,24 @@ input[type=number] { -moz-appearance: textfield; }
             </div>
         </div>
 
+        <!-- Панели: ставка предметами + хочу выбить -->
+        <div class="bet-panel-row">
+            <div class="bet-panel" id="upg-bet-panel" onclick="openItemPicker('upg','bet')">
+                <div class="bet-panel-lbl">Ставка предметами</div>
+                <div class="bet-panel-icons" id="upg-bet-icons"><span class="bet-panel-hint">Нажмите для выбора</span></div>
+                <div class="bet-panel-val" id="upg-bet-val">0₽</div>
+            </div>
+            <div class="bet-panel" id="upg-target-panel" onclick="openItemPicker('upg','target')">
+                <div class="bet-panel-lbl">Хочу выбить</div>
+                <div class="bet-panel-icons" id="upg-target-icons"><span class="bet-panel-hint">Выбрать цель</span></div>
+                <div class="bet-panel-val" id="upg-target-val">—</div>
+            </div>
+        </div>
+
         <div class="w100">
-            <div class="field-lbl">Ставка</div>
+            <div class="field-lbl">Ставка деньгами</div>
             <div class="inp-wrap">
-                <input type="number" id="bet-inp" class="inp" placeholder="500" min="500" step="1">
+                <input type="number" id="bet-inp" class="inp" placeholder="0" min="0" step="1">
                 <span class="inp-sfx">₽</span>
             </div>
             <input type="range" id="bet-slider" class="bet-slider" min="500" max="500" step="1" value="500">
@@ -1191,11 +1300,25 @@ input[type=number] { -moz-appearance: textfield; }
             <button class="cashout-btn" id="ms-cashout-btn" disabled>ЗАБРАТЬ —</button>
         </div>
 
+        <!-- Панели: ставка предметами + хочу выбить -->
+        <div class="bet-panel-row" id="ms-panels">
+            <div class="bet-panel" id="ms-bet-panel" onclick="openItemPicker('ms','bet')">
+                <div class="bet-panel-lbl">Ставка предметами</div>
+                <div class="bet-panel-icons" id="ms-bet-icons"><span class="bet-panel-hint">Нажмите для выбора</span></div>
+                <div class="bet-panel-val" id="ms-bet-val">0₽</div>
+            </div>
+            <div class="bet-panel" id="ms-target-panel" onclick="openItemPicker('ms','target')">
+                <div class="bet-panel-lbl">Хочу выбить</div>
+                <div class="bet-panel-icons" id="ms-target-icons"><span class="bet-panel-hint">Выбрать цель</span></div>
+                <div class="bet-panel-val" id="ms-target-val">—</div>
+            </div>
+        </div>
+
         <!-- Ставка -->
         <div class="w100" id="ms-bet-section">
-            <div class="field-lbl">Ставка</div>
+            <div class="field-lbl">Ставка деньгами</div>
             <div class="inp-wrap">
-                <input type="number" id="ms-bet-inp" class="inp" placeholder="500" min="500" step="1">
+                <input type="number" id="ms-bet-inp" class="inp" placeholder="0" min="0" step="1">
                 <span class="inp-sfx">₽</span>
             </div>
             <input type="range" id="ms-bet-slider" class="bet-slider" min="500" max="500" step="1" value="500">
@@ -1260,10 +1383,24 @@ input[type=number] { -moz-appearance: textfield; }
             </div>
         </div>
 
+        <!-- Панели: ставка предметами + хочу выбить -->
+        <div class="bet-panel-row">
+            <div class="bet-panel" id="rl-bet-panel" onclick="openItemPicker('rl','bet')">
+                <div class="bet-panel-lbl">Ставка предметами</div>
+                <div class="bet-panel-icons" id="rl-bet-icons"><span class="bet-panel-hint">Нажмите для выбора</span></div>
+                <div class="bet-panel-val" id="rl-bet-val">0₽</div>
+            </div>
+            <div class="bet-panel" id="rl-target-panel" onclick="openItemPicker('rl','target')">
+                <div class="bet-panel-lbl">Хочу выбить</div>
+                <div class="bet-panel-icons" id="rl-target-icons"><span class="bet-panel-hint">Выбрать цель</span></div>
+                <div class="bet-panel-val" id="rl-target-val">—</div>
+            </div>
+        </div>
+
         <div class="w100">
-            <div class="field-lbl">Ставка</div>
+            <div class="field-lbl">Ставка деньгами</div>
             <div class="inp-wrap">
-                <input type="number" id="rl-bet-inp" class="inp" placeholder="500" min="500" step="1">
+                <input type="number" id="rl-bet-inp" class="inp" placeholder="0" min="0" step="1">
                 <span class="inp-sfx">₽</span>
             </div>
             <input type="range" id="rl-bet-slider" class="bet-slider" min="500" max="500" step="1" value="500">
@@ -1302,10 +1439,24 @@ input[type=number] { -moz-appearance: textfield; }
             <div class="info-item"><div class="info-item-lbl">Выигрыш</div><div class="info-item-val g" id="cr-info-win">—</div></div>
         </div>
 
+        <!-- Панели: ставка предметами + хочу выбить -->
+        <div class="bet-panel-row" id="cr-panels">
+            <div class="bet-panel" id="cr-bet-panel" onclick="openItemPicker('cr','bet')">
+                <div class="bet-panel-lbl">Ставка предметами</div>
+                <div class="bet-panel-icons" id="cr-bet-icons"><span class="bet-panel-hint">Нажмите для выбора</span></div>
+                <div class="bet-panel-val" id="cr-bet-val">0₽</div>
+            </div>
+            <div class="bet-panel" id="cr-target-panel" onclick="openItemPicker('cr','target')">
+                <div class="bet-panel-lbl">Хочу выбить</div>
+                <div class="bet-panel-icons" id="cr-target-icons"><span class="bet-panel-hint">Выбрать цель</span></div>
+                <div class="bet-panel-val" id="cr-target-val">—</div>
+            </div>
+        </div>
+
         <div class="w100" id="cr-bet-section">
-            <div class="field-lbl">Ставка</div>
+            <div class="field-lbl">Ставка деньгами</div>
             <div class="inp-wrap">
-                <input type="number" id="cr-bet-inp" class="inp" placeholder="500" min="500" step="1">
+                <input type="number" id="cr-bet-inp" class="inp" placeholder="0" min="0" step="1">
                 <span class="inp-sfx">₽</span>
             </div>
             <input type="range" id="cr-bet-slider" class="bet-slider" min="500" max="500" step="1" value="500">
@@ -1569,6 +1720,25 @@ input[type=number] { -moz-appearance: textfield; }
     </div>
 </div>
 
+<!-- ITEM PICKER MODAL -->
+<div class="ipm-bg" id="ipm-modal">
+    <div style="flex:1" onclick="closeItemPicker()"></div>
+    <div class="ipm-sheet">
+        <div class="ipm-hdr">
+            <span class="ipm-title" id="ipm-title">Инвентарь</span>
+            <button class="ipm-close" onclick="closeItemPicker()">×</button>
+        </div>
+        <div class="ipm-list" id="ipm-list"></div>
+        <div class="ipm-footer">
+            <div class="ipm-footer-info">
+                <div class="ipm-footer-lbl" id="ipm-footer-lbl">Выбрано</div>
+                <div class="ipm-footer-val" id="ipm-footer-val">0₽</div>
+            </div>
+            <button class="spin-btn" style="width:140px;padding:12px;font-size:14px" id="ipm-confirm-btn" onclick="confirmItemPicker()">Применить</button>
+        </div>
+    </div>
+</div>
+
 <!-- RESULT OVERLAY -->
 <div class="overlay" id="overlay">
     <div class="res-card">
@@ -1814,9 +1984,11 @@ function winChance() { return 1/mult; }
 function updateUI() {
     const wc = winChance();
     animateChance(wc);
-    const bet = parseFloat(document.getElementById('bet-inp').value) || 0;
-    document.getElementById('prev-bet').textContent = bet > 0 ? fmt(bet) : '—';
-    document.getElementById('prev-win').textContent = bet > 0 ? '+'+fmt(bet*(mult-1)) : '—';
+    const cashBet  = parseFloat(document.getElementById('bet-inp').value) || 0;
+    const itemsTot = _getBetItemsTotal('upg');
+    const totalBet = cashBet + itemsTot;
+    document.getElementById('prev-bet').textContent = totalBet > 0 ? fmt(totalBet) : '—';
+    document.getElementById('prev-win').textContent = totalBet > 0 ? '+'+fmt(totalBet*(mult-1)) : '—';
 }
 
 // ── 2: БЛОКИРОВКА UI ВО ВРЕМЯ КРУЧЕНИЯ ───────────────
@@ -1850,20 +2022,36 @@ function animateReturnArrow(done) {
 // ── SPIN ──────────────────────────────────────────────
 async function doSpin() {
     if (spinning) return;
-    const bet = parseFloat(document.getElementById('bet-inp').value);
-    if (!bet || bet < 500) { toast('Минимальная ставка 500₽'); return; }
-    if (bet > balance) { toast('Недостаточно средств'); return; }
-    saveBet(bet);
+    const cashBet  = parseFloat(document.getElementById('bet-inp').value) || 0;
+    const itemsTot = _getBetItemsTotal('upg');
+    const totalBet = cashBet + itemsTot;
+    if (totalBet < 500) { toast('Минимальная ставка 500₽'); return; }
+    if (cashBet > balance) { toast('Недостаточно средств'); return; }
+    if (cashBet >= 500) saveBet(cashBet);
 
     spinning = true;
     document.getElementById('spin-btn').disabled = true;
     setUILocked(true);
 
+    // Продаём предметы-ставку если есть
+    let actualBet = cashBet;
+    if (itemsTot > 0) {
+        const proceeds = await _sellBetItems('upg');
+        actualBet = cashBet + proceeds;
+    }
+    if (actualBet < 500) {
+        toast('Итоговая ставка слишком мала');
+        spinning = false;
+        document.getElementById('spin-btn').disabled = false;
+        setUILocked(false);
+        return;
+    }
+
     let result;
     try {
         const r = await fetch(API_BASE+'/api/upgrade', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ init_data: initData, bet, multiplier: mult })
+            body: JSON.stringify({ init_data: initData, bet: actualBet, multiplier: mult })
         });
         result = await r.json();
     } catch {
@@ -1922,7 +2110,7 @@ async function doSpin() {
             arrowAngle = startAngle + totalDelta;
             drawWheel(arrowAngle, wc);
             applyNewBalance(result.new_balance);
-            showResult(won, bet, result.profit, mult, result.daily_key_awarded);
+            showResult(won, actualBet, result.profit, mult, result.daily_key_awarded);
             spinning = false;
             document.getElementById('spin-btn').disabled = false;
             setUILocked(false);
@@ -2455,11 +2643,12 @@ function startCaseSpin(type, result, onDone) {
 document.getElementById('btn-play').onclick = () => go('s-games');
 document.getElementById('btn-back-games').onclick = () => go('s-main');
 document.getElementById('btn-back-case').onclick  = () => { if (!caseOpening) go('s-games'); };
-document.getElementById('btn-upgrader').onclick = () => { currentGame = 'upgrader'; go('s-upgrader'); loadBet('bet-inp', syncSlider); syncSlider(); updateUI(); };
+document.getElementById('btn-upgrader').onclick = () => { currentGame = 'upgrader'; _invForBet=[]; go('s-upgrader'); loadBet('bet-inp', syncSlider); syncSlider(); updateUI(); };
 document.getElementById('btn-back-upg').onclick = () => { if (!spinning) go('s-games'); };
 
 document.getElementById('btn-minesweeper').onclick = () => {
     currentGame = 'minesweeper';
+    _invForBet = [];
     go('s-minesweeper');
     loadBet('ms-bet-inp', msSyncSlider);
     msSyncSlider();
@@ -2560,8 +2749,10 @@ function msSyncSlider() {
 }
 
 function msUpdateInfoRow() {
-    const bet = parseFloat(document.getElementById('ms-bet-inp').value) || 0;
-    document.getElementById('ms-info-bet').textContent = bet > 0 ? fmt(bet) : '—';
+    const cashBet  = parseFloat(document.getElementById('ms-bet-inp').value) || 0;
+    const itemsTot = _getBetItemsTotal('ms');
+    const totalBet = cashBet + itemsTot;
+    document.getElementById('ms-info-bet').textContent = totalBet > 0 ? fmt(totalBet) : '—';
     document.getElementById('ms-info-bombs').textContent = msGame.mines;
     const stepMult = msCalcStepMult(1, msGame.mines);
     document.getElementById('ms-info-mult').textContent = '×' + stepMult.toFixed(2);
@@ -2620,34 +2811,52 @@ function msUpdateCashoutBtn() {
 }
 
 async function msStartGame() {
-    const bet = parseFloat(document.getElementById('ms-bet-inp').value);
-    if (!bet || bet < 500) { toast('Минимальная ставка 500₽'); return; }
-    if (bet > balance) { toast('Недостаточно средств'); return; }
-    saveBet(bet);
+    const cashBet  = parseFloat(document.getElementById('ms-bet-inp').value) || 0;
+    const itemsTot = _getBetItemsTotal('ms');
+    const totalBet = cashBet + itemsTot;
+    if (totalBet < 500) { toast('Минимальная ставка 500₽'); return; }
+    if (cashBet > balance) { toast('Недостаточно средств'); return; }
+    if (cashBet >= 500) saveBet(cashBet);
 
     msSetControlsLocked(true);
+    document.getElementById('ms-panels').style.display = 'none';
+
+    // Продаём предметы-ставку если есть
+    let actualBet = cashBet;
+    if (itemsTot > 0) {
+        const proceeds = await _sellBetItems('ms');
+        actualBet = cashBet + proceeds;
+    }
+    if (actualBet < 500) {
+        toast('Итоговая ставка слишком мала');
+        msSetControlsLocked(false);
+        document.getElementById('ms-panels').style.display = '';
+        return;
+    }
 
     let result;
     try {
         const r = await fetch(API_BASE + '/api/minesweeper/start', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ init_data: initData, bet, mines: msGame.mines })
+            body: JSON.stringify({ init_data: initData, bet: actualBet, mines: msGame.mines })
         });
         result = await r.json();
     } catch {
         toast('Ошибка сервера');
         msSetControlsLocked(false);
+        document.getElementById('ms-panels').style.display = '';
         return;
     }
     if (result.error) {
         toast(result.error);
         msSetControlsLocked(false);
+        document.getElementById('ms-panels').style.display = '';
         return;
     }
 
     msGame.active = true;
     msGame.sessionId = result.session_id;
-    msGame.bet = bet;
+    msGame.bet = actualBet;
     msGame.opened = 0;
     msGame.mult = 1.0;
     msGame.cells = Array(25).fill(null);
@@ -2785,6 +2994,7 @@ function msResetUI() {
     msGame.cells = Array(25).fill(null);
     document.getElementById('ms-game-area').style.display = 'none';
     document.getElementById('ms-start-btn').style.display = '';
+    document.getElementById('ms-panels').style.display = '';
     msSetControlsLocked(false);
     msSyncSlider();
     msUpdateInfoRow();
@@ -2863,11 +3073,13 @@ function drawRouletteWheel(angle) {
 }
 
 function rlUpdateInfoRow() {
-    const bet = parseFloat(document.getElementById('rl-bet-inp').value) || 0;
-    document.getElementById('rl-info-bet').textContent  = bet > 0 ? fmt(bet) : '—';
+    const cashBet  = parseFloat(document.getElementById('rl-bet-inp').value) || 0;
+    const itemsTot = _getBetItemsTotal('rl');
+    const totalBet = cashBet + itemsTot;
+    document.getElementById('rl-info-bet').textContent   = totalBet > 0 ? fmt(totalBet) : '—';
     document.getElementById('rl-info-color').textContent = RL_EMOJI[rlSelectedColor] || '—';
     const m = RL_MULTS[rlSelectedColor];
-    document.getElementById('rl-info-win').textContent  = bet > 0 ? '+' + fmt(bet * (m - 1)) : '—';
+    document.getElementById('rl-info-win').textContent   = totalBet > 0 ? '+' + fmt(totalBet * (m - 1)) : '—';
 }
 
 function rlSyncSlider() {
@@ -2892,19 +3104,34 @@ function rlSetUILocked(locked) {
 
 async function rlDoSpin() {
     if (rlSpinning) return;
-    const bet = parseFloat(document.getElementById('rl-bet-inp').value);
-    if (!bet || bet < 500) { toast('Минимальная ставка 500₽'); return; }
-    if (bet > balance)     { toast('Недостаточно средств');     return; }
-    saveBet(bet);
+    const cashBet  = parseFloat(document.getElementById('rl-bet-inp').value) || 0;
+    const itemsTot = _getBetItemsTotal('rl');
+    const totalBet = cashBet + itemsTot;
+    if (totalBet < 500) { toast('Минимальная ставка 500₽'); return; }
+    if (cashBet > balance) { toast('Недостаточно средств'); return; }
+    if (cashBet >= 500) saveBet(cashBet);
 
     rlSpinning = true;
     rlSetUILocked(true);
+
+    // Продаём предметы-ставку если есть
+    let actualBet = cashBet;
+    if (itemsTot > 0) {
+        const proceeds = await _sellBetItems('rl');
+        actualBet = cashBet + proceeds;
+    }
+    if (actualBet < 500) {
+        toast('Итоговая ставка слишком мала');
+        rlSpinning = false;
+        rlSetUILocked(false);
+        return;
+    }
 
     let result;
     try {
         const r = await fetch(API_BASE + '/api/roulette', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ init_data: initData, bet, color: rlSelectedColor })
+            body: JSON.stringify({ init_data: initData, bet: actualBet, color: rlSelectedColor })
         });
         result = await r.json();
     } catch {
@@ -2968,7 +3195,7 @@ async function rlDoSpin() {
                     `Выпало <b>${RL_EMOJI[rc]}</b> — ты выиграл <b style="color:var(--green)">+${fmt(result.profit)}</b>`;
             } else {
                 document.getElementById('res-amt').innerHTML =
-                    `Выпало <b>${RL_EMOJI[rc]}</b> — ты потерял <b style="color:var(--red)">-${fmt(bet)}</b>`;
+                    `Выпало <b>${RL_EMOJI[rc]}</b> — ты потерял <b style="color:var(--red)">-${fmt(actualBet)}</b>`;
             }
             showOverlay();
             rlSpinning = false;
@@ -2981,6 +3208,7 @@ async function rlDoSpin() {
 // Roulette events
 document.getElementById('btn-roulette').onclick = () => {
     currentGame = 'roulette';
+    _invForBet = [];
     go('s-roulette');
     loadBet('rl-bet-inp', rlSyncSlider);
     rlSyncSlider();
@@ -3144,7 +3372,9 @@ function crSyncSlider() {
 
 function crUpdateInfoRow() {
     const inp = document.getElementById('cr-bet-inp');
-    const bet = crState !== 'idle' ? crBet : (inp ? parseFloat(inp.value) || 0 : 0);
+    const cashBet  = crState !== 'idle' ? crBet : (inp ? parseFloat(inp.value) || 0 : 0);
+    const itemsTot = crState === 'idle' ? _getBetItemsTotal('cr') : 0;
+    const bet      = cashBet + itemsTot;
     const lastMult = crPoints.length ? crPoints[crPoints.length-1][1] : 1.0;
     const dispMult = crState === 'crashed' ? (crCrashedAt || 1.0) : lastMult;
 
@@ -3267,19 +3497,34 @@ async function crDoCashout() {
 }
 
 async function crStartGame() {
-    const bet = parseFloat(document.getElementById('cr-bet-inp').value);
-    if (!bet || bet < 500) { toast('Минимальная ставка 500₽'); return; }
-    if (bet > balance)     { toast('Недостаточно средств');     return; }
-    saveBet(bet);
+    const cashBet  = parseFloat(document.getElementById('cr-bet-inp').value) || 0;
+    const itemsTot = _getBetItemsTotal('cr');
+    const totalBet = cashBet + itemsTot;
+    if (totalBet < 500) { toast('Минимальная ставка 500₽'); return; }
+    if (cashBet > balance) { toast('Недостаточно средств'); return; }
+    if (cashBet >= 500) saveBet(cashBet);
 
     crSetControlsLocked(true);
     document.getElementById('cr-action-btn').disabled = true;
+
+    // Продаём предметы-ставку если есть
+    let actualBet = cashBet;
+    if (itemsTot > 0) {
+        const proceeds = await _sellBetItems('cr');
+        actualBet = cashBet + proceeds;
+    }
+    if (actualBet < 500) {
+        toast('Итоговая ставка слишком мала');
+        crSetControlsLocked(false);
+        document.getElementById('cr-action-btn').disabled = false;
+        return;
+    }
 
     let result;
     try {
         const r = await fetch(API_BASE + '/api/crash/start', {
             method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({init_data: initData, bet})
+            body: JSON.stringify({init_data: initData, bet: actualBet})
         });
         result = await r.json();
     } catch {
@@ -3295,7 +3540,7 @@ async function crStartGame() {
         return;
     }
 
-    crBet       = bet;
+    crBet       = actualBet;
     crSessionId = result.session_id;
     crStartMs   = Date.now();   // клиентское время — стартуем с x1.00
     crState     = 'flying';
@@ -3316,7 +3561,9 @@ async function crStartGame() {
 
 // Crash events
 document.getElementById('btn-crash').onclick = () => {
-    currentGame = 'crash'; go('s-crash');
+    currentGame = 'crash';
+    _invForBet = [];
+    go('s-crash');
     loadBet('cr-bet-inp', crSyncSlider);
     crSetupCanvas(); crSyncSlider(); crDrawGraph(); crRenderHistory();
 };
@@ -4035,6 +4282,227 @@ async function pollEvents() {
         }
     } catch {}
     _polling = false;
+}
+
+// ── ITEM BET SYSTEM ──────────────────────────────────
+let _ipmGame   = null;   // 'upg'|'ms'|'rl'|'cr'
+let _ipmType   = null;   // 'bet'|'target'
+let _invForBet = [];     // кэш инвентаря для ставок
+let _selBetItems = { upg:[], ms:[], rl:[], cr:[] };
+let _selTarget   = { upg:null, ms:null, rl:null, cr:null };
+
+function _rarityFromPrice(price) {
+    if (price >= 50000000) return 'rarity-extraordinary';
+    if (price >= 10000000) return 'rarity-covert';
+    if (price >= 2000000)  return 'rarity-classified';
+    if (price >= 500000)   return 'rarity-restricted';
+    if (price >= 100000)   return 'rarity-milspec';
+    if (price >= 20000)    return 'rarity-industrial';
+    return 'rarity-consumer';
+}
+
+async function _ensureInvForBet() {
+    if (_invForBet.length) return;
+    try {
+        const r = await fetch(bustUrl(API_BASE+'/api/inventory?init_data='+encodeURIComponent(initData)));
+        const d = await r.json();
+        _invForBet = (d.items||[]).filter(i=>!i.is_rented);
+    } catch { _invForBet = []; }
+}
+
+async function openItemPicker(game, type) {
+    // Блокировка во время активной игры
+    if (game==='upg' && spinning)          return;
+    if (game==='ms'  && msGame.active)     return;
+    if (game==='rl'  && rlSpinning)        return;
+    if (game==='cr'  && crState!=='idle')  return;
+
+    _ipmGame = game; _ipmType = type;
+    document.getElementById('ipm-title').textContent =
+        type==='bet' ? 'Выберите предметы для ставки' : 'Выберите предмет который хотите выбить';
+    document.getElementById('ipm-confirm-btn').textContent =
+        type==='target' ? 'Выбрать' : 'Применить';
+    if (type==='bet') {
+        await _ensureInvForBet();
+        _renderBetPicker();
+    } else {
+        _renderTargetPicker();
+    }
+    document.getElementById('ipm-modal').classList.add('show');
+}
+
+function closeItemPicker() {
+    document.getElementById('ipm-modal').classList.remove('show');
+}
+
+function _renderBetPicker() {
+    const list   = document.getElementById('ipm-list');
+    const selIds = new Set((_selBetItems[_ipmGame]||[]).map(i=>i.inv_id));
+    if (!_invForBet.length) {
+        list.innerHTML = '<div class="ipm-empty">Инвентарь пуст</div>';
+        _updateIpmFooter(); return;
+    }
+    list.innerHTML = _invForBet.map(item => {
+        const sp  = Math.floor(item.price_paid * 0.85);
+        const rc  = _rarityFromPrice(item.price_paid);
+        const rn  = RARITY_NAMES[RARITY_CLASSES.indexOf(rc)] || '';
+        const sel = selIds.has(item.id);
+        return `<div class="ipi ${rc}${sel?' sel':''}" onclick="_toggleBetItem(this)"
+            data-inv-id="${item.id}" data-sell="${sp}"
+            data-name="${item.name.replace(/"/g,'&quot;')}" data-icon="${item.icon}">
+            <div class="ipi-chk">✓</div>
+            <div class="ipi-ico">${item.icon}</div>
+            <div class="ipi-name">${item.name}</div>
+            <div class="ipi-price">${fmt(sp)}</div>
+            <div class="ipi-rare">${rn}</div>
+        </div>`;
+    }).join('');
+    _updateIpmFooter();
+}
+
+function _allTargetItems() {
+    const seen = new Set(), res = [];
+    for (const [cat, data] of Object.entries(CASE_LOOT_FE)) {
+        if (cat==='daily'||cat==='balance') continue;
+        for (const it of data.items) {
+            if (!it.isKey && it.price>0 && !seen.has(it.name)) {
+                seen.add(it.name); res.push({...it, cat});
+            }
+        }
+    }
+    return res.sort((a,b)=>(b.price||0)-(a.price||0));
+}
+
+function _renderTargetPicker() {
+    const list = document.getElementById('ipm-list');
+    const cur  = _selTarget[_ipmGame];
+    const all  = _allTargetItems();
+    if (!all.length) { list.innerHTML='<div class="ipm-empty">Нет предметов</div>'; _updateIpmFooter(); return; }
+    list.innerHTML = all.map(item => {
+        const rc  = _rarityFromPrice(item.price);
+        const rn  = RARITY_NAMES[RARITY_CLASSES.indexOf(rc)] || '';
+        const sel = cur && cur.name===item.name;
+        return `<div class="ipi ${rc}${sel?' sel':''}" onclick="_selectTarget(this)"
+            data-name="${item.name.replace(/"/g,'&quot;')}"
+            data-icon="${item.icon}" data-price="${item.price}">
+            <div class="ipi-chk">✓</div>
+            <div class="ipi-ico">${item.icon}</div>
+            <div class="ipi-name">${item.name}</div>
+            <div class="ipi-price">${fmt(item.price)}</div>
+            <div class="ipi-rare">${rn}</div>
+        </div>`;
+    }).join('');
+    _updateIpmFooter();
+}
+
+function _toggleBetItem(el) {
+    el.classList.toggle('sel');
+    const invId = +el.dataset.invId;
+    if (!_selBetItems[_ipmGame]) _selBetItems[_ipmGame] = [];
+    const arr = _selBetItems[_ipmGame];
+    const idx = arr.findIndex(i=>i.inv_id===invId);
+    if (idx>=0) arr.splice(idx,1);
+    else arr.push({ inv_id:invId, name:el.dataset.name, icon:el.dataset.icon, sell_price:+el.dataset.sell });
+    _updateIpmFooter();
+}
+
+function _selectTarget(el) {
+    document.querySelectorAll('#ipm-list .ipi').forEach(e=>e.classList.remove('sel'));
+    el.classList.add('sel');
+    _selTarget[_ipmGame] = { name:el.dataset.name, icon:el.dataset.icon, price:+el.dataset.price };
+    _updateIpmFooter();
+}
+
+function _updateIpmFooter() {
+    const lbl = document.getElementById('ipm-footer-lbl');
+    const val = document.getElementById('ipm-footer-val');
+    if (_ipmType==='bet') {
+        const sel = _selBetItems[_ipmGame]||[];
+        const tot = sel.reduce((s,i)=>s+i.sell_price,0);
+        lbl.textContent = 'Выбрано: '+sel.length+' предм.';
+        val.textContent = tot>0 ? fmt(tot) : '0₽';
+        val.style.color = 'var(--green)';
+    } else {
+        const t = _selTarget[_ipmGame];
+        lbl.textContent = t ? t.name : 'Не выбрано';
+        val.textContent = t ? fmt(t.price) : '—';
+        val.style.color = t ? 'var(--accent)' : 'var(--text2)';
+    }
+}
+
+function confirmItemPicker() {
+    closeItemPicker();
+    _refreshBetPanel(_ipmGame);
+}
+
+function _getBetItemsTotal(game) {
+    return (_selBetItems[game]||[]).reduce((s,i)=>s+i.sell_price,0);
+}
+
+function _refreshBetPanel(game) {
+    const sel  = _selBetItems[game]||[];
+    const tgt  = _selTarget[game];
+    const tot  = sel.reduce((s,i)=>s+i.sell_price,0);
+
+    const betPanel = document.getElementById(game+'-bet-panel');
+    const betIcons = document.getElementById(game+'-bet-icons');
+    const betVal   = document.getElementById(game+'-bet-val');
+    const tgtPanel = document.getElementById(game+'-target-panel');
+    const tgtIcons = document.getElementById(game+'-target-icons');
+    const tgtVal   = document.getElementById(game+'-target-val');
+
+    if (betIcons) {
+        if (sel.length) {
+            betIcons.innerHTML = sel.slice(0,5).map(i=>`<span class="bet-panel-ico">${i.icon}</span>`).join('')
+                + (sel.length>5 ? `<span style="font-size:10px;color:var(--text2);margin-left:2px">+${sel.length-5}</span>` : '');
+            betPanel?.classList.add('active-bet');
+        } else {
+            betIcons.innerHTML = '<span class="bet-panel-hint">Нажмите для выбора</span>';
+            betPanel?.classList.remove('active-bet');
+        }
+        if (betVal) betVal.textContent = tot>0 ? fmt(tot) : '0₽';
+    }
+
+    if (tgtIcons) {
+        if (tgt) {
+            tgtIcons.innerHTML = `<span class="bet-panel-ico" style="border-color:var(--accent);width:30px;height:30px;font-size:18px">${tgt.icon}</span>`;
+            tgtPanel?.classList.add('active-target');
+            if (tgtVal) tgtVal.textContent = fmt(tgt.price);
+        } else {
+            tgtIcons.innerHTML = '<span class="bet-panel-hint">Выбрать цель</span>';
+            tgtPanel?.classList.remove('active-target');
+            if (tgtVal) tgtVal.textContent = '—';
+        }
+    }
+
+    if (game==='upg') updateUI();
+    else if (game==='ms') msUpdateInfoRow();
+    else if (game==='rl') rlUpdateInfoRow();
+    else if (game==='cr') crUpdateInfoRow();
+}
+
+async function _sellBetItems(game) {
+    const items = _selBetItems[game]||[];
+    if (!items.length) return 0;
+    let total = 0;
+    const done = [];
+    for (const item of items) {
+        try {
+            const r = await fetch(API_BASE+'/api/inventory/sell', {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({init_data:initData, inv_id:item.inv_id})
+            });
+            const d = await r.json();
+            if (d.error) { toast('Не продать: '+item.name); continue; }
+            total += d.sell_price || item.sell_price;
+            done.push(item.inv_id);
+            if (d.new_balance!==undefined) applyNewBalance(d.new_balance);
+        } catch {}
+    }
+    _selBetItems[game] = items.filter(i=>!done.includes(i.inv_id));
+    _invForBet = []; invItems = []; sellItems = [];
+    _refreshBetPanel(game);
+    return total;
 }
 
 // ── INIT ──────────────────────────────────────────────
