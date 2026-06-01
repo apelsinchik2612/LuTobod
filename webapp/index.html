@@ -1254,7 +1254,7 @@ input[type=number] { -moz-appearance: textfield; }
             <input type="range" id="bet-slider" class="bet-slider" min="500" max="500" step="1" value="500">
         </div>
 
-        <div class="w100">
+        <div class="w100" id="upg-mult-section">
             <div class="field-lbl">Множитель</div>
             <div class="mult-grid">
                 <button class="mbtn sel" data-m="2">2×</button>
@@ -1267,7 +1267,7 @@ input[type=number] { -moz-appearance: textfield; }
         <div class="info-row">
             <div class="info-item"><div class="info-item-lbl">Ставка</div><div class="info-item-val" id="prev-bet">—</div></div>
             <div class="info-item"><div class="info-item-lbl">Шанс</div><div class="info-item-val" id="prev-chance">50%</div></div>
-            <div class="info-item"><div class="info-item-lbl">Выиграешь</div><div class="info-item-val g" id="prev-win">—</div></div>
+            <div class="info-item"><div class="info-item-lbl" id="upg-win-lbl">Выиграешь</div><div class="info-item-val g" id="prev-win">—</div></div>
         </div>
 
         <div style="display:flex;gap:8px;width:100%;">
@@ -1872,22 +1872,32 @@ async function loadBalance() {
 }
 
 // ── 3: ПЛАВНАЯ АНИМАЦИЯ ШАНСА + ЗЕЛЁНОЙ ЗОНЫ ─────────
+function _fmtChancePct(wc) {
+    const p = wc * 100;
+    if (p >= 1)     return Math.round(p) + '%';
+    if (p >= 0.1)   return p.toFixed(1) + '%';
+    if (p >= 0.01)  return p.toFixed(2) + '%';
+    if (p >= 0.001) return p.toFixed(3) + '%';
+    return p.toFixed(4) + '%';
+}
+
 function animateChance(targetWc) {
     if (chanceRaf) { cancelAnimationFrame(chanceRaf); chanceRaf = null; }
-    const startWc = displayWc;
+    const startWc  = displayWc;
     const startPct = displayPct;
     const targetPct = Math.round(targetWc * 100);
-    const diffWc = targetWc - startWc;
-    const diffPct = targetPct - startPct;
-    if (!diffWc && !diffPct) return;
+    const diffWc   = targetWc - startWc;
+    const diffPct  = targetPct - startPct;
+    if (Math.abs(diffWc) < 1e-9 && !diffPct) return;
     const t0 = performance.now(), dur = 300;
     function frame(now) {
         const t = Math.min((now - t0) / dur, 1);
         const e = t < 0.5 ? 2*t*t : -1+(4-2*t)*t;
         displayWc = startWc + diffWc * e;
-        const p = Math.round(startPct + diffPct * e);
-        document.getElementById('chance-pct').textContent = p + '%';
-        document.getElementById('prev-chance').textContent = p + '%';
+        const curWc = displayWc;
+        const dispStr = _fmtChancePct(curWc);
+        document.getElementById('chance-pct').textContent = dispStr;
+        document.getElementById('prev-chance').textContent = dispStr;
         drawWheel(arrowAngle, displayWc);
         if (t < 1) { chanceRaf = requestAnimationFrame(frame); }
         else { displayWc = targetWc; displayPct = targetPct; chanceRaf = null; }
@@ -1982,13 +1992,29 @@ function drawWheel(angle, wc) {
 function winChance() { return 1/mult; }
 
 function updateUI() {
-    const wc = winChance();
-    animateChance(wc);
     const cashBet  = parseFloat(document.getElementById('bet-inp').value) || 0;
     const itemsTot = _getBetItemsTotal('upg');
     const totalBet = cashBet + itemsTot;
+    const target   = _selTarget['upg'];
+
+    let wc;
+    if (target && target.price > 0 && totalBet > 0) {
+        wc = Math.min(0.9999, totalBet / target.price);
+        // Скрываем выбор множителя, показываем целевой предмет
+        document.getElementById('upg-mult-section').style.display = 'none';
+        document.getElementById('upg-win-lbl').textContent = 'Выбить';
+        document.getElementById('prev-win').textContent = target.icon + ' ' + target.name;
+        document.getElementById('prev-win').style.cssText = 'font-size:11px;color:var(--accent)';
+    } else {
+        wc = winChance();
+        document.getElementById('upg-mult-section').style.display = '';
+        document.getElementById('upg-win-lbl').textContent = 'Выиграешь';
+        document.getElementById('prev-win').textContent = totalBet > 0 ? '+'+fmt(totalBet*(mult-1)) : '—';
+        document.getElementById('prev-win').style.cssText = '';
+    }
+
+    animateChance(wc);
     document.getElementById('prev-bet').textContent = totalBet > 0 ? fmt(totalBet) : '—';
-    document.getElementById('prev-win').textContent = totalBet > 0 ? '+'+fmt(totalBet*(mult-1)) : '—';
 }
 
 // ── 2: БЛОКИРОВКА UI ВО ВРЕМЯ КРУЧЕНИЯ ───────────────
@@ -2025,6 +2051,8 @@ async function doSpin() {
     const cashBet  = parseFloat(document.getElementById('bet-inp').value) || 0;
     const itemsTot = _getBetItemsTotal('upg');
     const totalBet = cashBet + itemsTot;
+    const target   = _selTarget['upg'];
+
     if (totalBet < 500) { toast('Минимальная ставка 500₽'); return; }
     if (cashBet > balance) { toast('Недостаточно средств'); return; }
     if (cashBet >= 500) saveBet(cashBet);
@@ -2033,25 +2061,44 @@ async function doSpin() {
     document.getElementById('spin-btn').disabled = true;
     setUILocked(true);
 
-    // Продаём предметы-ставку если есть
-    let actualBet = cashBet;
-    if (itemsTot > 0) {
-        const proceeds = await _sellBetItems('upg');
-        actualBet = cashBet + proceeds;
+    let actualBet, actualMult, betInvIds = [];
+
+    if (target && target.price > 0) {
+        // Режим с целью: предметы НЕ продаются заранее, отправляем их id
+        actualBet  = cashBet;
+        actualMult = target.price / Math.max(totalBet, 1);
+        betInvIds  = (_selBetItems['upg'] || []).map(i => i.inv_id);
+    } else {
+        // Режим без цели: продаём предметы, добавляем выручку к ставке
+        actualBet = cashBet;
+        if (itemsTot > 0) {
+            const proceeds = await _sellBetItems('upg');
+            actualBet = cashBet + proceeds;
+        }
+        if (actualBet < 500) {
+            toast('Итоговая ставка слишком мала');
+            spinning = false;
+            document.getElementById('spin-btn').disabled = false;
+            setUILocked(false);
+            return;
+        }
+        actualMult = mult;
     }
-    if (actualBet < 500) {
-        toast('Итоговая ставка слишком мала');
-        spinning = false;
-        document.getElementById('spin-btn').disabled = false;
-        setUILocked(false);
-        return;
-    }
+
+    const payload = {
+        init_data:       initData,
+        bet:             actualBet,
+        multiplier:      actualMult,
+        total_bet_value: totalBet,
+    };
+    if (betInvIds.length)  payload.bet_inv_ids  = betInvIds;
+    if (target)            payload.target_item   = { name: target.name, icon: target.icon, price: target.price };
 
     let result;
     try {
         const r = await fetch(API_BASE+'/api/upgrade', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ init_data: initData, bet: actualBet, multiplier: mult })
+            body: JSON.stringify(payload)
         });
         result = await r.json();
     } catch {
@@ -2070,7 +2117,13 @@ async function doSpin() {
         return;
     }
 
-    const wc = winChance();
+    // Если был режим с целью — предметы уже удалены сервером, чистим локальный стейт
+    if (target) {
+        _selBetItems['upg'] = [];
+        _invForBet = []; invItems = []; sellItems = [];
+    }
+
+    const wc = Math.min(0.9999, 1.0 / actualMult);  // динамический шанс
     const wa = wc * Math.PI * 2;
     const winMid = Math.PI / 2;
     const winStart = winMid - wa / 2;
@@ -2079,14 +2132,14 @@ async function doSpin() {
 
     let landAngle;
     if (won) {
-        landAngle = winStart + wa * 0.15 + Math.random() * wa * 0.7;
+        const safeWa = Math.max(wa, 0.01);
+        landAngle = winStart + safeWa * 0.15 + Math.random() * safeWa * 0.7;
     } else {
-        const lr = Math.PI * 2 - wa;
+        const lr = Math.max(Math.PI * 2 - wa, 0.01);
         landAngle = winEnd + lr * 0.1 + Math.random() * lr * 0.8;
     }
     landAngle = ((landAngle % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
 
-    // Стрелка всегда стартует с INITIAL_ANGLE (возвращается туда после каждого прокрута)
     const startAngle = INITIAL_ANGLE;
     const initNorm = ((INITIAL_ANGLE % (Math.PI*2)) + Math.PI*2) % (Math.PI*2);
     let delta = landAngle - initNorm;
@@ -2094,7 +2147,6 @@ async function doSpin() {
     const fullRots = fastMode ? 2 : (5 + Math.floor(Math.random() * 3));
     const totalDelta = fullRots * Math.PI * 2 + delta;
 
-    // Быстрый режим — ровно в 2х быстрее, одинаковая плавность
     const baseDur = 5000 + Math.random() * 1000;
     const duration = fastMode ? baseDur / 2 : baseDur;
     const t0 = performance.now();
@@ -2110,7 +2162,7 @@ async function doSpin() {
             arrowAngle = startAngle + totalDelta;
             drawWheel(arrowAngle, wc);
             applyNewBalance(result.new_balance);
-            showResult(won, actualBet, result.profit, mult, result.daily_key_awarded);
+            showResult(won, totalBet, result.profit, actualMult, result.daily_key_awarded, result.won_item);
             spinning = false;
             document.getElementById('spin-btn').disabled = false;
             setUILocked(false);
@@ -2119,17 +2171,26 @@ async function doSpin() {
     raf = requestAnimationFrame(frame);
 }
 
-function showResult(won, bet, profit, m, dailyKeyAwarded) {
-    document.getElementById('res-emo').textContent = won ? '🏆' : '💸';
+function showResult(won, bet, profit, m, dailyKeyAwarded, wonItem) {
+    document.getElementById('res-emo').textContent = won ? (wonItem ? wonItem.icon : '🏆') : '💸';
     document.getElementById('res-title').textContent = won ? 'Победа!' : 'Проигрыш';
     if (won) {
-        document.getElementById('res-amt').innerHTML = `Ты выиграл <b style="color:var(--green)">+${fmt(profit)}</b>`;
+        if (wonItem) {
+            document.getElementById('res-amt').innerHTML =
+                `Ты выбил <b style="color:var(--accent)">${wonItem.icon} ${wonItem.name}</b><br>` +
+                `<span style="font-size:13px;color:var(--text2)">Предмет добавлен в инвентарь</span>`;
+        } else {
+            document.getElementById('res-amt').innerHTML = `Ты выиграл <b style="color:var(--green)">+${fmt(profit)}</b>`;
+        }
     } else {
         document.getElementById('res-amt').innerHTML = `Ты потерял <b style="color:var(--red)">-${fmt(bet)}</b>`;
     }
     showOverlay();
     haptic(won ? 'success' : 'error');
-    if (won && stSettings.notifyWin) notify('💰', 'Победа!', '+' + fmt(profit));
+    if (won && stSettings.notifyWin) {
+        if (wonItem) notify(wonItem.icon, 'Выбито!', wonItem.name + ' → в инвентаре');
+        else notify('💰', 'Победа!', '+' + fmt(profit));
+    }
     if (dailyKeyAwarded) {
         caseStatus.keys = caseStatus.keys || {};
         caseStatus.keys.daily = (caseStatus.keys.daily || 0) + 1;
@@ -4378,7 +4439,12 @@ function _renderTargetPicker() {
     const cur  = _selTarget[_ipmGame];
     const all  = _allTargetItems();
     if (!all.length) { list.innerHTML='<div class="ipm-empty">Нет предметов</div>'; _updateIpmFooter(); return; }
-    list.innerHTML = all.map(item => {
+    const clearBtn = `<div class="ipi" onclick="_clearTarget()" style="border-color:rgba(248,81,73,.5)">
+        <div class="ipi-ico">❌</div>
+        <div class="ipi-name">Без цели</div>
+        <div class="ipi-rare" style="background:rgba(248,81,73,.12);color:#f85149">Сброс</div>
+    </div>`;
+    list.innerHTML = clearBtn + all.map(item => {
         const rc  = _rarityFromPrice(item.price);
         const rn  = RARITY_NAMES[RARITY_CLASSES.indexOf(rc)] || '';
         const sel = cur && cur.name===item.name;
@@ -4395,6 +4461,12 @@ function _renderTargetPicker() {
     _updateIpmFooter();
 }
 
+function _clearTarget() {
+    _selTarget[_ipmGame] = null;
+    closeItemPicker();
+    _refreshBetPanel(_ipmGame);
+}
+
 function _toggleBetItem(el) {
     el.classList.toggle('sel');
     const invId = +el.dataset.invId;
@@ -4407,9 +4479,14 @@ function _toggleBetItem(el) {
 }
 
 function _selectTarget(el) {
+    const wasSelected = el.classList.contains('sel');
     document.querySelectorAll('#ipm-list .ipi').forEach(e=>e.classList.remove('sel'));
-    el.classList.add('sel');
-    _selTarget[_ipmGame] = { name:el.dataset.name, icon:el.dataset.icon, price:+el.dataset.price };
+    if (wasSelected) {
+        _selTarget[_ipmGame] = null;
+    } else {
+        el.classList.add('sel');
+        _selTarget[_ipmGame] = { name:el.dataset.name, icon:el.dataset.icon, price:+el.dataset.price };
+    }
     _updateIpmFooter();
 }
 
