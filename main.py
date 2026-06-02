@@ -971,7 +971,7 @@ async def web_api_upgrade(request: aio_web.Request) -> aio_web.Response:
                 new_balance = round(balance - bet, 2)
             else:
                 profit      = round(bet * (multiplier - 1), 2)
-                new_balance = round(balance - bet + profit, 2)
+                new_balance = round(balance + profit, 2)
 
             await db.execute(
                 "UPDATE users SET balance = ?, games_played = games_played + 1 WHERE id = ?",
