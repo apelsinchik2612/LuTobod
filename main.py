@@ -25,7 +25,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.client.session.aiohttp import AiohttpSession
 
 # ===================== КОНФИГ =====================
-BOT_TOKEN = "8672400944:AAHNBgcNkkcOi2q-dXgqH34EDRHWxAacQ5k"
+BOT_TOKEN = ""
 SUPERADMIN_IDS: set[int] = {8513748992}   # нельзя удалить через команды
 ADMIN_IDS: set[int] = set(SUPERADMIN_IDS) # дополняется из БД при запуске
 DB_PATH = "bot.db"
