@@ -26,7 +26,7 @@ from aiogram.client.session.aiohttp import AiohttpSession
 
 # ===================== КОНФИГ =====================
 BOT_TOKEN = ""
-SUPERADMIN_IDS: set[int] = {8513748992}   # нельзя удалить через команды
+SUPERADMIN_IDS: set[int] = {}   # нельзя удалить через команды
 ADMIN_IDS: set[int] = set(SUPERADMIN_IDS) # дополняется из БД при запуске
 DB_PATH = "bot.db"
 PROXY = ""
